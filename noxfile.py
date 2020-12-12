@@ -13,7 +13,7 @@ pyversions = ["3.8"]
 @nox.session(python=pyversions)
 def tests(session: Session) -> None:
     """Run tests."""
-    args = session.posargs or ["--cov", "-m", "not prod"]
+    args = session.posargs or ["--cov"]
     session.install("-r", "requirements.txt")
     session.install("pytest", "pytest-cov")
     session.install("-e", ".", "--no-deps")

@@ -1,9 +1,10 @@
-"""Tests for xtb commandline wrapper."""
-from iacta import cliwrap
+"""Tests for commandline wrapper."""
+from funsies import cliwrap
 
 
 def test_command_echo() -> None:
     """Test running the wrapper."""
+    cliwrap.un_setup_cache()
     cmd = cliwrap.Command(executable="echo")
     results = cliwrap.run_command(".", None, cmd)
     assert results.returncode == 0
@@ -109,3 +110,15 @@ def test_cliwrap_nocmd_err() -> None:
     )
     results = cliwrap.run(task)
     assert isinstance(results.commands[0].exception, FileNotFoundError)
+
+
+def test_no_dask() -> None:
+    """Test functionality when dask is not present."""
+    cliwrap.__DASK_AVAIL = False
+    cmd = cliwrap.Command(
+        executable="cat",
+        args=["file"],
+    )
+    task = cliwrap.Task([cmd], inputs={"file": b"12345"})
+    results = cliwrap.run(task)
+    assert results.commands[0].stdout == b"12345"

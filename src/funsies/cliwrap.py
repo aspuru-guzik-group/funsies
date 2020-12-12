@@ -1,24 +1,23 @@
 """Functional wrappers for commandline programs."""
 # std
 from dataclasses import astuple, dataclass, field
+import logging
 import os
 import subprocess
 import tempfile
 from typing import Dict, Optional, Sequence, Union
 
 # external
-from dask.distributed import get_worker
 from diskcache import FanoutCache
 
-# module
-# from .logger import logger
 
 # Type for paths
 _AnyPath = Union[str, os.PathLike]
 
 
-# Variable holding cache
+# Module global variables
 __CACHE: Optional[FanoutCache] = None
+__TMPDIR: Optional[_AnyPath] = None
 
 
 # ------------------------------------------------------------------------------
@@ -66,84 +65,113 @@ class TaskOutput:
 
 # ------------------------------------------------------------------------------
 # Dask utils
+try:
+    from dask.distributed import get_worker as __get_worker
+
+    __DASK_AVAIL = True
+except ImportError:
+    __DASK_AVAIL = False
+
+
 def __worker_id() -> int:
     """Return worker id or 0 if not run with dask."""
-    try:
-        out: int = get_worker().id
-    except ValueError:
+    if __DASK_AVAIL:
+        try:
+            out: int = __get_worker().id
+        except ValueError:
+            out = 0
+    else:
         out = 0
+
     return out
 
 
+# ------------------------------------------------------------------------------
+# Cache setup
 def setup_cache(dir: _AnyPath, shards: int, timeout: float) -> None:
-    """Setup the on-disk cache for Tasks."""
+    """Set up the on-disk cache for Tasks."""
     global __CACHE
     __CACHE = FanoutCache(dir, shards=shards, timeout=timeout)
-    logger.trace(f"id: {__worker_id()} has cache {__CACHE}")
+    logging.debug(f"id: {__worker_id()} has cache {__CACHE}")
+
+
+def un_setup_cache() -> None:
+    """Get rid of all cache information."""
+    global __CACHE
+    __CACHE = None
 
 
 # ------------------------------------------------------------------------------
 # Logging
 def log_task(task: Task) -> None:
     """Log a task."""
-    debug = "TASK\n"
-    debug += f"id: {__worker_id()}\n"
+    info = "TASK\n"
+    info += f"id: {__worker_id()}\n"
     for i, c in enumerate(task.commands):
-        debug += "cmd {} exec: {}\n".format(i, str(c))
+        info += "cmd {} exec: {}\n".format(i, str(c))
 
     # detailed trace of task
-    trace = f"id: {__worker_id()}\n"
-    trace += f"environment variables: {task.environ}\n"
+    debug = f"id: {__worker_id()}\n"
+    debug += f"environment variables: {task.environ}\n"
     for key, val in task.inputs.items():
-        trace += "filename : {} contains\n{}\n EOF ----------\n".format(
+        debug += "filename : {} contains\n{}\n EOF ----------\n".format(
             key, val.decode()
         )
-    trace += "expecting files: {}".format(task.outputs)
-    logger.debug(debug.rstrip())
-    logger.trace(trace)
+    debug += "expecting files: {}".format(task.outputs)
+    logging.info(info.rstrip())
+    logging.debug(debug)
 
 
 def log_output(task: TaskOutput) -> None:
     """Log a completed task."""
-    debug = "TASK OUT\n"
-    debug += f"id: {__worker_id()}\n"
+    info = "TASK OUT\n"
+    info += f"id: {__worker_id()}\n"
     for i, c in enumerate(task.commands):
-        debug += "cmd {} return code: {}\n stderr: {}\n".format(
+        info += "cmd {} return code: {}\n stderr: {}\n".format(
             i, c.returncode, c.stderr.decode()
         )
 
     # detailed trace of task
-    trace = f"id: {__worker_id()}\n"
+    debug = f"id: {__worker_id()}\n"
     for key, val in task.outputs.items():
-        trace += "filename : {} contains\n{}\n EOF ----------\n".format(
+        debug += "filename : {} contains\n{}\n EOF ----------\n".format(
             key, val.decode()
         )
-    logger.debug(debug.rstrip())
-    logger.trace(trace.rstrip())
+    logging.info(info.rstrip())
+    logging.debug(debug.rstrip())
 
 
 # ------------------------------------------------------------------------------
 # Task execution
+def __cached(task: Task) -> Optional[TaskOutput]:
+    # Check if it is cached
+    if __CACHE is not None:
+        # TODO: do not repeat this
+        key = astuple(task)
+        if key in __CACHE:
+            logging.debug("task was cached.")
+            result = __CACHE[key]
+            if isinstance(result, TaskOutput):
+                return result
+            else:
+                logging.error(
+                    "Cache entry for task is not of type TaskOutput, recomputing."
+                )
+    return None
+
+
 def run(task: Task) -> TaskOutput:
     """Execute a task and return all outputs."""
     # log task input
     log_task(task)
 
-    # Check if it is cached
-    if __CACHE is not None:
-        key = astuple(task)  # convert to a tuple for storing in db
-        if key in __CACHE:
-            logger.debug("task was cached.")
-            result = __CACHE[key]
-            if isinstance(result, TaskOutput):
-                return result
-            else:
-                logger.error(
-                    "Cache entry for task is not of type TaskOutput, recomputing."
-                )
+    # Load from cache
+    cached = __cached(task)
+    if cached is not None:
+        return cached
 
     # TODO make directory location setable
-    with tempfile.TemporaryDirectory() as dir:
+    with tempfile.TemporaryDirectory(dir=__TMPDIR) as dir:
         # Put in dir the input files
         for filename, contents in task.inputs.items():
             with open(os.path.join(dir, filename), "wb") as f:
@@ -154,7 +182,7 @@ def run(task: Task) -> TaskOutput:
             couts += [run_command(dir, task.environ, c)]
             if couts[-1].exception:
                 # Stop, something went wrong
-                logger.warning("command did not run: {}", c)
+                logging.warning(f"command did not run: {c}")
                 break
 
         # Read files
@@ -164,17 +192,18 @@ def run(task: Task) -> TaskOutput:
                 with open(os.path.join(dir, name), "rb") as f:
                     outputs[name] = f.read()
             except FileNotFoundError:
-                logger.warning(f"expected file {name}, but didn't find it")
+                logging.warning(f"expected file {name}, but didn't find it")
                 pass
 
         out = TaskOutput(couts, outputs)
         log_output(out)
 
         if __CACHE is not None:
+            key = astuple(task)
             # Cache the result if currently active
             __CACHE[key] = TaskOutput(couts, outputs, cached=True)
 
-        return out
+    return out
 
 
 def run_command(
@@ -188,7 +217,7 @@ def run_command(
     try:
         proc = subprocess.run(args, cwd=dir, capture_output=True, env=environ)
     except Exception as e:
-        logger.exception("failed with exception ", e)
+        logging.exception("run_command failed with exception")
         return CommandOutput(-1, b"", b"", e)
 
     return CommandOutput(

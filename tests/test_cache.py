@@ -6,8 +6,7 @@ import tempfile
 from dask.distributed import Client
 
 # package
-from iacta import cliwrap
-from .useful_functions import log_everything
+from funsies import cliwrap
 
 
 def test_task_cache() -> None:
@@ -34,12 +33,34 @@ def test_task_cache() -> None:
         assert results.cached
 
 
+def test_task_cache_error() -> None:
+    """Test cache failures."""
+    with tempfile.TemporaryDirectory() as tmpd:
+        cliwrap.setup_cache(tmpd, 1, 1.0)
+        assert cliwrap.__CACHE is not None
+
+        cmd = cliwrap.Command(
+            executable="cat",
+            args=["file"],
+        )
+        task = cliwrap.Task([cmd], inputs={"file": b"12345"})
+        results = cliwrap.run(task)
+        assert results.commands[0].stdout == b"12345"
+
+        for key in cliwrap.__CACHE:
+            cliwrap.__CACHE[key] = 3.0
+
+        results = cliwrap.run(task)
+        assert results.commands[0].stdout == b"12345"
+        assert not results.cached
+
+
 def test_dask_task_cache() -> None:
     """Test task caching by Dask workers."""
     pool = Client()
 
-    log_everything()
-    pool.run(log_everything)
+    # log_everything()
+    # pool.run(log_everything)
 
     with tempfile.TemporaryDirectory() as tmpd:
         pool.run(cliwrap.setup_cache, tmpd, 1, 1.0)
@@ -78,6 +99,21 @@ def test_dask_task_cache() -> None:
 
         for future in futures:
             assert future.result().cached
+
+
+def test_dask_task_cache_missing() -> None:
+    """Test Dask execution without cache."""
+    cliwrap.un_setup_cache()
+    pool = Client()
+
+    cmd = cliwrap.Command(
+        executable="cat",
+        args=["file"],
+    )
+    assert cliwrap.__CACHE is None
+    task = cliwrap.Task([cmd], inputs={"file": b"12345"})
+    future = pool.submit(cliwrap.run, task)
+    assert future.result().commands[0].stdout == b"12345"
 
 
 if __name__ == "__main__":
