@@ -1,0 +1,14 @@
+nox
+pytype
+typeguard
+black
+flake8
+flake8-black
+flake8-bugbear
+flake8-import-order
+pytest
+pytest-cov
+flake8-annotations
+flake8-docstrings
+darglint
+xdoctest

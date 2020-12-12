@@ -1,0 +1,8 @@
+.pytype
+.coverage
+__pycache__
+.nox
+*.egg-info
+.vscode
+.mypy_cache
+.pytype
