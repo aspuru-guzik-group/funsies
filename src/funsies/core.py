@@ -161,7 +161,7 @@ def __get_cache(
 
 # ------------------------------------------------------------------------------
 # Logging
-def log_task(task: Task) -> None:
+def __log_task(task: Task) -> None:
     """Log a task."""
     info = "TASK\n"
     info += f"id: {__worker_id()}\n"
@@ -180,7 +180,7 @@ def log_task(task: Task) -> None:
     logging.debug(debug)
 
 
-def log_output(task: TaskOutput) -> None:
+def __log_output(task: TaskOutput) -> None:
     """Log a completed task."""
     info = "TASK OUT\n"
     info += f"id: {__worker_id()}\n"
@@ -223,13 +223,13 @@ def run(task: Task, context: Optional[Context] = None) -> TaskOutput:
     cache = __get_cache(context)
 
     # log task input
-    log_task(task)
+    __log_task(task)
 
     # Load from cache
     cached = __cached(cache, task)
 
     if cached is not None:
-        log_output(cached)
+        __log_output(cached)
         return cached
 
     if context is None:
@@ -262,7 +262,7 @@ def run(task: Task, context: Optional[Context] = None) -> TaskOutput:
                 pass
 
         out = TaskOutput(couts, outputs)
-        log_output(out)
+        __log_output(out)
 
         if cache is not None:
             # Cache the result if currently active

@@ -6,30 +6,32 @@ import tempfile
 from dask.distributed import Client
 
 # package
-from funsies import cliwrap
+from funsies import CacheSettings, Command, Context, run, Task
+
+pool = Client()
 
 
 def test_task_cache() -> None:
     """Test task caching."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = cliwrap.Context(
-            cache=cliwrap.CacheSettings(path=tmpd, shards=1, timeout=1.0)
-        )
-        cmd = cliwrap.Command(
+        context = Context(cache=CacheSettings(path=tmpd, shards=1, timeout=1.0))
+        cmd = Command(
             executable="cat",
             args=["file"],
         )
-        task = cliwrap.Task([cmd], inputs={"file": b"12345"})
-        results = cliwrap.run(task, context)
+        task = Task([cmd], inputs={"file": b"12345"})
+        results = run(task, context)
         assert results.commands[0].stdout == b"12345"
 
         k = 0
-        assert cliwrap.__CACHE is not None
-        for _ in cliwrap.__CACHE:
+        from funsies.core import __CACHE
+
+        assert __CACHE is not None
+        for _ in __CACHE:
             k = k + 1
         assert k == 1
 
-        results = cliwrap.run(task, context)
+        results = run(task, context)
         assert results.commands[0].stdout == b"12345"
         assert results.cached
 
@@ -37,65 +39,57 @@ def test_task_cache() -> None:
 def test_task_cache_error() -> None:
     """Test cache failures."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = cliwrap.Context(
-            cache=cliwrap.CacheSettings(path=tmpd, shards=1, timeout=1.0)
-        )
+        context = Context(cache=CacheSettings(path=tmpd, shards=1, timeout=1.0))
 
-        cmd = cliwrap.Command(
+        cmd = Command(
             executable="cat",
             args=["file"],
         )
 
-        task = cliwrap.Task([cmd], inputs={"file": b"12345"})
-        results = cliwrap.run(task, context)
+        task = Task([cmd], inputs={"file": b"12345"})
+        results = run(task, context)
         assert results.commands[0].stdout == b"12345"
 
-        assert cliwrap.__CACHE is not None
-        for key in cliwrap.__CACHE:
-            cliwrap.__CACHE[key] = 3.0
+        from funsies.core import __CACHE
 
-        results = cliwrap.run(task, context)
+        assert __CACHE is not None
+        for key in __CACHE:
+            __CACHE[key] = 3.0
+
+        results = run(task, context)
         assert results.commands[0].stdout == b"12345"
         assert not results.cached
 
 
 def test_dask_task_cache() -> None:
     """Test task caching by Dask workers."""
-    pool = Client()
-
-    # import logging
-
-    # pool.run(logging.basicConfig, level=logging.DEBUG)
-
     with tempfile.TemporaryDirectory() as tmpd:
-        context = cliwrap.Context(
-            cache=cliwrap.CacheSettings(path=tmpd, shards=4, timeout=1.0)
-        )
+        context = Context(cache=CacheSettings(path=tmpd, shards=4, timeout=1.0))
 
-        cmd = cliwrap.Command(
+        cmd = Command(
             executable="cat",
             args=["file"],
         )
-        task = cliwrap.Task([cmd], inputs={"file": b"12345"})
-        future = pool.submit(cliwrap.run, task, context)
+        task = Task([cmd], inputs={"file": b"12345"})
+        future = pool.submit(run, task, context)
         assert future.result().commands[0].stdout == b"12345"
 
-        future = pool.submit(cliwrap.run, task, context)
+        future = pool.submit(run, task, context)
         assert future.result().commands[0].stdout == b"12345"
         assert future.result().cached
 
         # do many at once
-        cmd = cliwrap.Command(
+        cmd = Command(
             executable="sleep",
             args=["0.3"],
         )
-        task = cliwrap.Task([cmd])
-        result = cliwrap.run(task, context)
+        task = Task([cmd])
+        result = run(task, context)
         assert result.commands[0].returncode == 0
 
         futures = []
         for _ in range(10):
-            futures += [pool.submit(cliwrap.run, task, context)]
+            futures += [pool.submit(run, task, context)]
 
         results = []
         for future in futures:
@@ -105,19 +99,16 @@ def test_dask_task_cache() -> None:
         assert r.cached
 
 
-# def test_dask_task_cache_missing() -> None:
-#     """Test Dask execution without cache."""
-#     cliwrap.un_setup_cache()
-#     pool = Client()
+def test_dask_task_cache_missing() -> None:
+    """Test Dask execution without cache."""
+    cmd = Command(
+        executable="cat",
+        args=["file"],
+    )
 
-#     cmd = cliwrap.Command(
-#         executable="cat",
-#         args=["file"],
-#     )
-#     assert cliwrap.__CACHE is None
-#     task = cliwrap.Task([cmd], inputs={"file": b"12345"})
-#     future = pool.submit(cliwrap.run, task)
-#     assert future.result().commands[0].stdout == b"12345"
+    task = Task([cmd], inputs={"file": b"12345"})
+    future = pool.submit(run, task)
+    assert future.result().commands[0].stdout == b"12345"
 
 
 if __name__ == "__main__":
