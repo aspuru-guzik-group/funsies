@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 import tempfile
+from threading import Lock
 from typing import Dict, Optional, Sequence, Union
 
 # external
@@ -102,9 +103,16 @@ class Context:
 # Module global variables
 
 # These are used to cache the current... cache, because opening and closing it
-# is expensive, at the cost of introducing mutable state. We avoid mutable
+# is expensive, at the cost of introducing mutable state. We avoid (user) mutable
 # state by always requiring the proper Context.
-__CACHE: Dict[CacheSettings, FanoutCache] = {}
+
+# However, there is still some state involved: multi-threaded applications
+# will all be using the same __CACHE. This is fine (good actually! it's
+# faster)... but it means we need to synchronize __CACHE __set__(). This is
+# why we have a lock here.
+__CACHE: Optional[FanoutCache] = None
+__CACHE_DESC: Optional[CacheSettings] = None
+__CACHE_LOCK = Lock()
 
 
 def __get_cache(
@@ -122,23 +130,33 @@ def __get_cache(
         An optional Cache.
 
     """
-    global __CACHE
+    global __CACHE, __CACHE_DESC
+    # acquire lock so that other threads don't look at __CACHE / __CACHE_DESC
+    # until I'm done with them.
+    __CACHE_LOCK.acquire()
 
     if context is None:
-        return None
+        __CACHE = None
+        __CACHE_DESC = None
 
     elif context.cache is None:
-        return None
+        __CACHE = None
+        __CACHE_DESC = None
 
     else:
-        if context.cache not in __CACHE:
-            __CACHE[context.cache] = FanoutCache(
+        if context.cache == __CACHE_DESC:
+            pass
+        else:
+            __CACHE_DESC = context.cache
+            __CACHE = FanoutCache(
                 str(context.cache.path),
                 shards=context.cache.shards,
                 timeout=context.cache.timeout,
             )
             logging.debug(f"id {__worker_id()} setting up {context.cache}")
-        return __CACHE[context.cache]
+
+    __CACHE_LOCK.release()
+    return __CACHE
 
 
 # ------------------------------------------------------------------------------

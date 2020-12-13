@@ -24,6 +24,7 @@ def test_task_cache() -> None:
         assert results.commands[0].stdout == b"12345"
 
         k = 0
+        assert cliwrap.__CACHE is not None
         for _ in cliwrap.__CACHE:
             k = k + 1
         assert k == 1
@@ -49,9 +50,9 @@ def test_task_cache_error() -> None:
         results = cliwrap.run(task, context)
         assert results.commands[0].stdout == b"12345"
 
-        for c in cliwrap.__CACHE.values():
-            for key in c:
-                c[key] = 3.0
+        assert cliwrap.__CACHE is not None
+        for key in cliwrap.__CACHE:
+            cliwrap.__CACHE[key] = 3.0
 
         results = cliwrap.run(task, context)
         assert results.commands[0].stdout == b"12345"
