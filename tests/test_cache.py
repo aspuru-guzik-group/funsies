@@ -99,7 +99,7 @@ def test_dask_task_cache() -> None:
         assert r.cached
 
 
-def test_dask_task_cache_missing() -> None:
+def test_dask_task_nocache() -> None:
     """Test Dask execution without cache."""
     cmd = Command(
         executable="cat",
@@ -109,6 +109,18 @@ def test_dask_task_cache_missing() -> None:
     task = Task([cmd], inputs={"file": b"12345"})
     future = pool.submit(run, task)
     assert future.result().commands[0].stdout == b"12345"
+
+
+def test_task_cache_failure() -> None:
+    """Test Dask execution without cache."""
+    cmd = Command(
+        executable="cat",
+        args=["file"],
+    )
+
+    task = Task([cmd], inputs={"file": b"12345"})
+    context = Context(cache=CacheSettings(path="", shards=-4, timeout=1.0))
+    run(task, context)
 
 
 if __name__ == "__main__":

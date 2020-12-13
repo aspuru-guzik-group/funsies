@@ -148,12 +148,20 @@ def __get_cache(
             pass
         else:
             __CACHE_DESC = context.cache
-            __CACHE = FanoutCache(
-                str(context.cache.path),
-                shards=context.cache.shards,
-                timeout=context.cache.timeout,
-            )
-            logging.debug(f"id {__worker_id()} setting up {context.cache}")
+            try:
+                __CACHE = FanoutCache(
+                    str(context.cache.path),
+                    shards=context.cache.shards,
+                    timeout=context.cache.timeout,
+                )
+            except Exception:
+                logging.exception(
+                    f"id {__worker_id()} cache setup failed with exception"
+                )
+                __CACHE = None
+                __CACHE_DESC = None
+            else:
+                logging.debug(f"id {__worker_id()} setting up {context.cache}")
 
     __CACHE_LOCK.release()
     return __CACHE
