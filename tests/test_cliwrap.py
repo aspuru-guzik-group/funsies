@@ -4,7 +4,6 @@ from funsies import cliwrap
 
 def test_command_echo() -> None:
     """Test running the wrapper."""
-    cliwrap.un_setup_cache()
     cmd = cliwrap.Command(executable="echo")
     results = cliwrap.run_command(".", None, cmd)
     assert results.returncode == 0
@@ -30,6 +29,15 @@ def test_command_environ() -> None:
     assert results.exception is None
     assert results.stdout == b"VARIABLE=bla bla\n"
     assert results.stderr == b""
+
+
+def test_task_environ() -> None:
+    """Test environment variable."""
+    cmd = cliwrap.Command(executable="env")
+    task = cliwrap.Task([cmd], env={"VARIABLE": "bla bla"})
+    results = cliwrap.run(task)
+    assert results.commands[0].stdout == b"VARIABLE=bla bla\n"
+    assert results.commands[0].stderr == b""
 
 
 def test_task_file_in() -> None:
@@ -114,11 +122,29 @@ def test_cliwrap_nocmd_err() -> None:
 
 def test_no_dask() -> None:
     """Test functionality when dask is not present."""
+    # set dask to "unavailable"
+    old_DASK_AVAIL = cliwrap.__DASK_AVAIL
     cliwrap.__DASK_AVAIL = False
+
     cmd = cliwrap.Command(
         executable="cat",
         args=["file"],
     )
     task = cliwrap.Task([cmd], inputs={"file": b"12345"})
     results = cliwrap.run(task)
+    assert results.commands[0].stdout == b"12345"
+
+    # reset for future tests
+    cliwrap.__DASK_AVAIL = old_DASK_AVAIL
+
+
+def test_context() -> None:
+    """Test context (without caching)."""
+    cmd = cliwrap.Command(
+        executable="cat",
+        args=["file"],
+    )
+    task = cliwrap.Task([cmd], inputs={"file": b"12345"})
+    context = cliwrap.Context(tmpdir=".")
+    results = cliwrap.run(task, context)
     assert results.commands[0].stdout == b"12345"
