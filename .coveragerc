@@ -1,6 +1,6 @@
 [run]
 branch=True
-omit = tests/*,*/site-packages/*
+omit = tests/*,*/site-packages/*,src/funsies/__init__.py
 
 [report]
 # Regexes for lines to exclude from consideration

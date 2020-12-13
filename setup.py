@@ -11,7 +11,7 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
     # Dependencies
-    python_requries=">=3.6",
+    python_requries=">=3.7",
     install_requires=["diskcache", 'importlib-metadata ~= 1.0 ; python_version < "3.8"']
     # TODO
     # long_description=long_description,
