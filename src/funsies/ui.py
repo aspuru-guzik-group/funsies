@@ -1,8 +1,7 @@
 """User-friendly interfaces to funsies core functionality."""
 # std
 import shlex
-from typing import Dict, Iterable, Optional, TypeVar, Tuple, Union, List
-from collections.abc import Mapping
+from typing import Dict, Iterable, Optional, TypeVar, Tuple, Union, List, Mapping
 
 # module
 from .core import Task, _AnyPath, Command

@@ -6,7 +6,7 @@ import tempfile
 from dask.distributed import Client
 
 # package
-from funsies import CacheSettings, Command, Context, run, Task
+from funsies import Cache, Command, Context, run, Task
 
 pool = Client()
 
@@ -14,7 +14,7 @@ pool = Client()
 def test_task_cache() -> None:
     """Test task caching."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=CacheSettings(path=tmpd, shards=1, timeout=1.0))
+        context = Context(cache=Cache(path=tmpd, shards=1, timeout=1.0))
         cmd = Command(
             executable="cat",
             args=["file"],
@@ -39,7 +39,7 @@ def test_task_cache() -> None:
 def test_task_cache_error() -> None:
     """Test cache failures."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=CacheSettings(path=tmpd, shards=1, timeout=1.0))
+        context = Context(cache=Cache(path=tmpd, shards=1, timeout=1.0))
 
         cmd = Command(
             executable="cat",
@@ -64,7 +64,7 @@ def test_task_cache_error() -> None:
 def test_dask_task_cache() -> None:
     """Test task caching by Dask workers."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=CacheSettings(path=tmpd, shards=4, timeout=1.0))
+        context = Context(cache=Cache(path=tmpd, shards=4, timeout=1.0))
 
         cmd = Command(
             executable="cat",
@@ -119,7 +119,7 @@ def test_task_cache_failure() -> None:
     )
 
     task = Task([cmd], inputs={"file": b"12345"})
-    context = Context(cache=CacheSettings(path="", shards=-4, timeout=1.0))
+    context = Context(cache=Cache(path="", shards=-4, timeout=1.0))
     run(task, context)
 
 

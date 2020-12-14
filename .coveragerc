@@ -19,9 +19,6 @@ exclude_lines =
     if 0:
     if __name__ == .__main__.:
 
-    # skip lacking imports
-    except ImportError:
-
 ignore_errors = True
 fail_under = 100
 show_missing = True
