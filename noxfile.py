@@ -4,7 +4,7 @@ import nox
 from nox.sessions import Session
 
 package = "funsies"
-nox.options.sessions = "lint", "tests", "typeguard", "mypy"  # default session
+nox.options.sessions = "lint", "tests", "mypy"  # default session
 locations = "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.8"]
 
@@ -53,14 +53,3 @@ def mypy(session: Session) -> None:
     args = session.posargs or locations
     session.install("mypy")
     session.run("mypy", *args)
-
-
-# Typeguard
-@nox.session(python=pyversions)
-def typeguard(session: Session) -> None:
-    """Run tests."""
-    args = session.posargs or []
-    session.install("-r", "requirements.txt")
-    session.install("pytest", "typeguard")
-    session.install("-e", ".", "--no-deps")
-    session.run("pytest", f"--typeguard-packages={package}", *args)
