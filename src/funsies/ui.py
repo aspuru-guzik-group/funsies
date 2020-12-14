@@ -4,7 +4,8 @@ import shlex
 from typing import Dict, Iterable, Optional, TypeVar, Tuple, Union, List, Mapping
 
 # module
-from .core import Task, _AnyPath, Command
+from .core import Task, Command
+from .constants import _AnyPath
 
 
 # Types

@@ -2,13 +2,14 @@
 # std
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import tempfile
-from typing import Union
+from typing import Type, Union
 
 # external
 import pytest
 
 # package
 from funsies import Cache, Command, get_file, open_cache, run, Task
+from .utils import assert_file
 
 
 def test_task_cache() -> None:
@@ -20,10 +21,14 @@ def test_task_cache() -> None:
             args=["file"],
         )
         task = Task([cmd], inputs={"file": b"12345"})
+
         results = run(cache_id, task)
+        assert results.commands[0].stdout is not None
 
         cache = open_cache(cache_id)
-        assert get_file(cache, results.commands[0].stdout) == b"12345"
+        assert not isinstance(cache, Exception)
+
+        assert_file(get_file(cache, results.commands[0].stdout), b"12345")
 
         assert cache["id"] == 1
         i = 0
@@ -32,7 +37,8 @@ def test_task_cache() -> None:
 
         # Cache should remain the same length
         results = run(cache_id, task)
-        assert get_file(cache, results.commands[0].stdout) == b"12345"
+        assert results.commands[0].stdout is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"12345")
 
         assert cache["id"] == 1
         j = 0
@@ -53,10 +59,12 @@ def test_task_cache_error() -> None:
         )
 
         cache = open_cache(cache_id)
+        assert not isinstance(cache, Exception)
 
         task = Task([cmd], inputs={"file": b"12345"})
         results = run(cache_id, task)
-        assert get_file(cache, results.commands[0].stdout) == b"12345"
+        assert results.commands[0].stdout is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"12345")
 
         # manipulate the cache
         for key in cache:
@@ -64,13 +72,16 @@ def test_task_cache_error() -> None:
                 cache[key] = 3.0
 
         results = run(cache_id, task)
-        assert get_file(cache, results.commands[0].stdout) == b"12345"
+        assert results.commands[0].stdout is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"12345")
 
 
 @pytest.mark.parametrize("Executor", [ThreadPoolExecutor, ProcessPoolExecutor])
 @pytest.mark.parametrize("nworkers,njobs", [(1, 1), (1, 3), (3, 1), (3, 8), (10, 40)])
 def test_task_cache_mp(
-    Executor: Union[ThreadPoolExecutor, ProcessPoolExecutor], nworkers: int, njobs: int
+    Executor: Union[Type[ThreadPoolExecutor], Type[ProcessPoolExecutor]],
+    nworkers: int,
+    njobs: int,
 ) -> None:
     """Test caching in multiprocessing context."""
     with tempfile.TemporaryDirectory() as tmpd:
@@ -101,7 +112,9 @@ def test_task_cache_mp(
 @pytest.mark.parametrize("Executor", [ThreadPoolExecutor, ProcessPoolExecutor])
 @pytest.mark.parametrize("nworkers,njobs", [(1, 1), (1, 3), (3, 1), (3, 8), (10, 40)])
 def test_task_cache_always1(
-    Executor: Union[ThreadPoolExecutor, ProcessPoolExecutor], nworkers: int, njobs: int
+    Executor: Union[Type[ThreadPoolExecutor], Type[ProcessPoolExecutor]],
+    nworkers: int,
+    njobs: int,
 ) -> None:
     """Test caching in multiprocessing context."""
     with tempfile.TemporaryDirectory() as tmpd:

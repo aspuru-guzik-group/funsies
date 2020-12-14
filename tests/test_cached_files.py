@@ -2,6 +2,9 @@
 # stdlib
 import tempfile
 
+# external
+from diskcache import FanoutCache
+
 # module
 from funsies import add_file, Cache, CachedFile, CachedFileType, get_file, open_cache
 
@@ -24,14 +27,15 @@ def test_file_getset_errs() -> None:
     with tempfile.TemporaryDirectory() as t:
         c = Cache(t)
         cache = open_cache(c)
+        assert isinstance(cache, FanoutCache)
         fid = CachedFile(0, CachedFileType.FILE_INPUT, "bla")
         val = get_file(cache, fid)
         assert val is None
 
-        val = add_file(cache, fid, "")
+        val = add_file(cache, fid, b"")
         assert val is fid
         n = len(cache)
 
-        val = add_file(cache, fid, "")
+        val = add_file(cache, fid, b"")
         assert val is fid
         assert len(cache) == n

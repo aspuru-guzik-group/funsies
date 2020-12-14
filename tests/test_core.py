@@ -1,16 +1,10 @@
 """Tests for commandline wrapper."""
 # stdlib
 import tempfile
-from typing import Optional
 
 # module
 from funsies import Cache, Command, get_file, open_cache, run, run_command, Task
-
-
-def assert_file(inp: Optional[bytes], equals: bytes) -> None:
-    """Test whether a file is there and equal to a value."""
-    assert inp is not None
-    assert inp == equals
+from .utils import assert_file
 
 
 def test_command_echo() -> None:
