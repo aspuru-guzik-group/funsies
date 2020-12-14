@@ -1,9 +1,16 @@
 """Tests for commandline wrapper."""
 # stdlib
 import tempfile
+from typing import Optional
 
 # module
-from funsies import Cache, Command, run, run_command, Task, open_cache, get_file
+from funsies import Cache, Command, get_file, open_cache, run, run_command, Task
+
+
+def assert_file(inp: Optional[bytes], equals: bytes) -> None:
+    """Test whether a file is there and equal to a value."""
+    assert inp is not None
+    assert inp == equals
 
 
 def test_command_echo() -> None:
@@ -41,13 +48,15 @@ def test_task() -> None:
 
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
-        task = Task(cache_id, [cmd])
-        results = run(task)
+        task = Task([cmd])
+        results = run(cache_id, task)
 
         # read
         cache = open_cache(cache_id)
-        assert get_file(cache, results.commands[0].stdout) == b"bla bla\n"
-        assert get_file(cache, results.commands[0].stderr) == b""
+        assert results.commands[0].stdout is not None
+        assert results.commands[0].stderr is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"bla bla\n")
+        assert_file(get_file(cache, results.commands[0].stderr), b"")
 
 
 def test_task_environ() -> None:
@@ -55,13 +64,15 @@ def test_task_environ() -> None:
     cmd = Command(executable="env")
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
-        task = Task(cache_id, [cmd], env={"VARIABLE": "bla bla"})
-        results = run(task)
+        task = Task([cmd], env={"VARIABLE": "bla bla"})
+        results = run(cache_id, task)
 
         # read
         cache = open_cache(cache_id)
-        assert get_file(cache, results.commands[0].stdout) == b"VARIABLE=bla bla\n"
-        assert get_file(cache, results.commands[0].stderr) == b""
+        assert results.commands[0].stdout is not None
+        assert results.commands[0].stderr is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"VARIABLE=bla bla\n")
+        assert_file(get_file(cache, results.commands[0].stderr), b"")
 
 
 def test_task_file_in() -> None:
@@ -72,12 +83,14 @@ def test_task_file_in() -> None:
     )
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
-        task = Task(cache_id, [cmd], {"file": b"12345\n"})
-        results = run(task)
+        task = Task([cmd], {"file": b"12345\n"})
+        results = run(cache_id, task)
 
         # read
         cache = open_cache(cache_id)
-        assert get_file(cache, results.commands[0].stdout) == b"12345\n"
+        assert results.commands[0].stdout is not None
+        assert results.commands[0].stderr is not None
+        assert_file(get_file(cache, results.commands[0].stdout), b"12345\n")
 
 
 def test_task_file_inout() -> None:
@@ -88,12 +101,12 @@ def test_task_file_inout() -> None:
     )
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
-        task = Task(cache_id, [cmd], {"file": b"12345\n"}, ["file2"])
-        results = run(task)
+        task = Task([cmd], {"file": b"12345\n"}, ["file2"])
+        results = run(cache_id, task)
 
         # read
         cache = open_cache(cache_id)
-        assert get_file(cache, results.outputs["file2"]) == b"12345\n"
+        assert_file(get_file(cache, results.outputs["file2"]), b"12345\n")
 
 
 def test_task_command_sequence() -> None:
@@ -104,16 +117,15 @@ def test_task_command_sequence() -> None:
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
         task = Task(
-            cache_id,
             [cmd1, cmd2],
             inputs={"file": b"12345"},
             outputs=["file2", "file3"],
         )
-        results = run(task)
+        results = run(cache_id, task)
 
         # read
         cache = open_cache(cache_id)
-        assert get_file(cache, results.outputs["file3"]) == b"12345"
+        assert_file(get_file(cache, results.outputs["file3"]), b"12345")
 
 
 def test_cliwrap_file_err() -> None:
@@ -122,12 +134,11 @@ def test_cliwrap_file_err() -> None:
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
         task = Task(
-            cache_id,
             [cmd],
             inputs={"file": b"12345"},
             outputs=["file3"],
         )
-        results = run(task)
+        results = run(cache_id, task)
 
         # no problem
         assert results.commands[0].raises is None
@@ -142,24 +153,29 @@ def test_cliwrap_cli_err() -> None:
     with tempfile.TemporaryDirectory() as d:
         cache_id = Cache(d)
         task = Task(
-            cache_id,
             [cmd],
             inputs={"file": b"12345"},
         )
-        results = run(task)
+        results = run(cache_id, task)
 
         assert results.commands[0].raises is None
         assert results.commands[0].returncode > 0
-        assert get_file(open_cache(cache_id), results.commands[0].stderr) != b""
+        assert results.commands[0].stdout is not None
+        assert results.commands[0].stderr is not None
+        f = get_file(open_cache(cache_id), results.commands[0].stderr)
+        assert f is not None
+        assert f != b""
 
 
-# def test_cliwrap_nocmd_err() -> None:
-#     """Test file errors."""
-#     cmd = Command(executable="a bizarre command name", args=["file", "file2"])
-#     task = Task(
-#         [cmd],
-#         inputs={"file": b"12345"},
-#         outputs=["file3"],
-#     )
-#     results = run(task)
-#     assert isinstance(results.commands[0].raises, FileNotFoundError)
+def test_command_err() -> None:
+    """Test command error."""
+    cmd = Command(executable="what is this", args=["file2", "file3"])
+    with tempfile.TemporaryDirectory() as d:
+        cache_id = Cache(d)
+        task = Task(
+            [cmd],
+            inputs={"file": b"12345"},
+        )
+        results = run(cache_id, task)
+
+        assert results.commands[0].raises is not None

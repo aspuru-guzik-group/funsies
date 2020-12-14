@@ -3,19 +3,16 @@
 from dataclasses import dataclass
 from enum import Enum, unique
 import logging
-from typing import Dict, Optional, Sequence, Tuple, Union, IO, Literal, overload
+from typing import Optional
 
 # external
 from diskcache import FanoutCache
-
-# module
-from .constants import _AnyPath
 
 
 # ------------------------------------------------------------------------------
 # Cached files
 @unique
-class FileType(Enum):
+class CachedFileType(Enum):
     """Types of cached files."""
 
     FILE_INPUT = 1
@@ -36,7 +33,7 @@ class CachedFile:
     """
 
     task_id: int
-    type: FileType
+    type: CachedFileType
     name: str
     cmd_id: int = -1
 
@@ -45,33 +42,27 @@ def __key(f: CachedFile) -> str:
     return f"{f.task_id}/{f.cmd_id}/{f.type}/{f.name}"
 
 
+# -----------------------------------------------------------------------------------
 # Get a file from Cache
-@overload
-def get_file(cache: FanoutCache, f: CachedFile, handle: Literal[True]) -> IO[bytes]:
-    ...
-
-
-@overload
-def get_file(cache: FanoutCache, f: CachedFile, handle: Literal[False]) -> bytes:
-    ...
-
-
-def get_file(
-    cache: FanoutCache, f: CachedFile, handle: bool = False
-) -> Union[bytes, IO[bytes]]:
-    out = cache.get(__key(f), read=handle)
+def get_file(cache: FanoutCache, f: CachedFile) -> Optional[bytes]:
+    """Pull a file from cache using a CachedFile object as identifier."""
+    out = cache.get(__key(f))
     if out is None:
-        # TODO handle properly
-        raise RuntimeError("Could not set file value")
+        logging.warning(f"file could not be found in cache: {f}")
+        return None
     else:
-        return out
+        return bytes(out)
 
 
+# -----------------------------------------------------------------------------------
 # Send a file to Cache
-def set_file(cache: FanoutCache, f: CachedFile, value: bytes) -> CachedFile:
-    code = cache.set(__key(f), value)
+def add_file(cache: FanoutCache, f: CachedFile, value: Optional[bytes]) -> CachedFile:
+    """Store a file using a CachedFile object as identifier."""
+    if value is None:
+        value = b""
+    code = cache.add(__key(f), value)
     if code:
         return f
     else:
-        # TODO handle properly
-        raise RuntimeError("Could not set file value")
+        logging.warning(f"file already set in cache: {f}")
+        return f

@@ -1,126 +1,128 @@
 """Tests of caching functionality."""
 # std
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import tempfile
+from typing import Union
 
 # external
-from dask.distributed import Client
+import pytest
 
 # package
-from funsies import Cache, Command, Context, run, Task
-
-pool = Client()
+from funsies import Cache, Command, get_file, open_cache, run, Task
 
 
 def test_task_cache() -> None:
     """Test task caching."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=Cache(path=tmpd, shards=1, timeout=1.0))
+        cache_id = Cache(path=tmpd, shards=1)
         cmd = Command(
             executable="cat",
             args=["file"],
         )
         task = Task([cmd], inputs={"file": b"12345"})
-        results = run(task, context)
-        assert results.commands[0].stdout == b"12345"
+        results = run(cache_id, task)
 
-        k = 0
-        from funsies.core import __CACHE
+        cache = open_cache(cache_id)
+        assert get_file(cache, results.commands[0].stdout) == b"12345"
 
-        assert __CACHE is not None
-        for _ in __CACHE:
-            k = k + 1
-        assert k == 1
+        assert cache["id"] == 1
+        i = 0
+        for _ in cache:
+            i = i + 1
 
-        results = run(task, context)
-        assert results.commands[0].stdout == b"12345"
-        assert results.cached
+        # Cache should remain the same length
+        results = run(cache_id, task)
+        assert get_file(cache, results.commands[0].stdout) == b"12345"
+
+        assert cache["id"] == 1
+        j = 0
+        for _ in cache:
+            j = j + 1
+
+        assert i == j
 
 
 def test_task_cache_error() -> None:
     """Test cache failures."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=Cache(path=tmpd, shards=1, timeout=1.0))
+        cache_id = Cache(path=tmpd, shards=1)
 
         cmd = Command(
             executable="cat",
             args=["file"],
         )
 
+        cache = open_cache(cache_id)
+
         task = Task([cmd], inputs={"file": b"12345"})
-        results = run(task, context)
-        assert results.commands[0].stdout == b"12345"
+        results = run(cache_id, task)
+        assert get_file(cache, results.commands[0].stdout) == b"12345"
 
-        from funsies.core import __CACHE
+        # manipulate the cache
+        for key in cache:
+            if "TaskOutput" in key:
+                cache[key] = 3.0
 
-        assert __CACHE is not None
-        for key in __CACHE:
-            __CACHE[key] = 3.0
-
-        results = run(task, context)
-        assert results.commands[0].stdout == b"12345"
-        assert not results.cached
+        results = run(cache_id, task)
+        assert get_file(cache, results.commands[0].stdout) == b"12345"
 
 
-def test_dask_task_cache() -> None:
-    """Test task caching by Dask workers."""
+@pytest.mark.parametrize("Executor", [ThreadPoolExecutor, ProcessPoolExecutor])
+@pytest.mark.parametrize("nworkers,njobs", [(1, 1), (1, 3), (3, 1), (3, 8), (10, 40)])
+def test_task_cache_mp(
+    Executor: Union[ThreadPoolExecutor, ProcessPoolExecutor], nworkers: int, njobs: int
+) -> None:
+    """Test caching in multiprocessing context."""
     with tempfile.TemporaryDirectory() as tmpd:
-        context = Context(cache=Cache(path=tmpd, shards=4, timeout=1.0))
+        cache_id = Cache(path=tmpd, shards=nworkers)
 
-        cmd = Command(
-            executable="cat",
-            args=["file"],
-        )
-        task = Task([cmd], inputs={"file": b"12345"})
-        future = pool.submit(run, task, context)
-        assert future.result().commands[0].stdout == b"12345"
-
-        future = pool.submit(run, task, context)
-        assert future.result().commands[0].stdout == b"12345"
-        assert future.result().cached
-
-        # do many at once
         cmd = Command(
             executable="sleep",
-            args=["0.3"],
+            args=["0.03"],
         )
-        task = Task([cmd])
-        result = run(task, context)
-        assert result.commands[0].returncode == 0
 
-        futures = []
-        for _ in range(10):
-            futures += [pool.submit(run, task, context)]
-
+        task = Task([cmd], inputs={"file": b"12345"})
         results = []
-        for future in futures:
-            results += [future.result()]
+        with Executor(max_workers=nworkers) as t:
+            results += [t.submit(run, cache_id, task) for k in range(njobs)]
+            outputs = [r.result() for r in results]
 
-    for r in results:
-        assert r.cached
+        ids = []
+        for o in outputs:
+            # no errors are raised
+            assert o.raises is None
+            ids += [o.task_id]
 
-
-def test_dask_task_nocache() -> None:
-    """Test Dask execution without cache."""
-    cmd = Command(
-        executable="cat",
-        args=["file"],
-    )
-
-    task = Task([cmd], inputs={"file": b"12345"})
-    future = pool.submit(run, task)
-    assert future.result().commands[0].stdout == b"12345"
+        # There shouldn't be more tasks actually runned then there are workers
+        # (and usually, less)
+        assert len(set(ids)) <= nworkers
 
 
-def test_task_cache_failure() -> None:
-    """Test Dask execution without cache."""
-    cmd = Command(
-        executable="cat",
-        args=["file"],
-    )
+@pytest.mark.parametrize("Executor", [ThreadPoolExecutor, ProcessPoolExecutor])
+@pytest.mark.parametrize("nworkers,njobs", [(1, 1), (1, 3), (3, 1), (3, 8), (10, 40)])
+def test_task_cache_always1(
+    Executor: Union[ThreadPoolExecutor, ProcessPoolExecutor], nworkers: int, njobs: int
+) -> None:
+    """Test caching in multiprocessing context."""
+    with tempfile.TemporaryDirectory() as tmpd:
+        cache_id = Cache(path=tmpd, shards=nworkers)
 
-    task = Task([cmd], inputs={"file": b"12345"})
-    context = Context(cache=Cache(path="", shards=-4, timeout=1.0))
-    run(task, context)
+        cmd = Command(
+            executable="sleep",
+            args=["0.03"],
+        )
+
+        task = Task([cmd], inputs={"file": b"12345"})
+        results = []
+        run(cache_id, task)  # making a cache entry already
+        with Executor(max_workers=nworkers) as t:
+            results += [t.submit(run, cache_id, task) for k in range(njobs)]
+            outputs = [r.result() for r in results]
+
+        for o in outputs:
+            # no errors are raised
+            assert o.raises is None
+            assert o.task_id == 1
 
 
 if __name__ == "__main__":
