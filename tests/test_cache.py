@@ -1,4 +1,4 @@
-"""Basic test of diskcache functionality."""
+"""Tests of caching functionality."""
 # std
 import tempfile
 

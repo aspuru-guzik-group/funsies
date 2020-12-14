@@ -9,8 +9,10 @@ from .core import (  # noqa:F401
     Task,
     TaskOutput,
 )
+from .ui import make
 
 __all__ = [
+    # core
     "CacheSettings",
     "Command",
     "CommandOutput",
@@ -19,6 +21,8 @@ __all__ = [
     "run_command",
     "Task",
     "TaskOutput",
+    # ui
+    "make",
 ]
 
 # versioning information
