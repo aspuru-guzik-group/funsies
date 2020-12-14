@@ -6,13 +6,20 @@ import tempfile
 from diskcache import FanoutCache
 
 # module
-from funsies import add_file, Cache, CachedFile, CachedFileType, get_file, open_cache
+from funsies import (
+    add_file,
+    CachedFile,
+    CachedFileType,
+    CacheSpec,
+    get_file,
+    open_cache,
+)
 
 
 def test_file_getset() -> None:
     """Test file setting and getting."""
     with tempfile.TemporaryDirectory() as t:
-        c = Cache(t)
+        c = CacheSpec(t)
         cache = open_cache(c)
         fid = CachedFile(0, CachedFileType.FILE_INPUT, "bla")
         val = add_file(cache, fid, b"blabla")
@@ -25,7 +32,7 @@ def test_file_getset() -> None:
 def test_file_getset_errs() -> None:
     """Test file setting and getting errors."""
     with tempfile.TemporaryDirectory() as t:
-        c = Cache(t)
+        c = CacheSpec(t)
         cache = open_cache(c)
         assert isinstance(cache, FanoutCache)
         fid = CachedFile(0, CachedFileType.FILE_INPUT, "bla")
@@ -39,3 +46,10 @@ def test_file_getset_errs() -> None:
         val = add_file(cache, fid, b"")
         assert val is fid
         assert len(cache) == n
+
+        fid = CachedFile(0, CachedFileType.FILE_INPUT, "blabla")
+        val = add_file(cache, fid, None)
+        assert val is fid
+        val = get_file(cache, fid)
+        assert val is not None
+        assert val == b""

@@ -12,20 +12,8 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 from diskcache import FanoutCache
 
 # module
-from .cached import add_file, CachedFile, CachedFileType
+from .cached import add_file, CacheSpec, CachedFile, CachedFileType
 from .constants import _AnyPath
-
-
-# ------------------------------------------------------------------------------
-# Cache settings
-@dataclass(frozen=True)
-class Cache:
-    """Specification for Cache access."""
-
-    # Required to open the cache
-    path: _AnyPath
-    shards: int = 1
-    timeout: float = 1.0
 
 
 # ------------------------------------------------------------------------------
@@ -43,7 +31,7 @@ class Command:
 
 
 @dataclass(frozen=True)
-class RawCommandOutput:
+class CommandOutput:
     """Holds the result of running a command."""
 
     returncode: int
@@ -53,7 +41,7 @@ class RawCommandOutput:
 
 
 @dataclass(frozen=True)
-class CommandOutput:
+class CachedCommandOutput:
     """Holds the result of running a command, with its stdout and err cached.."""
 
     returncode: int
@@ -80,7 +68,7 @@ class TaskOutput:
     task_id: int
 
     # commands
-    commands: Tuple[CommandOutput, ...]
+    commands: Tuple[CachedCommandOutput, ...]
 
     # output files
     outputs: Dict[_AnyPath, CachedFile]
@@ -101,11 +89,11 @@ class TaskOutput:
 # faster)... but it means we need to synchronize __CACHE __set__(). This is
 # why we have a lock here.
 __CACHE: Optional[FanoutCache] = None
-__CACHE_DESC: Optional[Cache] = None
+__CACHE_DESC: Optional[CacheSpec] = None
 __CACHE_LOCK = Lock()
 
 
-def open_cache(cache: Cache) -> Union[FanoutCache, Exception]:
+def open_cache(cache: CacheSpec) -> Union[FanoutCache, Exception]:
     """Take a CacheSettings and get the Cache associated with it.
 
     This function takes a description of cache and returns the Cache object
@@ -202,7 +190,7 @@ def __cached(cache: FanoutCache, task: Task) -> Optional[TaskOutput]:
     return None
 
 
-def run(cache: Cache, task: Task, tmpdir: Optional[_AnyPath] = None) -> TaskOutput:
+def run(cache: CacheSpec, task: Task, tmpdir: Optional[_AnyPath] = None) -> TaskOutput:
     """Execute a task and return all outputs."""
     # log task input
     __log_task(task)
@@ -266,7 +254,7 @@ def run_command(
     dir: _AnyPath,
     environ: Optional[Dict[str, str]],
     command: Command,
-) -> RawCommandOutput:
+) -> CommandOutput:
     """Run a Command."""
     args = [command.executable] + [a for a in command.args]
     error = None
@@ -275,17 +263,17 @@ def run_command(
         proc = subprocess.run(args, cwd=dir, capture_output=True, env=environ)
     except Exception as e:
         logging.exception("run_command failed with exception")
-        return RawCommandOutput(-1, b"", b"", e)
+        return CommandOutput(-1, b"", b"", e)
 
-    return RawCommandOutput(
+    return CommandOutput(
         proc.returncode, stdout=proc.stdout, stderr=proc.stderr, raises=error
     )
 
 
 def __cache_command(
-    cache: FanoutCache, task_id: int, cmd_id: int, c: RawCommandOutput
-) -> CommandOutput:
-    return CommandOutput(
+    cache: FanoutCache, task_id: int, cmd_id: int, c: CommandOutput
+) -> CachedCommandOutput:
+    return CachedCommandOutput(
         c.returncode,
         add_file(
             cache,

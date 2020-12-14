@@ -8,14 +8,14 @@ from typing import Type, Union
 import pytest
 
 # package
-from funsies import Cache, Command, get_file, open_cache, run, Task
+from funsies import CacheSpec, Command, get_file, open_cache, run, Task, TaskOutput
 from .utils import assert_file
 
 
 def test_task_cache() -> None:
     """Test task caching."""
     with tempfile.TemporaryDirectory() as tmpd:
-        cache_id = Cache(path=tmpd, shards=1)
+        cache_id = CacheSpec(path=tmpd, shards=1)
         cmd = Command(
             executable="cat",
             args=["file"],
@@ -51,7 +51,7 @@ def test_task_cache() -> None:
 def test_task_cache_error() -> None:
     """Test cache failures."""
     with tempfile.TemporaryDirectory() as tmpd:
-        cache_id = Cache(path=tmpd, shards=1)
+        cache_id = CacheSpec(path=tmpd, shards=1)
 
         cmd = Command(
             executable="cat",
@@ -68,7 +68,7 @@ def test_task_cache_error() -> None:
 
         # manipulate the cache
         for key in cache:
-            if "TaskOutput" in key:
+            if isinstance(key, TaskOutput):
                 cache[key] = 3.0
 
         results = run(cache_id, task)
@@ -85,7 +85,7 @@ def test_task_cache_mp(
 ) -> None:
     """Test caching in multiprocessing context."""
     with tempfile.TemporaryDirectory() as tmpd:
-        cache_id = Cache(path=tmpd, shards=nworkers)
+        cache_id = CacheSpec(path=tmpd, shards=nworkers)
 
         cmd = Command(
             executable="sleep",
@@ -118,7 +118,7 @@ def test_task_cache_always1(
 ) -> None:
     """Test caching in multiprocessing context."""
     with tempfile.TemporaryDirectory() as tmpd:
-        cache_id = Cache(path=tmpd, shards=nworkers)
+        cache_id = CacheSpec(path=tmpd, shards=nworkers)
 
         cmd = Command(
             executable="sleep",

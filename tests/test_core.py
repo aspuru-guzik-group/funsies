@@ -3,7 +3,7 @@
 import tempfile
 
 # module
-from funsies import Cache, Command, get_file, open_cache, run, run_command, Task
+from funsies import CacheSpec, Command, get_file, open_cache, run, run_command, Task
 from .utils import assert_file
 
 
@@ -41,7 +41,7 @@ def test_task() -> None:
     cmd = Command(executable="echo", args=["bla", "bla"])
 
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task([cmd])
         results = run(cache_id, task)
 
@@ -57,7 +57,7 @@ def test_task_environ() -> None:
     """Test environment variable."""
     cmd = Command(executable="env")
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task([cmd], env={"VARIABLE": "bla bla"})
         results = run(cache_id, task)
 
@@ -76,7 +76,7 @@ def test_task_file_in() -> None:
         args=["file"],
     )
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task([cmd], {"file": b"12345\n"})
         results = run(cache_id, task)
 
@@ -94,7 +94,7 @@ def test_task_file_inout() -> None:
         args=["file", "file2"],
     )
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task([cmd], {"file": b"12345\n"}, ["file2"])
         results = run(cache_id, task)
 
@@ -109,7 +109,7 @@ def test_task_command_sequence() -> None:
     cmd2 = Command(executable="cp", args=["file2", "file3"])
 
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task(
             [cmd1, cmd2],
             inputs={"file": b"12345"},
@@ -126,7 +126,7 @@ def test_cliwrap_file_err() -> None:
     """Test file errors."""
     cmd = Command(executable="cp", args=["file", "file2"])
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task(
             [cmd],
             inputs={"file": b"12345"},
@@ -145,7 +145,7 @@ def test_cliwrap_cli_err() -> None:
     """Test command error."""
     cmd = Command(executable="cp", args=["file2", "file3"])
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task(
             [cmd],
             inputs={"file": b"12345"},
@@ -165,7 +165,7 @@ def test_command_err() -> None:
     """Test command error."""
     cmd = Command(executable="what is this", args=["file2", "file3"])
     with tempfile.TemporaryDirectory() as d:
-        cache_id = Cache(d)
+        cache_id = CacheSpec(d)
         task = Task(
             [cmd],
             inputs={"file": b"12345"},

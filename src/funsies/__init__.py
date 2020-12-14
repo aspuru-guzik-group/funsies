@@ -1,7 +1,14 @@
 """Funsies is a functional wrapper for terminal commands."""
+from .cached import (
+    add_file,
+    CachedFile,
+    CachedFileType,
+    CacheSpec,
+    get_file,
+)  # noqa:F401
 from .core import (  # noqa:F401
-    Cache,
     Command,
+    CachedCommandOutput,
     CommandOutput,
     run,
     run_command,
@@ -9,13 +16,13 @@ from .core import (  # noqa:F401
     open_cache,
     TaskOutput,
 )
-from .cached import add_file, CachedFile, CachedFileType, get_file  # noqa:F401
-from .ui import make
+from .ui import Cache, task
 
 __all__ = [
     # core
-    "Cache",
+    "CacheSpec",
     "Command",
+    "CachedCommandOutput",
     "CommandOutput",
     "run",
     "run_command",
@@ -28,7 +35,8 @@ __all__ = [
     "CachedFileType",
     "get_file",
     # ui
-    "make",
+    "task",
+    "Cache",
 ]
 
 # versioning information

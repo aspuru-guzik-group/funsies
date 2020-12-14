@@ -8,6 +8,21 @@ from typing import Optional
 # external
 from diskcache import FanoutCache
 
+# module
+from .constants import _AnyPath
+
+
+# ------------------------------------------------------------------------------
+# Cache settings
+@dataclass(frozen=True)
+class CacheSpec:
+    """Specification for Cache access."""
+
+    # Required to open the cache
+    path: _AnyPath
+    shards: int = 1
+    timeout: float = 1.0
+
 
 # ------------------------------------------------------------------------------
 # Cached files
@@ -38,15 +53,11 @@ class CachedFile:
     cmd_id: int = -1
 
 
-def __key(f: CachedFile) -> str:
-    return f"{f.task_id}/{f.cmd_id}/{f.type}/{f.name}"
-
-
 # -----------------------------------------------------------------------------------
 # Get a file from Cache
 def get_file(cache: FanoutCache, f: CachedFile) -> Optional[bytes]:
     """Pull a file from cache using a CachedFile object as identifier."""
-    out = cache.get(__key(f))
+    out = cache.get(f)
     if out is None:
         logging.warning(f"file could not be found in cache: {f}")
         return None
@@ -60,7 +71,7 @@ def add_file(cache: FanoutCache, f: CachedFile, value: Optional[bytes]) -> Cache
     """Store a file using a CachedFile object as identifier."""
     if value is None:
         value = b""
-    code = cache.add(__key(f), value)
+    code = cache.add(f, value)
     if code:
         return f
     else:
