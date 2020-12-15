@@ -70,17 +70,3 @@ def test_outfiles_parsing() -> None:
         "cp file1 file2", input_files={"file1": "bla"}, output_files=["file2"]
     )
     assert tuple(task1.outputs) == ("file2",)
-
-
-def test_cache_manager() -> None:
-    """Test Cache."""
-    cache = funsies.Cache("test")
-    task = funsies.task(
-        "echo bla bla bla", input_files={"file1": "bla"}, output_files=["file1"]
-    )
-    out = funsies.run(cache.spec, task)
-    result = cache.unwrap_file(out.outputs["file1"])
-    assert result == b"bla"
-
-    result = cache.unwrap_command(out.commands[0])
-    assert result.stdout == b"bla bla bla\n"
