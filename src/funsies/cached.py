@@ -1,9 +1,9 @@
 """Cached files."""
 # std
 from dataclasses import dataclass
-from enum import Enum, unique
+from enum import IntEnum, unique
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 # external
 from redis import Redis
@@ -15,7 +15,7 @@ from .constants import __FILES
 # ------------------------------------------------------------------------------
 # Cached files
 @unique
-class FileType(Enum):
+class FileType(IntEnum):
     """Types of cached files."""
 
     INP = 1
@@ -41,7 +41,7 @@ class CachedFile:
 
     def __str__(self: "CachedFile") -> str:
         """Return string representation."""
-        return f"{self.task_id}|{self.type}|{self.name}"
+        return f"{self.task_id}|FileType.{self.type}|{self.name}"
 
 
 def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile:
@@ -56,7 +56,7 @@ def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile
     return fid
 
 
-def pull_file(cache: Redis, fid: CachedFile) -> bytes:
+def pull_file(cache: Redis, fid: CachedFile) -> Optional[bytes]:
     """Store a file in redis and return a CachedFile key for it."""
     out = cache.hget(__FILES, str(fid))
     return out

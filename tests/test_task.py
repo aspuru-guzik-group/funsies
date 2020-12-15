@@ -1,26 +1,29 @@
 """Tests for commandline wrapper."""
 # stdlib
-import tempfile
 import time
+from typing import Optional
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
+from rq.job import Job
 
 # module
 from funsies import (
-    Command,
-    run,
-    run_command,
-    Task,
-    pull_task,
-    pull_file,
-    put_file,
     CachedFile,
+    Command,
+    pull_file,
+    pull_task,
+    put_file,
+    run,
+    Task,
+    TaskOutput,
 )
 
 
-def assert_file(db, fid, equals):
+def assert_file(db: Redis, fid: Optional[CachedFile], equals: bytes) -> None:
+    """Assert that a file exists and is equal to something."""
+    assert fid is not None
     out = pull_file(db, fid)
     assert out is not None
     assert out == equals
@@ -31,10 +34,13 @@ db = Redis()
 q = Queue(connection=db, is_async=False, default_timeout=-1)
 
 
-def wait_for(job):
+def wait_for(job: Job) -> TaskOutput:
+    """Busily wait for a job to finish."""
     while True:
         if job.result is not None:
-            return pull_task(job.connection, job.result)
+            t = pull_task(job.connection, job.result)
+            assert t is not None
+            return t
         time.sleep(0.02)
 
 

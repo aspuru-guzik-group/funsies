@@ -5,6 +5,7 @@ from .core import (  # noqa:F401
     CachedCommandOutput,
     CommandOutput,
     pull_task,
+    put_task,
     run,
     run_command,
     Task,
@@ -17,13 +18,17 @@ __all__ = [
     "Command",
     "CachedCommandOutput",
     "CommandOutput",
+    "pull_task",
+    "put_task",
     "run",
     "run_command",
     "Task",
     "TaskOutput",
     # cached
     "CachedFile",
-    "CachedFileType",
+    "FileType",
+    "pull_file",
+    "put_file",
     # ui
     "task",
 ]

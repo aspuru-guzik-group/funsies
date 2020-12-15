@@ -1,20 +1,20 @@
 """Functional wrappers for commandline programs."""
 # std
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+import json
 import logging
 import os
-import pickle
 import subprocess
 import tempfile
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Type, Union
 
 # external
 from redis import Redis
 import rq
 
 # module
-from .cached import put_file, CachedFile, FileType, pull_file
-from .constants import _AnyPath, __IDS, __DATA
+from .cached import CachedFile, FileType, pull_file, put_file
+from .constants import __DATA, __IDS, _AnyPath
 
 
 # ------------------------------------------------------------------------------
@@ -24,7 +24,7 @@ class Command:
     """A shell command executed by a task."""
 
     executable: str
-    args: Sequence[str] = field(default_factory=tuple)
+    args: List[str] = field(default_factory=list)
 
     def __repr__(self: "Command") -> str:
         """Return command as a string."""
@@ -48,21 +48,45 @@ class CachedCommandOutput:
     returncode: int
     stdout: Optional[CachedFile]
     stderr: Optional[CachedFile]
-    raises: Optional[Exception] = None
+
+    def json(self: "CachedCommandOutput") -> str:
+        """Return a json version of myself."""
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls: Type["CachedCommandOutput"], inp: str) -> "CachedCommandOutput":
+        """Make a CachedCommandOutput from a json string."""
+        d = json.loads(inp)
+        return CachedCommandOutput(
+            returncode=d["returncode"],
+            stdout=CachedFile(**d["stdout"]),
+            stderr=CachedFile(**d["stderr"]),
+        )
 
 
 @dataclass
 class Task:
     """A Task holds commands and input files."""
 
-    commands: Sequence[Command] = field(default_factory=tuple)
+    commands: List[Command] = field(default_factory=list)
     inputs: Dict[str, CachedFile] = field(default_factory=dict)
-    outputs: Sequence[str] = field(default_factory=tuple)
+    outputs: List[str] = field(default_factory=list)
     env: Optional[Dict[str, str]] = None
 
-    def bytes(self: "Task") -> bytes:
-        """Return a pickled version of myself."""
-        return pickle.dumps(self)
+    def json(self: "Task") -> str:
+        """Return a json version of myself."""
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls: Type["Task"], inp: str) -> "Task":
+        """Make a Task from a json string."""
+        d = json.loads(inp)
+        return Task(
+            commands=[Command(**c) for c in d["commands"]],
+            inputs=dict((k, CachedFile(**v)) for k, v in d["inputs"].items()),
+            outputs=d["outputs"],
+            env=d["env"],
+        )
 
 
 @dataclass(frozen=True)
@@ -73,27 +97,47 @@ class TaskOutput:
     task_id: int
 
     # commands and outputs
-    commands: Tuple[CachedCommandOutput, ...]
+    commands: List[CachedCommandOutput]
 
     # input & output files
     inputs: Dict[str, CachedFile]
     outputs: Dict[str, CachedFile]
 
-    # problems
-    raises: Optional[Exception] = None
+    def json(self: "TaskOutput") -> str:
+        """Return a json version of myself."""
+        return json.dumps(asdict(self))
 
-    def bytes(self: "TaskOutput") -> bytes:
-        """Return a pickled version of myself."""
-        return pickle.dumps(self)
+    @classmethod
+    def from_json(cls: Type["TaskOutput"], inp: Union[str, bytes]) -> "TaskOutput":
+        """Make a TaskOutput from a json string."""
+        print(inp)
+        d = json.loads(inp)
+
+        return TaskOutput(
+            task_id=d["task_id"],
+            commands=[
+                # nasty I know...
+                CachedCommandOutput.from_json(json.dumps(c))
+                for c in d["commands"]
+            ],
+            inputs=dict((k, CachedFile(**v)) for k, v in d["inputs"].items()),
+            outputs=dict((k, CachedFile(**v)) for k, v in d["outputs"].items()),
+        )
 
 
-def pull_task(db: Redis, task_id: int) -> TaskOutput:
-    return pickle.loads(db.hget(__DATA, task_id))
+def pull_task(db: Redis, task_id: int) -> Optional[TaskOutput]:
+    """Pull a TaskOutput from redis using its task_id."""
+    val = db.hget(__DATA, bytes(task_id))
+    if val is None:
+        return None
+    else:
+        return TaskOutput.from_json(val)
 
 
-def put_task(db: Redis, out: TaskOutput):
+def put_task(db: Redis, out: TaskOutput) -> None:
+    """Put a TaskOutput in redis."""
     # add to cache, making sure that TaskOutput is there before its reference.
-    db.hset(__DATA, out.task_id, out.bytes())
+    db.hset(__DATA, bytes(out.task_id), out.json())
 
 
 # ------------------------------------------------------------------------------
@@ -154,7 +198,7 @@ def run(task: Task) -> int:
     objcache = open_cache()
 
     # Check if the task output is already there
-    task_key = task.bytes()
+    task_key = task.json()
 
     if objcache.hexists(__IDS, task_key):
         # if it does, get task id
@@ -163,9 +207,8 @@ def run(task: Task) -> int:
         return int(tmp)
 
     # If not cached, get a new task_id and start running task.
-    tmp = objcache.incr("funsies.task_id", amount=1)
-    assert tmp is not None
-    task_id = int(tmp)
+    task_id = objcache.incrby("funsies.task_id", 1)  # type:ignore
+    task_id = int(task_id)
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -174,7 +217,10 @@ def run(task: Task) -> int:
         for fn, cachedfile in task.inputs.items():
             with open(os.path.join(dir, fn), "wb") as f:
                 val = pull_file(objcache, cachedfile)
-                f.write(val)
+                if val is not None:
+                    f.write(val)
+                else:
+                    logging.error(f"could not pull file from cache: {fn}")
 
         couts = []
         for cmd_id, c in enumerate(task.commands):
@@ -196,7 +242,6 @@ def run(task: Task) -> int:
                         ),
                         cout.stderr,
                     ),
-                    cout.raises,
                 )
             ]
             if cout.raises:
@@ -219,7 +264,7 @@ def run(task: Task) -> int:
                 logging.warning(f"expected file {file}, but didn't find it")
 
     # Make output object
-    out = TaskOutput(task_id, tuple(couts), task.inputs, outputs)
+    out = TaskOutput(task_id, couts, task.inputs, outputs)
 
     # save id
     objcache.hset(__IDS, task_key, task_id)
