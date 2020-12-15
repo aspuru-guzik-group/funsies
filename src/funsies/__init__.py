@@ -1,8 +1,5 @@
 """Funsies is a functional wrapper for terminal commands."""
-from .cached import (
-    CachedFile,
-    FileType,
-)  # noqa:F401
+from .cached import CachedFile, FileType, pull_file, put_file  # noqa:F401
 from .core import (  # noqa:F401
     Command,
     CachedCommandOutput,

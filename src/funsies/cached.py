@@ -35,8 +35,8 @@ class CachedFile:
 
     """
 
-    task_id: int
     name: str
+    task_id: int = 0
     type: FileType = FileType.INP
 
     def __str__(self: "CachedFile") -> str:
@@ -47,10 +47,16 @@ class CachedFile:
 def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile:
     """Store a file in redis and return a CachedFile key for it."""
     if data is None:
-        logging.warning(f"data for file {name} is absent")
+        logging.warning(f"data for file {fid.name} is absent")
         d = b""
     else:
         d = data
 
     cache.hset(__FILES, str(fid), d)
     return fid
+
+
+def pull_file(cache: Redis, fid: CachedFile) -> bytes:
+    """Store a file in redis and return a CachedFile key for it."""
+    out = cache.hget(__FILES, str(fid))
+    return out

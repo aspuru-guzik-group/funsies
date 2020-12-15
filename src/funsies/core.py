@@ -13,7 +13,7 @@ from redis import Redis
 import rq
 
 # module
-from .cached import put_file, CachedFile, FileType
+from .cached import put_file, CachedFile, FileType, pull_file
 from .constants import _AnyPath, __IDS, __DATA
 
 
@@ -56,7 +56,7 @@ class Task:
     """A Task holds commands and input files."""
 
     commands: Sequence[Command] = field(default_factory=tuple)
-    inputs: Dict[str, bytes] = field(default_factory=dict)
+    inputs: Dict[str, CachedFile] = field(default_factory=dict)
     outputs: Sequence[str] = field(default_factory=tuple)
     env: Optional[Dict[str, str]] = None
 
@@ -171,8 +171,9 @@ def run(task: Task) -> int:
     # TODO setable tempdir
     with tempfile.TemporaryDirectory(dir=__TMPDIR) as dir:
         # Put in dir the input files
-        for fn, val in task.inputs.items():
+        for fn, cachedfile in task.inputs.items():
             with open(os.path.join(dir, fn), "wb") as f:
+                val = pull_file(objcache, cachedfile)
                 f.write(val)
 
         couts = []
@@ -183,12 +184,16 @@ def run(task: Task) -> int:
                     cout.returncode,
                     put_file(
                         objcache,
-                        CachedFile(task_id, FileType.CMD, f"stdout{cmd_id}"),
+                        CachedFile(
+                            task_id=task_id, type=FileType.CMD, name=f"stdout{cmd_id}"
+                        ),
                         cout.stdout,
                     ),
                     put_file(
                         objcache,
-                        CachedFile(task_id, FileType.CMD, f"stderr{cmd_id}"),
+                        CachedFile(
+                            task_id=task_id, type=FileType.CMD, name=f"stderr{cmd_id}"
+                        ),
                         cout.stderr,
                     ),
                     cout.raises,
@@ -205,21 +210,16 @@ def run(task: Task) -> int:
             try:
                 with open(os.path.join(dir, file), "rb") as f:
                     outputs[str(file)] = put_file(
-                        objcache, CachedFile(task_id, FileType.OUT, str(file)), f.read()
+                        objcache,
+                        CachedFile(task_id=task_id, type=FileType.OUT, name=str(file)),
+                        f.read(),
                     )
 
             except FileNotFoundError:
                 logging.warning(f"expected file {file}, but didn't find it")
 
-        # Save inputs too
-        inputs = {}
-        for file, val in task.inputs.items():
-            inputs[str(file)] = put_file(
-                objcache, CachedFile(task_id, FileType.INP, str(file)), val
-            )
-
     # Make output object
-    out = TaskOutput(task_id, tuple(couts), inputs, outputs)
+    out = TaskOutput(task_id, tuple(couts), task.inputs, outputs)
 
     # save id
     objcache.hset(__IDS, task_key, task_id)

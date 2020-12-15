@@ -8,7 +8,23 @@ from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
 
 # module
-from funsies import Command, run, run_command, Task, pull_task
+from funsies import (
+    Command,
+    run,
+    run_command,
+    Task,
+    pull_task,
+    pull_file,
+    put_file,
+    CachedFile,
+)
+
+
+def assert_file(db, fid, equals):
+    out = pull_file(db, fid)
+    assert out is not None
+    assert out == equals
+
 
 # Make a fake connection
 db = Redis()
@@ -28,48 +44,34 @@ def test_task() -> None:
 
     task = Task([cmd])
     job = q.enqueue(run, task)
-    task = wait_for(job)
+    result = wait_for(job)
     print(task)
 
     # read
-    # assert results.commands[0].stdout is not None
-    # assert results.commands[0].stderr is not None
-    # assert_file(get_file(cache, results.commands[0].stdout), b"bla bla\n")
-    # assert_file(get_file(cache, results.commands[0].stderr), b"")
+    assert result.commands[0].stdout is not None
+    assert result.commands[0].stderr is not None
+    assert_file(db, result.commands[0].stdout, b"bla bla\n")
+    assert_file(db, result.commands[0].stderr, b"")
 
 
-# def test_task_environ() -> None:
-#     """Test environment variable."""
-#     cmd = Command(executable="env")
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task([cmd], env={"VARIABLE": "bla bla"})
-#         results = run(cache_id, task)
-
-#         # read
-#         cache = open_cache(cache_id)
-#         assert results.commands[0].stdout is not None
-#         assert results.commands[0].stderr is not None
-#         assert_file(get_file(cache, results.commands[0].stdout), b"VARIABLE=bla bla\n")
-#         assert_file(get_file(cache, results.commands[0].stderr), b"")
+def test_task_environ() -> None:
+    """Test environment variable."""
+    cmd = Command(executable="env")
+    task = Task([cmd], env={"VARIABLE": "bla bla"})
+    result = wait_for(q.enqueue(run, task))
+    assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
+    assert_file(db, result.commands[0].stderr, b"")
 
 
-# def test_task_file_in() -> None:
-#     """Test file inputs."""
-#     cmd = Command(
-#         executable="cat",
-#         args=["file"],
-#     )
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task([cmd], {"file": b"12345\n"})
-#         results = run(cache_id, task)
-
-#         # read
-#         cache = open_cache(cache_id)
-#         assert results.commands[0].stdout is not None
-#         assert results.commands[0].stderr is not None
-#         assert_file(get_file(cache, results.commands[0].stdout), b"12345\n")
+def test_task_file_in() -> None:
+    """Test environment variable."""
+    cmd = Command(executable="cat", args=["file"])
+    task = Task(
+        [cmd], inputs={"file": put_file(db, CachedFile("input file"), b"bla bla\n")}
+    )
+    result = wait_for(q.enqueue(run, task))
+    assert_file(db, result.commands[0].stdout, b"bla bla\n")
+    assert_file(db, result.commands[0].stderr, b"")
 
 
 # def test_task_file_inout() -> None:
