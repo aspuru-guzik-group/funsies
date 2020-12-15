@@ -1,36 +1,37 @@
 """Functional wrappers for commandline programs."""
 # std
-from dataclasses import astuple, dataclass, field
+from dataclasses import dataclass, field
 import logging
 import os
+import pickle
 import subprocess
 import tempfile
-from threading import Lock
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple
 
 # external
-from diskcache import FanoutCache
+from redis import Redis
+import rq
 
 # module
-from .cached import add_file, CacheSpec, CachedFile, CachedFileType
+from .cached import cache_file, CachedFile, FileType
 from .constants import _AnyPath
 
 
 # ------------------------------------------------------------------------------
 # Types for Tasks and Commands
-@dataclass(frozen=True)
+@dataclass
 class Command:
     """A shell command executed by a task."""
 
-    executable: _AnyPath
-    args: Sequence[_AnyPath] = field(default_factory=tuple)
+    executable: str
+    args: Sequence[str] = field(default_factory=tuple)
 
-    def __str__(self: "Command") -> str:
+    def __repr__(self: "Command") -> str:
         """Return command as a string."""
-        return str(self.executable) + " " + " ".join([str(a) for a in self.args])
+        return self.executable + " " + " ".join([a for a in self.args])
 
 
-@dataclass(frozen=True)
+@dataclass
 class CommandOutput:
     """Holds the result of running a command."""
 
@@ -40,7 +41,7 @@ class CommandOutput:
     raises: Optional[Exception] = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class CachedCommandOutput:
     """Holds the result of running a command, with its stdout and err cached.."""
 
@@ -50,14 +51,18 @@ class CachedCommandOutput:
     raises: Optional[Exception] = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class Task:
     """A Task holds commands and input files."""
 
     commands: Sequence[Command] = field(default_factory=tuple)
-    inputs: Dict[_AnyPath, bytes] = field(default_factory=dict)
-    outputs: Sequence[_AnyPath] = field(default_factory=tuple)
+    inputs: Dict[str, bytes] = field(default_factory=dict)
+    outputs: Sequence[str] = field(default_factory=tuple)
     env: Optional[Dict[str, str]] = None
+
+    def bytes(self: "Task") -> bytes:
+        """Return a pickled version of myself."""
+        return pickle.dumps(self)
 
 
 @dataclass(frozen=True)
@@ -67,74 +72,31 @@ class TaskOutput:
     # task info
     task_id: int
 
-    # commands
+    # commands and outputs
     commands: Tuple[CachedCommandOutput, ...]
 
-    # output files
-    outputs: Dict[_AnyPath, CachedFile]
+    # input & output files
+    inputs: Dict[str, CachedFile]
+    outputs: Dict[str, CachedFile]
 
     # problems
     raises: Optional[Exception] = None
 
+    def bytes(self: "TaskOutput") -> bytes:
+        """Return a pickled version of myself."""
+        return pickle.dumps(self)
+
 
 # ------------------------------------------------------------------------------
 # Module global variables
-
-# These are used to cache the current... cache, because opening and closing it
-# is expensive, at the cost of introducing mutable state. We avoid (user) mutable
-# state by always requiring a proper Cache object.
-
-# However, there is still some state involved: multi-threaded applications
-# will all be using the same __CACHE. This is fine (good actually! it's
-# faster)... but it means we need to synchronize __CACHE __set__(). This is
-# why we have a lock here.
-__CACHE: Optional[FanoutCache] = None
-__CACHE_DESC: Optional[CacheSpec] = None
-__CACHE_LOCK = Lock()
+__TMPDIR: Optional[_AnyPath] = None
 
 
-def open_cache(cache: CacheSpec) -> Union[FanoutCache, Exception]:
-    """Take a CacheSettings and get the Cache associated with it.
-
-    This function takes a description of cache and returns the Cache object
-    associated with it.
-
-    Arguments:
-        cache: A CacheSettings object.
-
-    Returns:
-        A corresponding FanoutCache.
-    """
-    global __CACHE, __CACHE_DESC
-    # acquire lock so that other threads don't look at __CACHE / __CACHE_DESC
-    # until I'm done with them.
-    __CACHE_LOCK.acquire()
-
-    if cache == __CACHE_DESC:
-        pass
-    else:
-        __CACHE_DESC = cache
-        try:
-            __CACHE = FanoutCache(
-                str(cache.path),
-                shards=cache.shards,
-                timeout=cache.timeout,
-            )
-
-            # Add the task id for the cache
-            if "id" not in __CACHE:
-                __CACHE.add("id", 0)
-
-        except Exception as e:
-            logging.exception("cache setup failed with exception")
-            __CACHE = None
-            __CACHE_DESC = None
-            return e
-        else:
-            logging.debug(f"worker accessing {cache}")
-
-    __CACHE_LOCK.release()
-    return __CACHE
+def open_cache() -> Redis:
+    """Get a connection to the current cache."""
+    job = rq.get_current_job()
+    connect: Redis = job.connection
+    return connect
 
 
 # ------------------------------------------------------------------------------
@@ -143,7 +105,7 @@ def __log_task(task: Task) -> None:
     """Log a task."""
     info = "TASK\n"
     for i, c in enumerate(task.commands):
-        info += "cmd {} ${}\n".format(i, str(c))
+        info += "cmd {} ${}\n".format(i, c)
 
     # # detailed trace of task
     # debug = f"environment variables: {task.env}\n"
@@ -174,44 +136,31 @@ def __log_output(task: TaskOutput) -> None:
 
 # ------------------------------------------------------------------------------
 # Task execution
-def __cached(cache: FanoutCache, task: Task) -> Optional[TaskOutput]:
-    # Check if it is cached
-    key = astuple(task)
-    if key in cache:
-        old_id = cache[key]
-        result = cache[f"TaskOutput_{old_id}"]
-
-        if isinstance(result, TaskOutput):
-            return result
-        else:
-            logging.warning(
-                "Cache entry for task is not of type TaskOutput, recomputing."
-            )
-    return None
-
-
-def run(cache: CacheSpec, task: Task, tmpdir: Optional[_AnyPath] = None) -> TaskOutput:
+def run(task: Task) -> int:
     """Execute a task and return all outputs."""
     # log task input
     __log_task(task)
 
-    # Instantiate / get current FanoutCache
-    objcache = open_cache(cache)
-    if isinstance(objcache, Exception):
-        return TaskOutput(-1, tuple(), {}, objcache)
+    # Get cache
+    objcache = open_cache()
 
-    # Check if task was previously cached, and return the cached value if it
-    # was.
-    cached = __cached(objcache, task)
-    if cached is not None:
-        __log_output(cached)
-        return cached
+    # Check if the task output is already there
+    task_key = task.bytes()
+
+    if objcache.hexists("funsies.ids", task_key):
+        # if it does, get task id
+        tmp = objcache.hget("funsies.ids", task_key)
+        assert tmp is not None
+        return int(tmp)
 
     # If not cached, get a new task_id and start running task.
-    task_id = objcache.incr("id")
+    tmp = objcache.incr("funsies.task_id", amount=1)
+    assert tmp is not None
+    task_id = int(tmp)
 
-    # TODO expandvar, expandusr for tmpdir
-    with tempfile.TemporaryDirectory(dir=tmpdir) as dir:
+    # TODO expandvar, expandusr for tempdir
+    # TODO setable tempdir
+    with tempfile.TemporaryDirectory(dir=__TMPDIR) as dir:
         # Put in dir the input files
         for fn, val in task.inputs.items():
             with open(os.path.join(dir, fn), "wb") as f:
@@ -219,12 +168,20 @@ def run(cache: CacheSpec, task: Task, tmpdir: Optional[_AnyPath] = None) -> Task
 
         couts = []
         for cmd_id, c in enumerate(task.commands):
+            cout = run_command(dir, task.env, c)
             couts += [
-                __cache_command(
-                    objcache, task_id, cmd_id, run_command(dir, task.env, c)
+                CachedCommandOutput(
+                    cout.returncode,
+                    cache_file(
+                        objcache, task_id, FileType.CMD, f"stdout{cmd_id}", cout.stdout
+                    ),
+                    cache_file(
+                        objcache, task_id, FileType.CMD, f"stderr{cmd_id}", cout.stderr
+                    ),
+                    cout.raises,
                 )
             ]
-            if couts[-1].raises:
+            if cout.raises:
                 # Stop, something went wrong
                 logging.warning(f"command did not run: {c}")
                 break
@@ -234,20 +191,27 @@ def run(cache: CacheSpec, task: Task, tmpdir: Optional[_AnyPath] = None) -> Task
         for file in task.outputs:
             try:
                 with open(os.path.join(dir, file), "rb") as f:
-                    outputs[file] = add_file(
-                        objcache,
-                        CachedFile(task_id, CachedFileType.FILE_OUTPUT, str(file)),
-                        f.read(),
+                    outputs[str(file)] = cache_file(
+                        objcache, task_id, FileType.OUT, str(file), f.read()
                     )
+
             except FileNotFoundError:
                 logging.warning(f"expected file {file}, but didn't find it")
 
-    out = TaskOutput(task_id, tuple(couts), outputs)
+        # Save inputs too
+        inputs = {}
+        for file, val in task.inputs.items():
+            inputs[str(file)] = cache_file(
+                objcache, task_id, FileType.INP, str(file), val
+            )
+
+    # Make output object
+    out = TaskOutput(task_id, tuple(couts), inputs, outputs)
 
     # add to cache, making sure that TaskOutput is there before its reference.
-    objcache.set(f"TaskOutput_{task_id}", out)
-    objcache.set(astuple(task), task_id)
-    return out
+    objcache.hset("funsies.ids", task_key, task_id)
+    objcache.hset("funsies.data", bytes(task_id), out.bytes())
+    return task_id
 
 
 def run_command(
@@ -267,23 +231,4 @@ def run_command(
 
     return CommandOutput(
         proc.returncode, stdout=proc.stdout, stderr=proc.stderr, raises=error
-    )
-
-
-def __cache_command(
-    cache: FanoutCache, task_id: int, cmd_id: int, c: CommandOutput
-) -> CachedCommandOutput:
-    return CachedCommandOutput(
-        c.returncode,
-        add_file(
-            cache,
-            CachedFile(task_id, CachedFileType.CMD, "stdout", cmd_id=cmd_id),
-            c.stdout,
-        ),
-        add_file(
-            cache,
-            CachedFile(task_id, CachedFileType.CMD, "stderr", cmd_id=cmd_id),
-            c.stderr,
-        ),
-        c.raises,
     )

@@ -5,7 +5,7 @@ import shlex
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
 
 # module
-from .cached import CachedFile, CacheSpec, get_file
+from .cached import CachedFile
 from .constants import _AnyPath
 from .core import (
     Command,
@@ -13,7 +13,6 @@ from .core import (
     CachedCommandOutput,
     Task,
     TaskOutput,
-    open_cache,
 )
 
 
@@ -33,12 +32,12 @@ def __split(arg: Iterable[T]) -> Tuple[T, Tuple[T, ...]]:
     return this_arg[0], rest
 
 
-def task(
+def task(  # noqa:C901
     *args: _ARGS,
     input_files: _INP_FILES = None,
     output_files: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
-) -> Task:  # noqa:C901
+) -> Task:
     """Make a Task.
 
     Make a Task structure for running with run(). This is a more user-friendly
@@ -91,36 +90,3 @@ def task(
         raise TypeError(f"{output_files} not a valid file output")
 
     return Task(cmds, inputs, outputs, env)
-
-
-class Cache:
-    """A user-friendly overarching class for caches."""
-
-    def __init__(
-        self: "Cache", path: _AnyPath, shards: int = 1, timeout: float = 1.0
-    ) -> None:
-        """Setup a Cache."""
-        # setup cachespec
-        self.spec = CacheSpec(path, shards, timeout)
-        # open the cache
-        self.cache = open_cache(self.spec)
-        assert self.cache is not None
-
-    def unwrap_file(self: "Cache", file: Optional[CachedFile]) -> bytes:
-        """Load a file from the cache in a pythonic way."""
-        assert file is not None
-
-        out = get_file(self.cache, file)
-        if out is None:
-            raise IOError("Error retrieving file from Cache")
-        else:
-            return out
-
-    def unwrap_command(
-        self: "Cache", cmd: Optional[CachedCommandOutput]
-    ) -> CommandOutput:
-        """Load a file from the cache in a pythonic way."""
-        assert cmd is not None
-        stdout = self.unwrap_file(cmd.stdout)
-        stderr = self.unwrap_file(cmd.stderr)
-        return CommandOutput(cmd.returncode, stdout, stderr, cmd.raises)

@@ -1,37 +1,22 @@
-"""Functional wrappers for commandline programs."""
+"""Cached files."""
 # std
 from dataclasses import dataclass
 from enum import Enum, unique
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 # external
-from diskcache import FanoutCache
-
-# module
-from .constants import _AnyPath
-
-
-# ------------------------------------------------------------------------------
-# Cache settings
-@dataclass(frozen=True)
-class CacheSpec:
-    """Specification for Cache access."""
-
-    # Required to open the cache
-    path: _AnyPath
-    shards: int = 1
-    timeout: float = 1.0
+from redis import Redis
 
 
 # ------------------------------------------------------------------------------
 # Cached files
 @unique
-class CachedFileType(Enum):
+class FileType(Enum):
     """Types of cached files."""
 
-    FILE_INPUT = 1
-    FILE_OUTPUT = 2
+    INP = 1
+    OUT = 2
     CMD = 3
 
 
@@ -48,32 +33,28 @@ class CachedFile:
     """
 
     task_id: int
-    type: CachedFileType
+    type: FileType
     name: str
-    cmd_id: int = -1
+
+    def __str__(self: "CachedFile") -> str:
+        """Return string representation."""
+        return f"{self.task_id}|{self.type}|{self.name}"
 
 
-# -----------------------------------------------------------------------------------
-# Get a file from Cache
-def get_file(cache: FanoutCache, f: CachedFile) -> Optional[bytes]:
-    """Pull a file from cache using a CachedFile object as identifier."""
-    out = cache.get(f)
-    if out is None:
-        logging.warning(f"file could not be found in cache: {f}")
-        return None
+def cache_file(
+    cache: Redis,
+    task_id: int,
+    filetype: FileType,
+    name: str,
+    data: Optional[bytes],
+) -> CachedFile:
+    """Store a file in redis and return a CachedFile key for it."""
+    key = CachedFile(task_id, FileType.OUT, name)
+    if data is None:
+        logging.warning(f"data for file {name} is absent")
+        d = b""
     else:
-        return bytes(out)
+        d = data
 
-
-# -----------------------------------------------------------------------------------
-# Send a file to Cache
-def add_file(cache: FanoutCache, f: CachedFile, value: Optional[bytes]) -> CachedFile:
-    """Store a file using a CachedFile object as identifier."""
-    if value is None:
-        value = b""
-    code = cache.add(f, value)
-    if code:
-        return f
-    else:
-        logging.warning(f"file already set in cache: {f}")
-        return f
+    cache.hset("funsies.files", str(key), d)
+    return key

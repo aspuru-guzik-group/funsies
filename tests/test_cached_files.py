@@ -9,7 +9,7 @@ from diskcache import FanoutCache
 from funsies import (
     add_file,
     CachedFile,
-    CachedFileType,
+    FileType,
     CacheSpec,
     get_file,
     open_cache,
@@ -21,7 +21,7 @@ def test_file_getset() -> None:
     with tempfile.TemporaryDirectory() as t:
         c = CacheSpec(t)
         cache = open_cache(c)
-        fid = CachedFile(0, CachedFileType.FILE_INPUT, "bla")
+        fid = CachedFile(0, FileType.FILE_INPUT, "bla")
         val = add_file(cache, fid, b"blabla")
         assert val
 
@@ -35,7 +35,7 @@ def test_file_getset_errs() -> None:
         c = CacheSpec(t)
         cache = open_cache(c)
         assert isinstance(cache, FanoutCache)
-        fid = CachedFile(0, CachedFileType.FILE_INPUT, "bla")
+        fid = CachedFile(0, FileType.FILE_INPUT, "bla")
         val = get_file(cache, fid)
         assert val is None
 
@@ -47,7 +47,7 @@ def test_file_getset_errs() -> None:
         assert val is fid
         assert len(cache) == n
 
-        fid = CachedFile(0, CachedFileType.FILE_INPUT, "blabla")
+        fid = CachedFile(0, FileType.FILE_INPUT, "blabla")
         val = add_file(cache, fid, None)
         assert val is fid
         val = get_file(cache, fid)
