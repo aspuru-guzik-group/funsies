@@ -3,7 +3,7 @@ from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
 
 # module
-from funsies import run, Task, Command, CachedFile, pull_task
+from funsies import CachedFile, Command, pull_task, run, Task
 
 
 def test_task_serialization() -> None:
