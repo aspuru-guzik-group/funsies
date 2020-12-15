@@ -1,0 +1,24 @@
+Funsies is a typed and functional python library for running shell programs in
+parallel, backed by a persistent [[https://pypi.org/project/diskcache/][disk-based cache.]]
+#+BEGIN_SRC python
+  import funsies
+
+  # Make a Task object
+  task = funsies.task("echo 123")
+  # Open a Cache connection to my_cache
+  cache = funsies.Cache("my_cache")
+  # Run the task backed up by the cache
+  result = funsies.run(cache.spec, task)
+
+  from concurrent.futures import ThreadPoolExecutor
+  with ThreadPoolExecutor() as t:
+      # This would work just as well using ProcessPoolExecutor, or dask.
+      futures = [t.submit(funsies.run, cache.spec, task) for _ in range(10)]
+      results = [f.result() for f in futures]
+
+  # Result contains only cache references to the files and command captured
+  # standard output and error, to minimize interprocess communication. The
+  # easiest way to access this data is using cache.unwrap, which will load into
+  # memory all the data in result.
+  final = cache.unwrap(result)
+#+END_SRC
