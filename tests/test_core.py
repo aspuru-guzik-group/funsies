@@ -32,29 +32,6 @@ def test_command_environ() -> None:
     assert results.stdout == b"VARIABLE=bla bla\n"
     assert results.stderr == b""
 
-    # # read
-    # cache = open_cache(cache_id)
-    # assert results.commands[0].stdout is not None
-    # assert results.commands[0].stderr is not None
-    # assert_file(get_file(cache, results.commands[0].stdout), b"bla bla\n")
-    # assert_file(get_file(cache, results.commands[0].stderr), b"")
-
-
-# def test_task_environ() -> None:
-#     """Test environment variable."""
-#     cmd = Command(executable="env")
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task([cmd], env={"VARIABLE": "bla bla"})
-#         results = run(cache_id, task)
-
-#         # read
-#         cache = open_cache(cache_id)
-#         assert results.commands[0].stdout is not None
-#         assert results.commands[0].stderr is not None
-#         assert_file(get_file(cache, results.commands[0].stdout), b"VARIABLE=bla bla\n")
-#         assert_file(get_file(cache, results.commands[0].stderr), b"")
-
 
 # def test_task_file_in() -> None:
 #     """Test file inputs."""

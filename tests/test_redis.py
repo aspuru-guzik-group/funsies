@@ -1,16 +1,25 @@
 """Tests for commandline wrapper."""
 # stdlib
 import tempfile
+import time
 
 # external
-from redis import Redis
+from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
 
 # module
-from funsies import Command, run, run_command, Task
-from .utils import assert_file
+from funsies import Command, run, run_command, Task, pull_task
 
-q = Queue(connection=Redis())
+# Make a fake connection
+db = Redis()
+q = Queue(connection=db, is_async=False, default_timeout=-1)
+
+
+def wait_for(job):
+    while True:
+        if job.result is not None:
+            return pull_task(job.connection, job.result)
+        time.sleep(0.02)
 
 
 def test_task() -> None:
@@ -19,9 +28,10 @@ def test_task() -> None:
 
     task = Task([cmd])
     job = q.enqueue(run, task)
+    task = wait_for(job)
+    print(task)
 
-    # # read
-    # cache = open_cache(cache_id)
+    # read
     # assert results.commands[0].stdout is not None
     # assert results.commands[0].stderr is not None
     # assert_file(get_file(cache, results.commands[0].stdout), b"bla bla\n")

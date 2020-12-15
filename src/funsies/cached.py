@@ -8,6 +8,9 @@ from typing import Optional, Union
 # external
 from redis import Redis
 
+# module
+from .constants import __FILES
+
 
 # ------------------------------------------------------------------------------
 # Cached files
@@ -33,28 +36,21 @@ class CachedFile:
     """
 
     task_id: int
-    type: FileType
     name: str
+    type: FileType = FileType.INP
 
     def __str__(self: "CachedFile") -> str:
         """Return string representation."""
         return f"{self.task_id}|{self.type}|{self.name}"
 
 
-def cache_file(
-    cache: Redis,
-    task_id: int,
-    filetype: FileType,
-    name: str,
-    data: Optional[bytes],
-) -> CachedFile:
+def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile:
     """Store a file in redis and return a CachedFile key for it."""
-    key = CachedFile(task_id, FileType.OUT, name)
     if data is None:
         logging.warning(f"data for file {name} is absent")
         d = b""
     else:
         d = data
 
-    cache.hset("funsies.files", str(key), d)
-    return key
+    cache.hset(__FILES, str(fid), d)
+    return fid

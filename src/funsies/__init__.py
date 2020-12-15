@@ -7,6 +7,7 @@ from .core import (  # noqa:F401
     Command,
     CachedCommandOutput,
     CommandOutput,
+    pull_task,
     run,
     run_command,
     Task,

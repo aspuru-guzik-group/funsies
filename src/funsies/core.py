@@ -13,8 +13,8 @@ from redis import Redis
 import rq
 
 # module
-from .cached import cache_file, CachedFile, FileType
-from .constants import _AnyPath
+from .cached import put_file, CachedFile, FileType
+from .constants import _AnyPath, __IDS, __DATA
 
 
 # ------------------------------------------------------------------------------
@@ -87,6 +87,15 @@ class TaskOutput:
         return pickle.dumps(self)
 
 
+def pull_task(db: Redis, task_id: int) -> TaskOutput:
+    return pickle.loads(db.hget(__DATA, task_id))
+
+
+def put_task(db: Redis, out: TaskOutput):
+    # add to cache, making sure that TaskOutput is there before its reference.
+    db.hset(__DATA, out.task_id, out.bytes())
+
+
 # ------------------------------------------------------------------------------
 # Module global variables
 __TMPDIR: Optional[_AnyPath] = None
@@ -147,9 +156,9 @@ def run(task: Task) -> int:
     # Check if the task output is already there
     task_key = task.bytes()
 
-    if objcache.hexists("funsies.ids", task_key):
+    if objcache.hexists(__IDS, task_key):
         # if it does, get task id
-        tmp = objcache.hget("funsies.ids", task_key)
+        tmp = objcache.hget(__IDS, task_key)
         assert tmp is not None
         return int(tmp)
 
@@ -172,11 +181,15 @@ def run(task: Task) -> int:
             couts += [
                 CachedCommandOutput(
                     cout.returncode,
-                    cache_file(
-                        objcache, task_id, FileType.CMD, f"stdout{cmd_id}", cout.stdout
+                    put_file(
+                        objcache,
+                        CachedFile(task_id, FileType.CMD, f"stdout{cmd_id}"),
+                        cout.stdout,
                     ),
-                    cache_file(
-                        objcache, task_id, FileType.CMD, f"stderr{cmd_id}", cout.stderr
+                    put_file(
+                        objcache,
+                        CachedFile(task_id, FileType.CMD, f"stderr{cmd_id}"),
+                        cout.stderr,
                     ),
                     cout.raises,
                 )
@@ -191,8 +204,8 @@ def run(task: Task) -> int:
         for file in task.outputs:
             try:
                 with open(os.path.join(dir, file), "rb") as f:
-                    outputs[str(file)] = cache_file(
-                        objcache, task_id, FileType.OUT, str(file), f.read()
+                    outputs[str(file)] = put_file(
+                        objcache, CachedFile(task_id, FileType.OUT, str(file)), f.read()
                     )
 
             except FileNotFoundError:
@@ -201,16 +214,19 @@ def run(task: Task) -> int:
         # Save inputs too
         inputs = {}
         for file, val in task.inputs.items():
-            inputs[str(file)] = cache_file(
-                objcache, task_id, FileType.INP, str(file), val
+            inputs[str(file)] = put_file(
+                objcache, CachedFile(task_id, FileType.INP, str(file)), val
             )
 
     # Make output object
     out = TaskOutput(task_id, tuple(couts), inputs, outputs)
 
-    # add to cache, making sure that TaskOutput is there before its reference.
-    objcache.hset("funsies.ids", task_key, task_id)
-    objcache.hset("funsies.data", bytes(task_id), out.bytes())
+    # save id
+    objcache.hset(__IDS, task_key, task_id)
+
+    # save task
+    put_task(objcache, out)
+
     return task_id
 
 
