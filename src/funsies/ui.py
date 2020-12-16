@@ -1,25 +1,33 @@
-"""User-friendly interfaces to funsies core functionality."""
+"""User-friendly interfaces to funsies functionality."""
 # std
 import os
 import shlex
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 # external
 from redis import Redis
 
 # module
-from .cached import CachedFile, put_file
-from .constants import _AnyPath
-from .core import (
-    Command,
-    Task,
-)
+from .cached import FilePtr, register_file
+from .command import Command
+from .constants import _AnyPath, _TransformerFun
+from .rtask import register_task, RTask
+from .rtransformer import register_transformer, RTransformer
 
 
 # Types
 _ARGS = Union[str, Iterable[str]]
 _INP_FILES = Optional[
-    Union[Mapping[_AnyPath, Union[CachedFile, str, bytes]], Iterable[_AnyPath]]
+    Union[Mapping[_AnyPath, Union[FilePtr, str, bytes]], Iterable[_AnyPath]]
 ]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 T = TypeVar("T")
@@ -37,10 +45,10 @@ def __split(arg: Iterable[T]) -> Tuple[T, List[T]]:
 def task(  # noqa:C901
     db: Redis,
     *args: _ARGS,
-    input_files: _INP_FILES = None,
-    output_files: _OUT_FILES = None,
+    inp: _INP_FILES = None,
+    out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
-) -> Task:
+) -> RTask:
     """Make a Task.
 
     Make a Task structure for running with run(). This is a more user-friendly
@@ -50,8 +58,8 @@ def task(  # noqa:C901
     Arguments:
         db: Redis instance.
         *args: Shell commands.
-        input_files: Input files for task.
-        output_files: Output files for task.
+        inp: Input files for task.
+        out: Output files for task.
         env: Environment variables to be set.
 
     Returns:
@@ -66,6 +74,8 @@ def task(  # noqa:C901
 
     # Parse args --------------------------------------------
     cmds: List[Command] = []
+    inputs: Dict[str, FilePtr] = {}
+
     for arg in args:
         if isinstance(arg, str):
             cmds += [Command(*__split(shlex.split(arg)))]
@@ -75,39 +85,69 @@ def task(  # noqa:C901
             raise TypeError(f"argument {arg} not str or iterable")
 
     # Parse input files -------------------------------------
-    # single input file
-    inputs: Dict[str, CachedFile] = {}
-    if input_files is None:
+    if inp is None:
         pass
     # multiple input files as a mapping
-    elif isinstance(input_files, Mapping):
-        for key, val in input_files.items():
+    elif isinstance(inp, Mapping):
+        for key, val in inp.items():
             skey = str(key)
             if isinstance(val, str):
-                inputs[skey] = put_file(db, CachedFile(skey), val.encode())
+                inputs[skey] = register_file(db, skey, val.encode())
             elif isinstance(val, bytes):
-                inputs[skey] = put_file(db, CachedFile(skey), val)
-            elif isinstance(val, CachedFile):
+                inputs[skey] = register_file(db, skey, val)
+            elif isinstance(val, FilePtr):
                 inputs[skey] = val
             else:
-                raise TypeError(f"{val} invalid value for a file.")
+                raise TypeError(
+                    f"{val} of key {skey} is of an invalid type to be a file."
+                )
 
     # multiple input files as a list of paths
-    elif isinstance(input_files, Iterable):
-        for el in input_files:
+    elif isinstance(inp, Iterable):
+        for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = put_file(db, CachedFile(skey), f.read())
+                inputs[skey] = register_file(db, skey, f.read())
     else:
-        raise TypeError(f"{input_files} not a valid file input")
+        raise TypeError(f"{inp} not a valid file input")
 
     # Parse outputs -----------------------------------------
-    outputs: List[str] = []
-    if output_files is None:
+    myoutputs = []
+    if out is None:
         pass
-    elif isinstance(output_files, Iterable):
-        outputs = [str(k) for k in output_files]
     else:
-        raise TypeError(f"{output_files} not a valid file output")
+        myoutputs = [str(c) for c in out]
+    rtask = register_task(db, cmds, inputs, myoutputs, env)
+    return rtask
 
-    return Task(cmds, inputs, outputs, env)
+
+def transformer(
+    db: Redis,
+    fun: _TransformerFun,
+    inp: Optional[Iterable[FilePtr]] = None,
+    noutputs: int = 1,
+) -> RTransformer:
+    """Make and register a Transformer."""
+    # todo guess noutputs from type hint if possible
+    inputs = []
+    if inp is None:
+        pass
+    else:
+        inputs = list(inp)
+
+    return register_transformer(db, fun, inputs, noutputs)
+
+
+def file(  # noqa:C901
+    db: Redis,
+    name: _AnyPath,
+    value: Union[bytes, str],
+) -> FilePtr:
+    """Make and register a FilePtr."""
+    skey = str(name)
+    if isinstance(value, str):
+        return register_file(db, skey, value.encode())
+    elif isinstance(value, bytes):
+        return register_file(db, skey, value)
+    else:
+        raise TypeError("value of {name_or_path} not bytes or string")

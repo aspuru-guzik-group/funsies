@@ -1,7 +1,7 @@
 """Tests for commandline wrapper."""
 # stdlib
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -9,19 +9,13 @@ from rq import Queue
 from rq.job import Job
 
 # module
-from funsies import (
-    CachedFile,
-    Command,
-    pull_file,
-    pull_task,
-    put_file,
-    run,
-    Task,
-    TaskOutput,
-)
+from funsies import pull_file, run, task, transformer
+from funsies.cached import FilePtr
+from funsies.rtask import pull_task, RTask
+from funsies.rtransformer import pull_transformer, RTransformer
 
 
-def assert_file(db: Redis, fid: Optional[CachedFile], equals: bytes) -> None:
+def assert_file(db: Redis, fid: Optional[FilePtr], equals: bytes) -> None:
     """Assert that a file exists and is equal to something."""
     assert fid is not None
     out = pull_file(db, fid)
@@ -29,12 +23,7 @@ def assert_file(db: Redis, fid: Optional[CachedFile], equals: bytes) -> None:
     assert out == equals
 
 
-# Make a fake connection
-db = Redis()
-q = Queue(connection=db, is_async=False, default_timeout=-1)
-
-
-def wait_for(job: Job) -> TaskOutput:
+def wait_for(job: Job) -> RTask:
     """Busily wait for a job to finish."""
     while True:
         if job.result is not None:
@@ -44,12 +33,22 @@ def wait_for(job: Job) -> TaskOutput:
         time.sleep(0.02)
 
 
+def wait_for_transformer(job: Job) -> RTransformer:
+    """Busily wait for a transformer to finish."""
+    while True:
+        if job.result is not None:
+            t = pull_transformer(job.connection, job.result)
+            assert t is not None
+            return t
+        time.sleep(0.02)
+
+
 def test_task() -> None:
     """Test that a task even runs."""
-    cmd = Command(executable="echo", args=["bla", "bla"])
-
-    task = Task([cmd])
-    job = q.enqueue(run, task)
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(db, "echo bla bla")
+    job = q.enqueue(run, t)
     result = wait_for(job)
     print(task)
 
@@ -62,107 +61,99 @@ def test_task() -> None:
 
 def test_task_environ() -> None:
     """Test environment variable."""
-    cmd = Command(executable="env")
-    task = Task([cmd], env={"VARIABLE": "bla bla"})
-    result = wait_for(q.enqueue(run, task))
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(db, "env", env={"VARIABLE": "bla bla"})
+    result = wait_for(q.enqueue(run, t))
     assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
 
 
 def test_task_file_in() -> None:
-    """Test environment variable."""
-    cmd = Command(executable="cat", args=["file"])
-    task = Task(
-        [cmd], inputs={"file": put_file(db, CachedFile("input file"), b"bla bla\n")}
-    )
-    result = wait_for(q.enqueue(run, task))
+    """Test file input."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    result = wait_for(q.enqueue(run, t))
     assert_file(db, result.commands[0].stdout, b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
 
 
-# def test_task_file_inout() -> None:
-#     """Test file input/output."""
-#     cmd = Command(
-#         executable="cp",
-#         args=["file", "file2"],
-#     )
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task([cmd], {"file": b"12345\n"}, ["file2"])
-#         results = run(cache_id, task)
+def test_task_identical_parameters() -> None:
+    """Test task caching."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(
+        db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
+    )
+    job = q.enqueue(run, t)
+    result = wait_for(job)
+    assert_file(db, t.outputs["f"], b"bla bla\n")
+    assert_file(db, result.commands[0].stderr, b"")
+    id1 = job.result
 
-#         # read
-#         cache = open_cache(cache_id)
-#         assert_file(get_file(cache, results.outputs["file2"]), b"12345\n")
-
-
-# def test_task_command_sequence() -> None:
-#     """Test file outputs."""
-#     cmd1 = Command(executable="cp", args=["file", "file2"])
-#     cmd2 = Command(executable="cp", args=["file2", "file3"])
-
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task(
-#             [cmd1, cmd2],
-#             inputs={"file": b"12345"},
-#             outputs=["file2", "file3"],
-#         )
-#         results = run(cache_id, task)
-
-#         # read
-#         cache = open_cache(cache_id)
-#         assert_file(get_file(cache, results.outputs["file3"]), b"12345")
+    t = task(
+        db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
+    )
+    job = q.enqueue(run, t)
+    result = wait_for(job)
+    assert_file(db, t.outputs["f"], b"bla bla\n")
+    assert_file(db, result.commands[0].stderr, b"")
+    id2 = job.result
+    assert id1 == id2
 
 
-# def test_cliwrap_file_err() -> None:
-#     """Test file errors."""
-#     cmd = Command(executable="cp", args=["file", "file2"])
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task(
-#             [cmd],
-#             inputs={"file": b"12345"},
-#             outputs=["file3"],
-#         )
-#         results = run(cache_id, task)
+def test_transformer() -> None:
+    """Test transformer capabilities."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
 
-#         # no problem
-#         assert results.commands[0].raises is None
+    def tfun(inp: bytes) -> bytes:
+        return inp.decode().upper().encode()
 
-#         # but file not returned
-#         assert results.outputs == {}
+    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    job = q.enqueue(run, t)
+    job2 = q.enqueue(run, t2, depends_on=job)
+    result = wait_for_transformer(job2)
+    assert_file(db, result.outputs[0], b"BLA BLA\n")
 
 
-# def test_cliwrap_cli_err() -> None:
-#     """Test command error."""
-#     cmd = Command(executable="cp", args=["file2", "file3"])
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task(
-#             [cmd],
-#             inputs={"file": b"12345"},
-#         )
-#         results = run(cache_id, task)
+def test_multitransformer() -> None:
+    """Test transformer capabilities."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
 
-#         assert results.commands[0].raises is None
-#         assert results.commands[0].returncode > 0
-#         assert results.commands[0].stdout is not None
-#         assert results.commands[0].stderr is not None
-#         f = get_file(open_cache(cache_id), results.commands[0].stderr)
-#         assert f is not None
-#         assert f != b""
+    def tfun(inp: bytes) -> Tuple[bytes, bytes]:
+        return inp.decode().upper().encode(), "lol".encode()
+
+    t2 = transformer(db, tfun, [t.commands[0].stdout], 2)
+    job = q.enqueue(run, t)
+    job = q.enqueue(run, t2, depends_on=job)
+    result = wait_for_transformer(job)
+    assert_file(db, result.outputs[0], b"BLA BLA\n")
+    assert_file(db, result.outputs[1], b"lol")
 
 
-# def test_command_err() -> None:
-#     """Test command error."""
-#     cmd = Command(executable="what is this", args=["file2", "file3"])
-#     with tempfile.TemporaryDirectory() as d:
-#         cache_id = CacheSpec(d)
-#         task = Task(
-#             [cmd],
-#             inputs={"file": b"12345"},
-#         )
-#         results = run(cache_id, task)
+def test_cached_transformer() -> None:
+    """Test transformer capabilities."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
 
-#         assert results.commands[0].raises is not None
+    def tfun(inp: bytes) -> bytes:
+        return inp.decode().upper().encode()
+
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    job = q.enqueue(run, t)
+    job = q.enqueue(run, t2, depends_on=job)
+    result = wait_for_transformer(job)
+    assert_file(db, result.outputs[0], b"BLA BLA\n")
+
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    job = q.enqueue(run, t)
+    job = q.enqueue(run, t2, depends_on=job)
+    result = wait_for_transformer(job)
+    assert_file(db, result.outputs[0], b"BLA BLA\n")

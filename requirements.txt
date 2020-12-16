@@ -1,2 +1,6 @@
+msgpack
+cloudpickle
+redis
 rq
 fakeredis
+msgpack-types
