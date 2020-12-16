@@ -2,6 +2,7 @@
 # std
 import logging
 import os
+import pickle
 import tempfile
 from typing import Optional
 
@@ -49,6 +50,16 @@ def run(task: RTask) -> int:
                     f.write(val)
                 else:
                     logging.error(f"could not pull file from cache: {fn}")
+
+        # List of inputs and outputs for possible transformers
+        with open(os.path.join(dir, "__metadata__.pkl"), "wb") as fi:
+            pickle.dump(
+                {
+                    "inputs": list(task.inputs.keys()),
+                    "outputs": list(task.outputs.keys()),
+                },
+                fi,
+            )
 
         couts = []
         for _, c in enumerate(task.commands):

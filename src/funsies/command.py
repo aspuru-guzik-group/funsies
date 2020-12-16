@@ -12,7 +12,7 @@ from .constants import _AnyPath
 
 
 # ------------------------------------------------------------------------------
-# Types for Tasks and Commands
+# Types for Commands
 @dataclass
 class Command:
     """A shell command executed by a task."""
