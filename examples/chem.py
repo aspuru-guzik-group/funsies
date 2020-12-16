@@ -13,6 +13,18 @@ from funsies import run, task
 db = redis.Redis()
 queue = Queue(connection=db)
 
+# Set some good defaults for the jobs on queue. In general, it's not worth
+# setting ttl or result_ttl to other values because when doing chemistry
+# simulations, we are not going to run 1 million jobs per minute and thus
+# crash because of out-of-memory errors. However, as all the jobs are really
+# long, we don't want jobs to be cancelled just because it's taking a while to
+# find a worker.
+job_defaults = dict(
+    timeout="3h",  # how long each job has
+    ttl="10d",  # how long jobs are kept on queue
+    result_ttl="10d",  # how long job result objects are kept
+)
+
 # our task is to take a bunch of molecules, given as SMILES, make conformers
 # for them, optimize those conformers with xtb and extract their xtb HOMO-LUMO
 # gap.
@@ -45,7 +57,7 @@ for i, smi in enumerate(smiles):
         out=["init.xyz"],
     )
 
-    job1 = queue.enqueue(run, t1)  # this starts running the job
+    job1 = queue.enqueue_call(run, [t1], **job_defaults)  # this starts running the job
 
     # t1 outputs can already be used as inputs in other jobs, even if the task
     # is not yet completed, because they are not actual values. They are
@@ -61,4 +73,4 @@ for i, smi in enumerate(smiles):
 
     # note that we have a dependency on t1 and we need to tell the queue about
     # it.
-    job2 = queue.enqueue(run, t2, depends_on=job1)
+    job2 = queue.enqueue_call(run, [t2], depends_on=job1, **job_defaults)
