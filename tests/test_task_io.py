@@ -6,7 +6,7 @@ from rq import Queue
 from funsies import run
 from funsies.cached import CachedFile
 from funsies.command import Command
-from funsies.rtask import pull_task, register, UnregisteredTask
+from funsies.rtask import pull_task, register_task, UnregisteredTask
 
 
 def test_task_serialization() -> None:
@@ -38,7 +38,7 @@ def test_taskoutput_serialization() -> None:
     cmd = Command(executable="echo", args=["bla", "bla"])
     q = Queue(connection=db, is_async=False, default_timeout=-1)
 
-    task = register(db, UnregisteredTask([cmd]))
+    task = register_task(db, UnregisteredTask([cmd]))
     job = q.enqueue(run, task)
     result = pull_task(db, job.result)
     assert result is not None

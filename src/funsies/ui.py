@@ -1,12 +1,9 @@
 """User-friendly interfaces to funsies core functionality."""
 # std
-import base64
 import os
 import shlex
 from typing import (
-    Callable,
     Dict,
-    IO,
     Iterable,
     List,
     Mapping,
@@ -17,19 +14,17 @@ from typing import (
 )
 
 # external
-import cloudpickle
 from redis import Redis
 
 # module
 from .cached import CachedFile, put_file
 from .command import Command
-from .constants import _AnyPath, _Transformer
-from .transformer import transformer_code
-from .rtask import register, RTask, UnregisteredTask
+from .constants import _AnyPath
+from .rtask import register_task, RTask, UnregisteredTask
 
 
 # Types
-_ARGS = Union[str, Iterable[str], _Transformer]
+_ARGS = Union[str, Iterable[str]]
 _INP_FILES = Optional[
     Union[Mapping[_AnyPath, Union[CachedFile, str, bytes]], Iterable[_AnyPath]]
 ]
@@ -81,20 +76,8 @@ def task(  # noqa:C901
     inputs: Dict[str, Union[CachedFile, str]] = {}
     outputs: List[str] = []
 
-    for iarg, arg in enumerate(args):
-        if callable(arg):
-            # TODO: This is pretty nasty
-            # a transformer
-            cmds += [Command("python", ["transformer.py", f"package_{iarg}.b64"])]
-
-            inputs["transformer.py"] = put_file(
-                db, CachedFile("transformer", -1), transformer_code
-            )
-            inputs[f"package_{iarg}.b64"] = base64.b64encode(
-                cloudpickle.dumps(arg)
-            ).decode()
-
-        elif isinstance(arg, str):
+    for arg in args:
+        if isinstance(arg, str):
             cmds += [Command(*__split(shlex.split(arg)))]
         elif isinstance(arg, Iterable):
             cmds += [Command(*__split(arg))]
@@ -135,5 +118,5 @@ def task(  # noqa:C901
         raise TypeError(f"{out} not a valid file output")
 
     utask = UnregisteredTask(cmds, inputs, outputs, env)
-    rtask = register(db, utask)
+    rtask = register_task(db, utask)
     return rtask

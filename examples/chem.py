@@ -7,7 +7,7 @@ import redis
 from rq import Queue
 
 # module
-from funsies import run, task
+from funsies import run, task, transformer
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
@@ -52,14 +52,14 @@ smiles = [
 
 
 # # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
-# def get_gap(infile, outfile):
-#     """Take HOMO-LUMO gap in inp, and output it to out."""
-#     for line in inputs["inp"]:
-#         # we are looking for this line
-#         # | HOMO-LUMO GAP               1.390012170128 eV   |
-#         if "HOMO-LUMO GAP" in line:
-#             f = float(line.strip()[18:-7].strip())
-#             outputs["out"].write(str(f))
+def get_gap(inp, out):
+    """Take HOMO-LUMO gap in inp, and output it to out."""
+    for line in inp:
+        # we are looking for this line
+        # | HOMO-LUMO GAP               1.390012170128 eV   |
+        if "HOMO-LUMO GAP" in line:
+            f = float(line.strip()[18:-7].strip())
+            out.write(str(f))
 
 
 opt_geoms = []
@@ -99,6 +99,6 @@ for i, smi in enumerate(smiles):
     # task(), we create a transformer that takes input files in inp to output
     # files in out using the function fun(*inputs, *outputs), where inputs and
     # outputs are IO sources and sinks.
-    tr = transformer(db, get_gap, inp=[xtb_out], out=["gap"])
+    tr = transformer(db, get_gap, inputs=[xtb_out], outputs=["gap"])
     queue.enqueue_call(run, [tr], depends_on=job2, **job_defaults)
     break
