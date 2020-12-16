@@ -4,7 +4,7 @@ from rq import Queue
 
 # module
 from funsies import run
-from funsies.cached import CachedFile
+from funsies.cached import FilePtr
 from funsies.command import Command
 from funsies.rtask import pull_task, register_task, UnregisteredTask
 
@@ -20,7 +20,7 @@ def test_task_serialization() -> None:
 def test_task_deserialization() -> None:
     """Test that a task deserializes ok."""
     cmd = Command(executable="echo", args=["bla", "bla"])
-    task = UnregisteredTask([cmd, cmd], inputs={"what": CachedFile("bla")})
+    task = UnregisteredTask([cmd, cmd], inputs={"what": FilePtr("bla")})
     print(task.json())
 
     task2 = UnregisteredTask.from_json(task.json())

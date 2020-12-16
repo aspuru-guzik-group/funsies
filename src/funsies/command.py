@@ -7,7 +7,7 @@ import subprocess
 from typing import Dict, List, Optional, Type, Union
 
 # module
-from .cached import CachedFile
+from .cached import FilePtr
 from .constants import _AnyPath
 
 
@@ -42,8 +42,8 @@ class CachedCommandOutput:
     returncode: int
     executable: str
     args: List[str]
-    stdout: CachedFile
-    stderr: CachedFile
+    stdout: FilePtr
+    stderr: FilePtr
 
     def json(self: "CachedCommandOutput") -> str:
         """Return a json version of myself."""
@@ -57,8 +57,8 @@ class CachedCommandOutput:
             returncode=d["returncode"],
             executable=d["executable"],
             args=d["args"],
-            stdout=CachedFile(**d["stdout"]),
-            stderr=CachedFile(**d["stderr"]),
+            stdout=FilePtr(**d["stdout"]),
+            stderr=FilePtr(**d["stderr"]),
         )
 
 

@@ -17,7 +17,7 @@ from typing import (
 from redis import Redis
 
 # module
-from .cached import CachedFile, put_file
+from .cached import FilePtr, put_file
 from .command import Command
 from .constants import _AnyPath
 from .rtask import register_task, RTask, UnregisteredTask
@@ -26,7 +26,7 @@ from .rtask import register_task, RTask, UnregisteredTask
 # Types
 _ARGS = Union[str, Iterable[str]]
 _INP_FILES = Optional[
-    Union[Mapping[_AnyPath, Union[CachedFile, str, bytes]], Iterable[_AnyPath]]
+    Union[Mapping[_AnyPath, Union[FilePtr, str, bytes]], Iterable[_AnyPath]]
 ]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 T = TypeVar("T")
@@ -73,7 +73,7 @@ def task(  # noqa:C901
 
     # Parse args --------------------------------------------
     cmds: List[Command] = []
-    inputs: Dict[str, Union[CachedFile, str]] = {}
+    inputs: Dict[str, Union[FilePtr, str]] = {}
     outputs: List[str] = []
 
     for arg in args:
@@ -95,7 +95,7 @@ def task(  # noqa:C901
                 inputs[skey] = val
             elif isinstance(val, bytes):
                 inputs[skey] = val.decode()
-            elif isinstance(val, CachedFile):
+            elif isinstance(val, FilePtr):
                 inputs[skey] = val
             else:
                 raise TypeError(f"{val} invalid value for a file.")
@@ -105,7 +105,7 @@ def task(  # noqa:C901
         for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = put_file(db, CachedFile(skey), f.read())
+                inputs[skey] = put_file(db, FilePtr(skey), f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 

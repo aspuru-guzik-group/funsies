@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Type, Union
 from redis import Redis
 
 # module
-from .cached import CachedFile, FileType, pull_file, put_file
+from .cached import FilePtr, FileType, pull_file, put_file
 from .command import CachedCommandOutput, Command, run_command
 from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TASKS, _AnyPath
 
@@ -26,7 +26,7 @@ class UnregisteredTask:
     """Holds a task that is not yet registered with Redis."""
 
     commands: List[Command] = field(default_factory=list)
-    inputs: Dict[str, Union[CachedFile, str]] = field(default_factory=dict)
+    inputs: Dict[str, Union[FilePtr, str]] = field(default_factory=dict)
     outputs: List[str] = field(default_factory=list)
     env: Optional[Dict[str, str]] = None
 
@@ -39,10 +39,10 @@ class UnregisteredTask:
         """Make a Task from a json string."""
         d = json.loads(inp)
 
-        inputs: Dict[str, Union[CachedFile, str]] = {}
+        inputs: Dict[str, Union[FilePtr, str]] = {}
         for k, v in d["inputs"].items():
             if isinstance(v, dict):
-                inputs[k] = CachedFile(**v)
+                inputs[k] = FilePtr(**v)
             elif isinstance(v, str):
                 inputs[k] = v
             else:
@@ -68,8 +68,8 @@ class RTask:
     env: Optional[Dict[str, str]]
 
     # input & output files
-    inputs: Dict[str, CachedFile]
-    outputs: Dict[str, CachedFile]
+    inputs: Dict[str, FilePtr]
+    outputs: Dict[str, FilePtr]
 
     def json(self: "RTask") -> str:
         """Return a json version of myself."""
@@ -88,8 +88,8 @@ class RTask:
                 for c in d["commands"]
             ],
             env=d["env"],
-            inputs=dict((k, CachedFile(**v)) for k, v in d["inputs"].items()),
-            outputs=dict((k, CachedFile(**v)) for k, v in d["outputs"].items()),
+            inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
+            outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
         )
 
 
@@ -132,25 +132,25 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
                 -1,
                 cmd.executable,
                 cmd.args,
-                CachedFile(task_id=task_id, type=FileType.CMD, name=f"stdout{cmd_id}"),
-                CachedFile(task_id=task_id, type=FileType.CMD, name=f"stderr{cmd_id}"),
+                FilePtr(task_id=task_id, type=FileType.CMD, name=f"stdout{cmd_id}"),
+                FilePtr(task_id=task_id, type=FileType.CMD, name=f"stderr{cmd_id}"),
             )
         ]
 
     # build output files
     outputs = {}
     for file in task.outputs:
-        outputs[file] = CachedFile(task_id=task_id, type=FileType.OUT, name=file)
+        outputs[file] = FilePtr(task_id=task_id, type=FileType.OUT, name=file)
 
     inputs = {}
     # build input files
     for file, val in task.inputs.items():
-        if isinstance(val, CachedFile):
+        if isinstance(val, FilePtr):
             inputs[file] = val
         else:
             inputs[file] = put_file(
                 cache,
-                CachedFile(task_id=task_id, type=FileType.INP, name=file),
+                FilePtr(task_id=task_id, type=FileType.INP, name=file),
                 val.encode(),
             )
 

@@ -12,7 +12,7 @@ import cloudpickle
 from redis import Redis
 
 # module
-from .cached import CachedFile, FileType, pull_file, put_file
+from .cached import FilePtr, FileType, pull_file, put_file
 from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TRANSFORMERS
 
 
@@ -27,8 +27,8 @@ class RTransformer:
     fun: bytes
 
     # input & output files
-    inputs: List[CachedFile]
-    outputs: List[CachedFile]
+    inputs: List[FilePtr]
+    outputs: List[FilePtr]
     bytesio: bool = False
 
     def json(self: "RTransformer") -> str:
@@ -45,8 +45,8 @@ class RTransformer:
         return RTransformer(
             task_id=d["task_id"],
             fun=base64.b64decode(d["fun"].encode()),
-            inputs=[CachedFile(**v) for v in d["inputs"]],
-            outputs=[CachedFile(**v) for v in d["outputs"]],
+            inputs=[FilePtr(**v) for v in d["inputs"]],
+            outputs=[FilePtr(**v) for v in d["outputs"]],
             bytesio=d["bytesio"],
         )
 
@@ -65,7 +65,7 @@ def pull_transformer(db: Redis, task_id: int) -> Optional[RTransformer]:
 def transformer(
     cache: Redis,
     fun: Callable,
-    inputs: Sequence[CachedFile],
+    inputs: Sequence[FilePtr],
     outputs: Sequence[str],
 ) -> RTransformer:
     """Register a transformation function into Redis to get an RTransformer."""
@@ -98,7 +98,7 @@ def transformer(
     # make output files
     trans_outputs = []
     for file in outputs:
-        trans_outputs += [CachedFile(task_id=task_id, type=FileType.OUT, name=file)]
+        trans_outputs += [FilePtr(task_id=task_id, type=FileType.OUT, name=file)]
 
     # output object
     out = RTransformer(task_id, fun_bytes, list(inputs), trans_outputs)

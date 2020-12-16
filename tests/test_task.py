@@ -11,12 +11,12 @@ from rq.job import Job
 
 # module
 from funsies import pull_file, run, task, transformer
-from funsies.cached import CachedFile
+from funsies.cached import FilePtr
 from funsies.rtask import pull_task, RTask
 from funsies.rtransformer import pull_transformer
 
 
-def assert_file(db: Redis, fid: Optional[CachedFile], equals: bytes) -> None:
+def assert_file(db: Redis, fid: Optional[FilePtr], equals: bytes) -> None:
     """Assert that a file exists and is equal to something."""
     assert fid is not None
     out = pull_file(db, fid)

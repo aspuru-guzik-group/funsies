@@ -24,10 +24,10 @@ class FileType(IntEnum):
 
 
 @dataclass(frozen=True)
-class CachedFile:
-    """A reference to a file on cache.
+class FilePtr:
+    """A pointer to a file on cache.
 
-    CachedFile is the main class that provides a way to uniquely access files
+    FilePtr is the main class that provides a way to uniquely access files
     that are currently cached for writing and reading. Basically, Tasks have
     file inputs and outputs as well as stdouts and stderr. All of these are
     stored in the cache and are accessed using the associated CachedFiles as
@@ -39,12 +39,12 @@ class CachedFile:
     task_id: int = 0
     type: FileType = FileType.INP
 
-    def __str__(self: "CachedFile") -> str:
+    def __str__(self: "FilePtr") -> str:
         """Return string representation."""
         return f"{self.task_id}|FileType.{self.type}|{self.name}"
 
 
-def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile:
+def put_file(cache: Redis, fid: FilePtr, data: Optional[bytes]) -> FilePtr:
     """Store a file in redis and return a CachedFile key for it."""
     if data is None:
         logging.warning(f"data for file {fid.name} is absent")
@@ -56,7 +56,7 @@ def put_file(cache: Redis, fid: CachedFile, data: Optional[bytes]) -> CachedFile
     return fid
 
 
-def pull_file(cache: Redis, fid: CachedFile) -> Optional[bytes]:
+def pull_file(cache: Redis, fid: FilePtr) -> Optional[bytes]:
     """Store a file in redis and return a CachedFile key for it."""
     out = cache.hget(__FILES, str(fid))
     return out
