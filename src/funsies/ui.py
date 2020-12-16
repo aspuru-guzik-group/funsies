@@ -74,7 +74,7 @@ def task(  # noqa:C901
 
     # Parse input files -------------------------------------
     # single input file
-    inputs: Dict[str, CachedFile] = {}
+    inputs: Dict[str, Union[CachedFile, str]] = {}
     if inp is None:
         pass
     # multiple input files as a mapping
@@ -82,9 +82,9 @@ def task(  # noqa:C901
         for key, val in inp.items():
             skey = str(key)
             if isinstance(val, str):
-                inputs[skey] = put_file(db, CachedFile(skey), val.encode())
+                inputs[skey] = val
             elif isinstance(val, bytes):
-                inputs[skey] = put_file(db, CachedFile(skey), val)
+                inputs[skey] = val.decode()
             elif isinstance(val, CachedFile):
                 inputs[skey] = val
             else:

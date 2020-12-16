@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Type, Union
 from redis import Redis
 
 # module
-from .cached import CachedFile, FileType
+from .cached import CachedFile, FileType, put_file
 from .command import CachedCommandOutput, Command
 from .constants import __DATA, __IDS, __TASK_ID
 
@@ -18,7 +18,7 @@ class UnregisteredTask:
     """Holds a task that is not yet registered with Redis."""
 
     commands: List[Command] = field(default_factory=list)
-    inputs: Dict[str, CachedFile] = field(default_factory=dict)
+    inputs: Dict[str, Union[CachedFile, str]] = field(default_factory=dict)
     outputs: List[str] = field(default_factory=list)
     env: Optional[Dict[str, str]] = None
 
@@ -30,9 +30,19 @@ class UnregisteredTask:
     def from_json(cls: Type["UnregisteredTask"], inp: str) -> "UnregisteredTask":
         """Make a Task from a json string."""
         d = json.loads(inp)
+
+        inputs: Dict[str, Union[CachedFile, str]] = {}
+        for k, v in d["inputs"].items():
+            if isinstance(v, dict):
+                inputs[k] = CachedFile(**v)
+            elif isinstance(v, str):
+                inputs[k] = v
+            else:
+                raise TypeError(f"file {k} = {v} not of type str or bytes")
+
         return UnregisteredTask(
             commands=[Command(**c) for c in d["commands"]],
-            inputs=dict((k, CachedFile(**v)) for k, v in d["inputs"].items()),
+            inputs=inputs,
             outputs=d["outputs"],
             env=d["env"],
         )
@@ -121,12 +131,22 @@ def register(cache: Redis, task: UnregisteredTask) -> RTask:
     # build output files
     outputs = {}
     for file in task.outputs:
-        outputs[str(file)] = CachedFile(
-            task_id=task_id, type=FileType.OUT, name=str(file)
-        )
+        outputs[file] = CachedFile(task_id=task_id, type=FileType.OUT, name=file)
+
+    inputs = {}
+    # build input files
+    for file, val in task.inputs.items():
+        if isinstance(val, CachedFile):
+            inputs[file] = val
+        else:
+            inputs[file] = put_file(
+                cache,
+                CachedFile(task_id=task_id, type=FileType.INP, name=file),
+                val.encode(),
+            )
 
     # output object
-    out = RTask(task_id, couts, task.env, task.inputs, outputs)
+    out = RTask(task_id, couts, task.env, inputs, outputs)
 
     # save task
     # TODO catch errors
