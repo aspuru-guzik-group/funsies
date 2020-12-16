@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 import logging
 import subprocess
-from typing import Any, Dict, List, Optional, Type, TypedDict, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 # module
 from .cached import FilePtr

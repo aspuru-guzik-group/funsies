@@ -1,6 +1,6 @@
 """Some general constants."""
 from os import PathLike
-from typing import Any, Callable, Tuple, Union
+from typing import Callable, Tuple, Union
 
 
 # Redis tables

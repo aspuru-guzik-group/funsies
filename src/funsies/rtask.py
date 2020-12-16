@@ -12,7 +12,7 @@ from redis import Redis
 
 # module
 from .cached import FilePtr, pull_file, put_file, register_file
-from .command import SavedCommand, Command, run_command
+from .command import Command, run_command, SavedCommand
 from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _AnyPath
 
 # ------------------------------------------------------------------------------

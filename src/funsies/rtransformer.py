@@ -2,7 +2,7 @@
 # std
 from dataclasses import asdict, dataclass
 import logging
-from typing import Callable, cast, List, Optional, Sequence, Type
+from typing import cast, List, Optional, Sequence, Type
 
 # external
 import cloudpickle
