@@ -7,7 +7,6 @@ __IDS = "funsies.ids"
 __DATA = "funsies.data"
 __FILES = "funsies.files"
 __TASK_ID = "funsies.current"
-__TASK_DONE = "funsies.done"
 
 # Type for paths
 _AnyPath = Union[str, PathLike]

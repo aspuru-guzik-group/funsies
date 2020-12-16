@@ -12,8 +12,8 @@ import rq
 # module
 from .cached import pull_file, put_file
 from .command import CachedCommandOutput, run_command
-from .constants import __TASK_DONE, _AnyPath
-from .rtask import put_task, RTask
+from .constants import _AnyPath
+from .rtask import __cache_task, RTask
 
 
 # ------------------------------------------------------------------------------
@@ -36,9 +36,7 @@ def run(task: RTask) -> int:
     # Check status
     task_id = task.task_id
 
-    if objcache.sismember(__TASK_DONE, task_id):
-        # job was already done
-        return task_id
+    # todo:add caching here
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -93,9 +91,8 @@ def run(task: RTask) -> int:
 
     # Make output object and update db
     task = RTask(task_id, couts, task.env, task.inputs, outputs)
-    # update cache copy
-    put_task(objcache, task)
-    # add to done tasks
-    objcache.sadd(__TASK_DONE, task_id)
+
+    # update cached copy
+    __cache_task(objcache, task)
 
     return task_id

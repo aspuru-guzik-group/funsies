@@ -9,16 +9,9 @@ from rq import Queue
 from rq.job import Job
 
 # module
-from funsies import (
-    CachedFile,
-    Command,
-    pull_file,
-    pull_task,
-    put_file,
-    run,
-    blabla,
-    RTask,
-)
+from funsies import pull_file, run, task
+from funsies.cached import CachedFile
+from funsies.rtask import pull_task, RTask
 
 
 def assert_file(db: Redis, fid: Optional[CachedFile], equals: bytes) -> None:
@@ -46,10 +39,8 @@ def wait_for(job: Job) -> RTask:
 
 def test_task() -> None:
     """Test that a task even runs."""
-    cmd = Command(executable="echo", args=["bla", "bla"])
-
-    task = blabla([cmd])
-    job = q.enqueue(run, task)
+    t = task(db, "echo bla bla")
+    job = q.enqueue(run, t)
     result = wait_for(job)
     print(task)
 
@@ -62,20 +53,16 @@ def test_task() -> None:
 
 def test_task_environ() -> None:
     """Test environment variable."""
-    cmd = Command(executable="env")
-    task = blabla([cmd], env={"VARIABLE": "bla bla"})
-    result = wait_for(q.enqueue(run, task))
+    t = task(db, "env", env={"VARIABLE": "bla bla"})
+    result = wait_for(q.enqueue(run, t))
     assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
 
 
 def test_task_file_in() -> None:
     """Test environment variable."""
-    cmd = Command(executable="cat", args=["file"])
-    task = blabla(
-        [cmd], inputs={"file": put_file(db, CachedFile("input file"), b"bla bla\n")}
-    )
-    result = wait_for(q.enqueue(run, task))
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    result = wait_for(q.enqueue(run, t))
     assert_file(db, result.commands[0].stdout, b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
 

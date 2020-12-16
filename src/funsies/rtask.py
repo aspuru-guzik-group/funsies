@@ -87,9 +87,7 @@ def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
 # ------------------------------------------------------------------------------
 # Register task on db
 def register(cache: Redis, task: UnregisteredTask) -> RTask:
-    # log task input
-    __log_task(task)
-
+    """Register an UnregisteredTask into Redis to get an RTask."""
     # Check if the task output is already there
     task_key = task.json()
 
@@ -129,12 +127,18 @@ def register(cache: Redis, task: UnregisteredTask) -> RTask:
 
     # output object
     out = RTask(task_id, couts, task.env, task.inputs, outputs)
-    # save id
-    cache.hset(__IDS, task_key, task_id)
+
     # save task
-    db.hset(__DATA, bytes(out.task_id), out.json())
+    # TODO catch errors
+    __cache_task(cache, out)
 
     return out
+
+
+def __cache_task(cache: Redis, task: RTask) -> None:
+    # save id
+    # TODO catch errors
+    cache.hset(__DATA, bytes(task.task_id), task.json())
 
 
 # ------------------------------------------------------------------------------

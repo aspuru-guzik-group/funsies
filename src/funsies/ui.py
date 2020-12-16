@@ -109,5 +109,5 @@ def task(  # noqa:C901
         raise TypeError(f"{out} not a valid file output")
 
     utask = UnregisteredTask(cmds, inputs, outputs, env)
-    rtask = register(utask)
+    rtask = register(db, utask)
     return rtask
