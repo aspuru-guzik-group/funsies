@@ -16,8 +16,8 @@ from funsies import (
     pull_task,
     put_file,
     run,
-    Task,
-    TaskOutput,
+    blabla,
+    RTask,
 )
 
 
@@ -34,7 +34,7 @@ db = Redis()
 q = Queue(connection=db, is_async=False, default_timeout=-1)
 
 
-def wait_for(job: Job) -> TaskOutput:
+def wait_for(job: Job) -> RTask:
     """Busily wait for a job to finish."""
     while True:
         if job.result is not None:
@@ -48,7 +48,7 @@ def test_task() -> None:
     """Test that a task even runs."""
     cmd = Command(executable="echo", args=["bla", "bla"])
 
-    task = Task([cmd])
+    task = blabla([cmd])
     job = q.enqueue(run, task)
     result = wait_for(job)
     print(task)
@@ -63,7 +63,7 @@ def test_task() -> None:
 def test_task_environ() -> None:
     """Test environment variable."""
     cmd = Command(executable="env")
-    task = Task([cmd], env={"VARIABLE": "bla bla"})
+    task = blabla([cmd], env={"VARIABLE": "bla bla"})
     result = wait_for(q.enqueue(run, task))
     assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
@@ -72,7 +72,7 @@ def test_task_environ() -> None:
 def test_task_file_in() -> None:
     """Test environment variable."""
     cmd = Command(executable="cat", args=["file"])
-    task = Task(
+    task = blabla(
         [cmd], inputs={"file": put_file(db, CachedFile("input file"), b"bla bla\n")}
     )
     result = wait_for(q.enqueue(run, task))

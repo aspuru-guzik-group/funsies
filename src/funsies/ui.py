@@ -9,11 +9,9 @@ from redis import Redis
 
 # module
 from .cached import CachedFile, put_file
+from .command import Command
 from .constants import _AnyPath
-from .core import (
-    Command,
-    Task,
-)
+from .rtask import register, RTask, UnregisteredTask
 
 
 # Types
@@ -37,10 +35,10 @@ def __split(arg: Iterable[T]) -> Tuple[T, List[T]]:
 def task(  # noqa:C901
     db: Redis,
     *args: _ARGS,
-    input_files: _INP_FILES = None,
-    output_files: _OUT_FILES = None,
+    inp: _INP_FILES = None,
+    out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
-) -> Task:
+) -> RTask:
     """Make a Task.
 
     Make a Task structure for running with run(). This is a more user-friendly
@@ -50,8 +48,8 @@ def task(  # noqa:C901
     Arguments:
         db: Redis instance.
         *args: Shell commands.
-        input_files: Input files for task.
-        output_files: Output files for task.
+        inp: Input files for task.
+        out: Output files for task.
         env: Environment variables to be set.
 
     Returns:
@@ -77,11 +75,11 @@ def task(  # noqa:C901
     # Parse input files -------------------------------------
     # single input file
     inputs: Dict[str, CachedFile] = {}
-    if input_files is None:
+    if inp is None:
         pass
     # multiple input files as a mapping
-    elif isinstance(input_files, Mapping):
-        for key, val in input_files.items():
+    elif isinstance(inp, Mapping):
+        for key, val in inp.items():
             skey = str(key)
             if isinstance(val, str):
                 inputs[skey] = put_file(db, CachedFile(skey), val.encode())
@@ -93,21 +91,23 @@ def task(  # noqa:C901
                 raise TypeError(f"{val} invalid value for a file.")
 
     # multiple input files as a list of paths
-    elif isinstance(input_files, Iterable):
-        for el in input_files:
+    elif isinstance(inp, Iterable):
+        for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
                 inputs[skey] = put_file(db, CachedFile(skey), f.read())
     else:
-        raise TypeError(f"{input_files} not a valid file input")
+        raise TypeError(f"{inp} not a valid file input")
 
     # Parse outputs -----------------------------------------
     outputs: List[str] = []
-    if output_files is None:
+    if out is None:
         pass
-    elif isinstance(output_files, Iterable):
-        outputs = [str(k) for k in output_files]
+    elif isinstance(out, Iterable):
+        outputs = [str(k) for k in out]
     else:
-        raise TypeError(f"{output_files} not a valid file output")
+        raise TypeError(f"{out} not a valid file output")
 
-    return Task(cmds, inputs, outputs, env)
+    utask = UnregisteredTask(cmds, inputs, outputs, env)
+    rtask = register(utask)
+    return rtask

@@ -6,10 +6,11 @@ from .core import (  # noqa:F401
     CommandOutput,
     pull_task,
     put_task,
+    register,
     run,
     run_command,
-    Task,
-    TaskOutput,
+    blabla,
+    RTask,
 )
 from .ui import task
 
@@ -20,6 +21,7 @@ __all__ = [
     "CommandOutput",
     "pull_task",
     "put_task",
+    "register",
     "run",
     "run_command",
     "Task",

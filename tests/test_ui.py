@@ -47,12 +47,12 @@ def test_arg_errors() -> None:
         assert isinstance(e, TypeError)
 
     try:
-        _ = funsies.task(db, "echo", input_files=3)  # type:ignore
+        _ = funsies.task(db, "echo", inp=3)  # type:ignore
     except Exception as e:
         assert isinstance(e, TypeError)
 
     try:
-        _ = funsies.task(db, "echo", output_files=3)  # type:ignore
+        _ = funsies.task(db, "echo", out=3)  # type:ignore
     except Exception as e:
         assert isinstance(e, TypeError)
 
@@ -62,7 +62,7 @@ def test_files_parsing() -> None:
     with tempfile.NamedTemporaryFile("wb") as f:
         f.write(b"bla bla")
         f.flush()
-        task2 = funsies.task(db, "cat file", input_files=[f.name])
+        task2 = funsies.task(db, "cat file", inp=[f.name])
         tmp = funsies.pull_file(db, task2.inputs[os.path.basename(f.name)])
         assert tmp is not None
         assert tmp == b"bla bla"
@@ -70,7 +70,5 @@ def test_files_parsing() -> None:
 
 def test_outfiles_parsing() -> None:
     """Test input files parsing."""
-    task1 = funsies.task(
-        db, "cp file1 file2", input_files={"file1": "bla"}, output_files=["file2"]
-    )
+    task1 = funsies.task(db, "cp file1 file2", inp={"file1": "bla"}, out=["file2"])
     assert tuple(task1.outputs) == ("file2",)
