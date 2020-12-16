@@ -62,7 +62,6 @@ def get_gap(inp, out):
             out.write(str(f))
 
 
-opt_geoms = []
 # We start by running obabel to transform those from SMILES to 3d conformers.
 for i, smi in enumerate(smiles):
     inf = f"{i}.smi"
@@ -99,6 +98,5 @@ for i, smi in enumerate(smiles):
     # task(), we create a transformer that takes input files in inp to output
     # files in out using the function fun(*inputs, *outputs), where inputs and
     # outputs are IO sources and sinks.
-    tr = transformer(db, get_gap, inputs=[xtb_out], outputs=["gap"])
+    tr = transformer(db, get_gap, inputs=[xtb_out], outputs=["energy_gap"])
     queue.enqueue_call(run, [tr], depends_on=job2, **job_defaults)
-    break

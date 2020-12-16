@@ -9,6 +9,10 @@ __TRANSFORMERS = "funsies.transformers"
 __FILES = "funsies.files"
 __TASK_ID = "funsies.current"
 
+# status
+__STATUS = "funsies.status"
+__SDONE = b"done"
+
 # Type for paths
 _AnyPath = Union[str, PathLike]
 

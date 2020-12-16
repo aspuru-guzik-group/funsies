@@ -14,7 +14,7 @@ from redis import Redis
 # module
 from .cached import CachedFile, FileType, pull_file, put_file
 from .command import CachedCommandOutput, Command, run_command
-from .constants import __IDS, __TASK_ID, __TASKS, _AnyPath
+from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TASKS, _AnyPath
 
 # ------------------------------------------------------------------------------
 # Config
@@ -110,6 +110,7 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
     task_key = task.json()
 
     if cache.hexists(__IDS, task_key):
+        logging.debug("task key already exists.")
         # if it does, get task id
         tmp = cache.hget(__IDS, task_key)
         # pull the id from the db
@@ -157,8 +158,8 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
     out = RTask(task_id, couts, task.env, inputs, outputs)
 
     # save task
-    # TODO catch errors
     __cache_task(cache, out)
+    cache.hset(__IDS, task_key, task_id)  # save task
 
     return out
 
@@ -210,7 +211,13 @@ def run_rtask(objcache: Redis, task: RTask) -> int:
     # Check status
     task_id = task.task_id
 
-    # todo:add caching here
+    if objcache.hget(__STATUS, bytes(task_id)) == __SDONE:
+        logging.debug("task is cached.")
+        out = pull_task(objcache, task_id)
+        if out is not None:
+            return task_id
+        else:
+            logging.warning("Pulling task out of cache failed, re-executing.")
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -278,5 +285,7 @@ def run_rtask(objcache: Redis, task: RTask) -> int:
 
     # update cached copy
     __cache_task(objcache, task)
+    # TODO: possible race condition?
+    objcache.hset(__STATUS, bytes(task_id), __SDONE)  # set done
 
     return task_id

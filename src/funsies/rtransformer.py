@@ -4,6 +4,7 @@ import base64
 from dataclasses import asdict, dataclass
 from io import BytesIO, StringIO
 import json
+import logging
 from typing import Callable, List, Optional, Sequence, Type, Union
 
 # external
@@ -12,7 +13,7 @@ from redis import Redis
 
 # module
 from .cached import CachedFile, FileType, pull_file, put_file
-from .constants import __IDS, __TASK_ID, __TRANSFORMERS
+from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TRANSFORMERS
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,7 @@ def transformer(
     )
 
     if cache.hexists(__IDS, key):
+        logging.debug("transformer key already exists.")
         # if it does, get task id
         tmp = cache.hget(__IDS, key)
         # pull the id from the db
@@ -104,6 +106,8 @@ def transformer(
     # save transformer
     # TODO catch errors
     cache.hset(__TRANSFORMERS, bytes(out.task_id), out.json())
+    cache.hset(__IDS, key, task_id)
+
     return out
 
 
@@ -111,7 +115,14 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
     """Execute a registered transformer and return its task id."""
     # Check status
     task_id = task.task_id
-    # TODO:ADD CACHING HERE
+
+    if objcache.hget(__STATUS, bytes(task_id)) == __SDONE:
+        logging.debug("transformer is cached.")
+        out = pull_transformer(objcache, task_id)
+        if out is not None:
+            return task_id
+        else:
+            logging.warning("Pulling transformer out of cache failed, re-executing.")
 
     # build function
     fun = cloudpickle.loads(task.fun)
@@ -143,6 +154,6 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
         else:
             put_file(objcache, el, outputs[i].getvalue().encode())
 
-    # TODO:set task as done
+    objcache.hset(__STATUS, bytes(task_id), __SDONE)
 
     return task_id
