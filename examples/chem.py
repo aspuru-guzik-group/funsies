@@ -1,7 +1,4 @@
 """A quantum chemistry example."""
-# std
-from typing import Any, IO
-
 # external
 import redis
 from rq import Queue
@@ -52,14 +49,15 @@ smiles = [
 
 
 # # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
-def get_gap(inp, out):
+def get_gap(inp: bytes) -> bytes:
     """Take HOMO-LUMO gap in inp, and output it to out."""
-    for line in inp:
+    for line in inp.decode().splitlines():
         # we are looking for this line
         # | HOMO-LUMO GAP               1.390012170128 eV   |
         if "HOMO-LUMO GAP" in line:
             f = float(line.strip()[18:-7].strip())
-            out.write(str(f))
+            return str(f).encode()
+    return b""
 
 
 # We start by running obabel to transform those from SMILES to 3d conformers.
@@ -98,5 +96,5 @@ for i, smi in enumerate(smiles):
     # task(), we create a transformer that takes input files in inp to output
     # files in out using the function fun(*inputs, *outputs), where inputs and
     # outputs are IO sources and sinks.
-    tr = transformer(db, get_gap, inputs=[xtb_out], outputs=["energy_gap"])
+    tr = transformer(db, get_gap, inp=[xtb_out])
     queue.enqueue_call(run, [tr], depends_on=job2, **job_defaults)

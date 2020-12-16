@@ -10,8 +10,8 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from .cached import FilePtr, FileType, pull_file, put_file
-from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TRANSFORMERS
+from .cached import FilePtr, pull_file, put_file, register_file
+from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ class RTransformer:
 
 def pull_transformer(db: Redis, task_id: int) -> Optional[RTransformer]:
     """Pull a TaskOutput from redis using its task_id."""
-    val = db.hget(__TRANSFORMERS, bytes(task_id))
+    val = db.hget(__OBJECTS, task_id)
     if val is None:
         return None
     else:
@@ -57,11 +57,11 @@ def pull_transformer(db: Redis, task_id: int) -> Optional[RTransformer]:
 
 # ------------------------------------------------------------------------------
 # Register transformer on db
-def transformer(
+def register_transformer(
     cache: Redis,
     fun: Callable,
     inputs: Sequence[FilePtr],
-    outputs: Sequence[str],
+    nout: int,
 ) -> RTransformer:
     """Register a transformation function into Redis to get an RTransformer."""
     # load function
@@ -72,7 +72,7 @@ def transformer(
         {
             "fun": fun_bytes,
             "inputs": [asdict(inp) for inp in inputs],
-            "outputs": [out for out in outputs],
+            "nout": nout,
         }
     )
 
@@ -93,17 +93,15 @@ def transformer(
     task_id = cache.incrby(__TASK_ID, 1)  # type:ignore
     task_id = int(task_id)
 
-    # make output files
-    trans_outputs = []
-    for file in outputs:
-        trans_outputs += [FilePtr(task_id=task_id, type=FileType.OUT, name=file)]
+    # register outputs
+    outputs = [register_file(cache, f"out{i+1}") for i in range(nout)]
 
     # output object
-    out = RTransformer(task_id, fun_bytes, list(inputs), trans_outputs)
+    out = RTransformer(task_id, fun_bytes, list(inputs), list(outputs))
 
     # save transformer
     # TODO catch errors
-    cache.hset(__TRANSFORMERS, bytes(out.task_id), out.pack())
+    cache.hset(__OBJECTS, task_id, out.pack())
     cache.hset(__IDS, key, task_id)
 
     return out
@@ -114,7 +112,7 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
     # Check status
     task_id = task.task_id
 
-    if objcache.hget(__STATUS, bytes(task_id)) == __SDONE:
+    if objcache.hget(__STATUS, task_id) == __SDONE:
         logging.debug("transformer result is cached.")
         out = pull_transformer(objcache, task_id)
         if out is not None:
@@ -143,6 +141,6 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
     for i, el in enumerate(task.outputs):
         put_file(objcache, el, outputs[i])
 
-    objcache.hset(__STATUS, bytes(task_id), __SDONE)
+    objcache.hset(__STATUS, task_id, __SDONE)
 
     return task_id

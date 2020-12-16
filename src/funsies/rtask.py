@@ -4,16 +4,16 @@ from dataclasses import asdict, dataclass, field
 import logging
 import os
 import tempfile
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Sequence, Type
 
 # external
 from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from .cached import FilePtr, FileType, pull_file, put_file
+from .cached import FilePtr, pull_file, put_file, register_file
 from .command import CachedCommandOutput, Command, run_command
-from .constants import __IDS, __SDONE, __STATUS, __TASK_ID, __TASKS, _AnyPath
+from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _AnyPath
 
 # ------------------------------------------------------------------------------
 # Config
@@ -21,41 +21,6 @@ __TMPDIR: Optional[_AnyPath] = None
 
 
 @dataclass
-class UnregisteredTask:
-    """Holds a task that is not yet registered with Redis."""
-
-    commands: List[Command] = field(default_factory=list)
-    inputs: Dict[str, Union[FilePtr, str]] = field(default_factory=dict)
-    outputs: List[str] = field(default_factory=list)
-    env: Optional[Dict[str, str]] = None
-
-    def pack(self: "UnregisteredTask") -> bytes:
-        """Return unpacked version of myself."""
-        return packb(asdict(self))
-
-    @classmethod
-    def unpack(cls: Type["UnregisteredTask"], inp: bytes) -> "UnregisteredTask":
-        """Make an UnregisteredTask from packed representation."""
-        d = unpackb(inp)
-
-        inputs: Dict[str, Union[FilePtr, str, bytes]] = {}
-        for k, v in d["inputs"].items():
-            if isinstance(v, dict):
-                inputs[k] = FilePtr(**v)
-            elif isinstance(v, str) or isinstance(v, bytes):
-                inputs[k] = v
-            else:
-                raise TypeError(f"file {k} = {v} not of type str or bytes")
-
-        return UnregisteredTask(
-            commands=[Command(**c) for c in d["commands"]],
-            inputs=inputs,
-            outputs=d["outputs"],
-            env=d["env"],
-        )
-
-
-@dataclass(frozen=True)
 class RTask:
     """Holds a registered task."""
 
@@ -90,7 +55,7 @@ class RTask:
 
 def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
     """Pull a TaskOutput from redis using its task_id."""
-    val = db.hget(__TASKS, bytes(task_id))
+    val = db.hget(__OBJECTS, task_id)
     if val is None:
         return None
     else:
@@ -99,15 +64,64 @@ def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
 
 # ------------------------------------------------------------------------------
 # Register task on db
-def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
-    """Register an UnregisteredTask into Redis to get an RTask."""
-    # Check if the task output is already there
-    task_key = task.pack()
+@dataclass
+class UnregisteredTask:
+    """Holds a task that is not yet registered with Redis."""
+
+    commands: List[Command] = field(default_factory=list)
+    inputs: Dict[str, FilePtr] = field(default_factory=dict)
+    outputs: Dict[str, FilePtr] = field(default_factory=dict)
+    env: Optional[Dict[str, str]] = None
+
+    def pack(self: "UnregisteredTask") -> bytes:
+        """Return unpacked version of myself."""
+        return packb(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type["UnregisteredTask"], inp: bytes) -> "UnregisteredTask":
+        """Make an UnregisteredTask from packed representation."""
+        d = unpackb(inp)
+
+        return UnregisteredTask(
+            commands=[Command(**c) for c in d["commands"]],
+            inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
+            outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
+            env=d["env"],
+        )
+
+
+def register_task(
+    cache: Redis,
+    commands: List[Command],
+    inputs: Dict[str, FilePtr],
+    outputs: Sequence[str],
+    env: Optional[Dict[str, str]] = None,
+) -> RTask:
+    """Register a Task into Redis and get an RTask."""
+    # Check if the task already exists. The key that we build the task on is
+    # effectively the same as the final RTask BUT:
+    # - invariant to order of outputs.
+    # - invariant to order of inputs
+    # - invariant to order of env
+
+    # Note that although in principle we could return a cache copy when
+    # outputs are a strictly smaller set, we don't do that yet for ease of
+    # implementation.
+    invariants = {
+        "commands": [asdict(c) for c in commands],
+        "inputs": sorted([(k, asdict(v)) for k, v in inputs.items()]),
+        "outputs": sorted(list(outputs)),
+    }
+    if env is not None:
+        invariants["env"] = sorted([(k, v) for k, v in env.items()])
+
+    task_key = packb(invariants)
 
     if cache.hexists(__IDS, task_key):
         logging.debug("task key already exists.")
         # if it does, get task id
         tmp = cache.hget(__IDS, task_key)
+        # TODO better error catching
         # pull the id from the db
         assert tmp is not None
         out = pull_task(cache, int(tmp))
@@ -121,36 +135,24 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
 
     # build cmd outputs
     couts = []
-    for cmd_id, cmd in enumerate(task.commands):
+    for cmd_id, cmd in enumerate(commands):
         couts += [
             CachedCommandOutput(
                 -1,
                 cmd.executable,
                 cmd.args,
-                FilePtr(task_id=task_id, type=FileType.CMD, name=f"stdout{cmd_id}"),
-                FilePtr(task_id=task_id, type=FileType.CMD, name=f"stderr{cmd_id}"),
+                register_file(cache, f"task{task_id}.cmd{cmd_id}.stdout"),
+                register_file(cache, f"task{task_id}.cmd{cmd_id}.stderr"),
             )
         ]
 
-    # build output files
-    outputs = {}
-    for file in task.outputs:
-        outputs[file] = FilePtr(task_id=task_id, type=FileType.OUT, name=file)
-
-    inputs = {}
-    # build input files
-    for file, val in task.inputs.items():
-        if isinstance(val, FilePtr):
-            inputs[file] = val
-        else:
-            inputs[file] = put_file(
-                cache,
-                FilePtr(task_id=task_id, type=FileType.INP, name=file),
-                val.encode(),
-            )
+    # build file outputs
+    myoutputs = {}
+    for f in outputs:
+        myoutputs[f] = register_file(cache, f)
 
     # output object
-    out = RTask(task_id, couts, task.env, inputs, outputs)
+    out = RTask(task_id, couts, env, inputs, myoutputs)
 
     # save task
     __cache_task(cache, out)
@@ -162,7 +164,7 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
 def __cache_task(cache: Redis, task: RTask) -> None:
     # save id
     # TODO catch errors
-    cache.hset(__TASKS, bytes(task.task_id), task.pack())
+    cache.hset(__OBJECTS, task.task_id, task.pack())
 
 
 # ------------------------------------------------------------------------------
@@ -206,7 +208,7 @@ def run_rtask(objcache: Redis, task: RTask) -> int:
     # Check status
     task_id = task.task_id
 
-    if objcache.hget(__STATUS, bytes(task_id)) == __SDONE:
+    if objcache.hget(__STATUS, task_id) == __SDONE:
         logging.debug("task is cached.")
         out = pull_task(objcache, task_id)
         if out is not None:
@@ -271,6 +273,6 @@ def run_rtask(objcache: Redis, task: RTask) -> int:
     # update cached copy
     __cache_task(objcache, task)
     # TODO: possible race condition?
-    objcache.hset(__STATUS, bytes(task_id), __SDONE)  # set done
+    objcache.hset(__STATUS, task_id, __SDONE)  # set done
 
     return task_id

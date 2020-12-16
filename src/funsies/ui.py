@@ -1,8 +1,9 @@
-"""User-friendly interfaces to funsies core functionality."""
+"""User-friendly interfaces to funsies functionality."""
 # std
 import os
 import shlex
 from typing import (
+    Callable,
     Dict,
     Iterable,
     List,
@@ -17,10 +18,11 @@ from typing import (
 from redis import Redis
 
 # module
-from .cached import FilePtr, put_file
+from .cached import FilePtr, register_file
 from .command import Command
 from .constants import _AnyPath
-from .rtask import register_task, RTask, UnregisteredTask
+from .rtask import register_task, RTask
+from .rtransformer import register_transformer, RTransformer
 
 
 # Types
@@ -73,8 +75,7 @@ def task(  # noqa:C901
 
     # Parse args --------------------------------------------
     cmds: List[Command] = []
-    inputs: Dict[str, Union[FilePtr, str]] = {}
-    outputs: List[str] = []
+    inputs: Dict[str, FilePtr] = {}
 
     for arg in args:
         if isinstance(arg, str):
@@ -92,31 +93,59 @@ def task(  # noqa:C901
         for key, val in inp.items():
             skey = str(key)
             if isinstance(val, str):
-                inputs[skey] = val
+                inputs[skey] = register_file(db, skey, val.encode())
             elif isinstance(val, bytes):
-                inputs[skey] = val.decode()
+                inputs[skey] = register_file(db, skey, val)
             elif isinstance(val, FilePtr):
                 inputs[skey] = val
             else:
-                raise TypeError(f"{val} invalid value for a file.")
+                raise TypeError(
+                    f"{val} of key {skey} is of an invalid type to be a file."
+                )
 
     # multiple input files as a list of paths
     elif isinstance(inp, Iterable):
         for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = put_file(db, FilePtr(skey), f.read())
+                inputs[skey] = register_file(db, skey, f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 
     # Parse outputs -----------------------------------------
+    myoutputs = []
     if out is None:
         pass
-    elif isinstance(out, Iterable):
-        outputs = [str(k) for k in out]
     else:
-        raise TypeError(f"{out} not a valid file output")
-
-    utask = UnregisteredTask(cmds, inputs, outputs, env)
-    rtask = register_task(db, utask)
+        myoutputs = [str(c) for c in out]
+    rtask = register_task(db, cmds, inputs, myoutputs, env)
     return rtask
+
+
+def transformer(
+    db: Redis, fun: Callable, inp: Optional[Iterable[FilePtr]] = None, noutputs: int = 1
+) -> RTransformer:
+    """Make and register a Transformer."""
+    # todo guess noutputs from type hint if possible
+    inputs = []
+    if inp is None:
+        pass
+    else:
+        inputs = list(inp)
+
+    return register_transformer(db, fun, inputs, noutputs)
+
+
+def file(  # noqa:C901
+    db: Redis,
+    name: _AnyPath,
+    value: Union[bytes, str],
+) -> FilePtr:
+    """Make and register a FilePtr."""
+    skey = str(name)
+    if isinstance(value, str):
+        return register_file(db, skey, value.encode())
+    elif isinstance(value, bytes):
+        return register_file(db, skey, value)
+    else:
+        raise TypeError("value of {name_or_path} not bytes or string")

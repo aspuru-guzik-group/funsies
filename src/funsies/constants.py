@@ -4,8 +4,7 @@ from typing import Callable, Dict, IO, Union
 
 # Redis tables
 __IDS = "funsies.ids"
-__TASKS = "funsies.tasks"
-__TRANSFORMERS = "funsies.transformers"
+__OBJECTS = "funsies.objects"
 __FILES = "funsies.files"
 __TASK_ID = "funsies.current"
 

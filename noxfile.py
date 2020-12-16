@@ -7,6 +7,7 @@ package = "funsies"
 nox.options.sessions = "black", "lint", "tests", "mypy"  # default session
 locations = "examples", "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.8"]
+type_libraries = ["msgpack-types"]
 
 
 # Testing
@@ -52,4 +53,5 @@ def mypy(session: Session) -> None:
     """Run the static type checker."""
     args = session.posargs or locations
     session.install("mypy")
+    session.install(*type_libraries)
     session.run("mypy", *args)
