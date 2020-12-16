@@ -1,14 +1,12 @@
 """Data transformations."""
 # std
-import base64
 from dataclasses import asdict, dataclass
-from io import BytesIO, StringIO
-import json
 import logging
-from typing import Callable, List, Optional, Sequence, Type, Union
+from typing import Callable, List, Optional, Sequence, Type
 
 # external
 import cloudpickle
+from msgpack import packb, unpackb
 from redis import Redis
 
 # module
@@ -29,25 +27,22 @@ class RTransformer:
     # input & output files
     inputs: List[FilePtr]
     outputs: List[FilePtr]
-    bytesio: bool = False
 
-    def json(self: "RTransformer") -> str:
-        """Return a json version of myself."""
+    def pack(self: "RTransformer") -> bytes:
+        """Pack a transformer."""
         d = asdict(self)
-        d["fun"] = base64.b64encode(d["fun"]).decode()
-        return json.dumps(d)
+        return packb(d)
 
     @classmethod
-    def from_json(cls: Type["RTransformer"], inp: Union[str, bytes]) -> "RTransformer":
-        """Build a registered task from a json string."""
-        d = json.loads(inp)
+    def unpack(cls: Type["RTransformer"], inp: bytes) -> "RTransformer":
+        """Build a transformer from packed form."""
+        d = unpackb(inp)
 
         return RTransformer(
             task_id=d["task_id"],
-            fun=base64.b64decode(d["fun"].encode()),
+            fun=d["fun"],
             inputs=[FilePtr(**v) for v in d["inputs"]],
             outputs=[FilePtr(**v) for v in d["outputs"]],
-            bytesio=d["bytesio"],
         )
 
 
@@ -57,7 +52,7 @@ def pull_transformer(db: Redis, task_id: int) -> Optional[RTransformer]:
     if val is None:
         return None
     else:
-        return RTransformer.from_json(val)
+        return RTransformer.unpack(val)
 
 
 # ------------------------------------------------------------------------------
@@ -71,10 +66,11 @@ def transformer(
     """Register a transformation function into Redis to get an RTransformer."""
     # load function
     fun_bytes = cloudpickle.dumps(fun)
+
     # make a key for the transformer
-    key = json.dumps(
+    key = packb(
         {
-            "fun": base64.b64encode(fun_bytes).decode(),
+            "fun": fun_bytes,
             "inputs": [asdict(inp) for inp in inputs],
             "outputs": [out for out in outputs],
         }
@@ -88,10 +84,12 @@ def transformer(
         assert tmp is not None
         out = pull_transformer(cache, int(tmp))
         assert out is not None
+        # done
         return out
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
+    # TODO: fix
     task_id = cache.incrby(__TASK_ID, 1)  # type:ignore
     task_id = int(task_id)
 
@@ -105,7 +103,7 @@ def transformer(
 
     # save transformer
     # TODO catch errors
-    cache.hset(__TRANSFORMERS, bytes(out.task_id), out.json())
+    cache.hset(__TRANSFORMERS, bytes(out.task_id), out.pack())
     cache.hset(__IDS, key, task_id)
 
     return out
@@ -117,7 +115,7 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
     task_id = task.task_id
 
     if objcache.hget(__STATUS, bytes(task_id)) == __SDONE:
-        logging.debug("transformer is cached.")
+        logging.debug("transformer result is cached.")
         out = pull_transformer(objcache, task_id)
         if out is not None:
             return task_id
@@ -129,30 +127,21 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
 
     # load inputs and outputs
     inputs = []
-    outputs = []
     for el in task.inputs:
         source = pull_file(objcache, el)
         assert source is not None  # TODO:fix
-        if task.bytesio:
-            inputs.append(BytesIO(source))
-        else:
-            inputs.append(StringIO(source.decode()))
-
-    for _ in task.outputs:
-        if task.bytesio:
-            outputs.append(BytesIO(b""))
-        else:
-            outputs.append(StringIO(""))
+        inputs.append(source)
 
     # Call the function
-    fun(*inputs, *outputs)
+    outputs_ = fun(*inputs)
+    if isinstance(outputs_, bytes):
+        outputs: List[bytes] = [outputs_]
+    else:
+        outputs = list(outputs_)
 
     # Change output files
     for i, el in enumerate(task.outputs):
-        if task.bytesio:
-            put_file(objcache, el, outputs[i].get_value())
-        else:
-            put_file(objcache, el, outputs[i].getvalue().encode())
+        put_file(objcache, el, outputs[i])
 
     objcache.hset(__STATUS, bytes(task_id), __SDONE)
 

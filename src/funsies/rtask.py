@@ -1,14 +1,13 @@
 """Cached tasks in redis."""
 # std
 from dataclasses import asdict, dataclass, field
-import json
 import logging
 import os
-import pickle
 import tempfile
 from typing import Dict, List, Optional, Type, Union
 
 # external
+from msgpack import packb, unpackb
 from redis import Redis
 
 # module
@@ -30,20 +29,20 @@ class UnregisteredTask:
     outputs: List[str] = field(default_factory=list)
     env: Optional[Dict[str, str]] = None
 
-    def json(self: "UnregisteredTask") -> str:
-        """Return a json version of myself."""
-        return json.dumps(asdict(self))
+    def pack(self: "UnregisteredTask") -> bytes:
+        """Return unpacked version of myself."""
+        return packb(asdict(self))
 
     @classmethod
-    def from_json(cls: Type["UnregisteredTask"], inp: str) -> "UnregisteredTask":
-        """Make a Task from a json string."""
-        d = json.loads(inp)
+    def unpack(cls: Type["UnregisteredTask"], inp: bytes) -> "UnregisteredTask":
+        """Make an UnregisteredTask from packed representation."""
+        d = unpackb(inp)
 
-        inputs: Dict[str, Union[FilePtr, str]] = {}
+        inputs: Dict[str, Union[FilePtr, str, bytes]] = {}
         for k, v in d["inputs"].items():
             if isinstance(v, dict):
                 inputs[k] = FilePtr(**v)
-            elif isinstance(v, str):
+            elif isinstance(v, str) or isinstance(v, bytes):
                 inputs[k] = v
             else:
                 raise TypeError(f"file {k} = {v} not of type str or bytes")
@@ -71,22 +70,18 @@ class RTask:
     inputs: Dict[str, FilePtr]
     outputs: Dict[str, FilePtr]
 
-    def json(self: "RTask") -> str:
-        """Return a json version of myself."""
-        return json.dumps(asdict(self))
+    def pack(self: "RTask") -> str:
+        """Return a packed version of myself."""
+        return packb(asdict(self))
 
     @classmethod
-    def from_json(cls: Type["RTask"], inp: Union[str, bytes]) -> "RTask":
-        """Build a registered task from a json string."""
-        d = json.loads(inp)
+    def unpack(cls: Type["RTask"], inp: bytes) -> "RTask":
+        """Build a registered task from packed representation."""
+        d = unpackb(inp)
 
         return RTask(
             task_id=d["task_id"],
-            commands=[
-                # nasty I know...
-                CachedCommandOutput.from_json(json.dumps(c))
-                for c in d["commands"]
-            ],
+            commands=[CachedCommandOutput.from_dict(c) for c in d["commands"]],
             env=d["env"],
             inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
             outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
@@ -99,7 +94,7 @@ def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
     if val is None:
         return None
     else:
-        return RTask.from_json(val)
+        return RTask.unpack(val)
 
 
 # ------------------------------------------------------------------------------
@@ -107,7 +102,7 @@ def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
 def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
     """Register an UnregisteredTask into Redis to get an RTask."""
     # Check if the task output is already there
-    task_key = task.json()
+    task_key = task.pack()
 
     if cache.hexists(__IDS, task_key):
         logging.debug("task key already exists.")
@@ -167,7 +162,7 @@ def register_task(cache: Redis, task: UnregisteredTask) -> RTask:
 def __cache_task(cache: Redis, task: RTask) -> None:
     # save id
     # TODO catch errors
-    cache.hset(__TASKS, bytes(task.task_id), task.json())
+    cache.hset(__TASKS, bytes(task.task_id), task.pack())
 
 
 # ------------------------------------------------------------------------------
@@ -230,16 +225,6 @@ def run_rtask(objcache: Redis, task: RTask) -> int:
                     f.write(val)
                 else:
                     logging.error(f"could not pull file from cache: {fn}")
-
-        # List of inputs and outputs for possible transformers
-        with open(os.path.join(dir, "__metadata__.pkl"), "wb") as fi:
-            pickle.dump(
-                {
-                    "inputs": list(task.inputs.keys()),
-                    "outputs": list(task.outputs.keys()),
-                },
-                fi,
-            )
 
         couts = []
         for _, c in enumerate(task.commands):

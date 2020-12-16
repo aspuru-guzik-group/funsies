@@ -1,10 +1,9 @@
 """CLI command wrappers."""
 # std
-from dataclasses import asdict, dataclass, field
-import json
+from dataclasses import dataclass, field
 import logging
 import subprocess
-from typing import Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 # module
 from .cached import FilePtr
@@ -45,20 +44,18 @@ class CachedCommandOutput:
     stdout: FilePtr
     stderr: FilePtr
 
-    def json(self: "CachedCommandOutput") -> str:
-        """Return a json version of myself."""
-        return json.dumps(asdict(self))
-
+    # Maybe we just want to get rid of these classes altogether.
     @classmethod
-    def from_json(cls: Type["CachedCommandOutput"], inp: str) -> "CachedCommandOutput":
-        """Make a CachedCommandOutput from a json string."""
-        d = json.loads(inp)
+    def from_dict(
+        cls: Type["CachedCommandOutput"], c: Dict[str, Any]
+    ) -> "CachedCommandOutput":
+        """Populate from a dictionary."""
         return CachedCommandOutput(
-            returncode=d["returncode"],
-            executable=d["executable"],
-            args=d["args"],
-            stdout=FilePtr(**d["stdout"]),
-            stderr=FilePtr(**d["stderr"]),
+            returncode=c["returncode"],
+            executable=c["executable"],
+            args=c["args"],
+            stdout=FilePtr(**c["stdout"]),
+            stderr=FilePtr(**c["stderr"]),
         )
 
 

@@ -14,22 +14,22 @@ def test_task_serialization() -> None:
     cmd = Command(executable="echo", args=["bla", "bla"])
 
     task = UnregisteredTask([cmd])
-    print(task.json())
+    print(task.pack())
 
 
 def test_task_deserialization() -> None:
     """Test that a task deserializes ok."""
     cmd = Command(executable="echo", args=["bla", "bla"])
     task = UnregisteredTask([cmd, cmd], inputs={"what": FilePtr("bla")})
-    print(task.json())
+    print(task.pack())
 
-    task2 = UnregisteredTask.from_json(task.json())
+    task2 = UnregisteredTask.unpack(task.pack())
     print(task2)
 
     # same classes
     assert task == task2
     # same serialization
-    assert task.json() == task.json()
+    assert task.pack() == task.pack()
 
 
 def test_taskoutput_serialization() -> None:

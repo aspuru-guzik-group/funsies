@@ -14,6 +14,7 @@ setuptools.setup(
     python_requries=">=3.7",
     install_requires=[
         "redis",
+        "msgpack",
         "cloudpickle",
         "rq",
         'importlib-metadata ~= 1.0 ; python_version < "3.8"',
