@@ -26,12 +26,12 @@ class FilePtr:
 
     """
 
-    task_id: int
+    task_id: bytes
     name: str
 
     def __str__(self: "FilePtr") -> str:
         """Return string representation."""
-        return f"{self.task_id}::{self.name}"
+        return f"{str(self.task_id)}::{self.name}"
 
     def pack(self: "FilePtr") -> bytes:
         """Pack a FilePtr."""
@@ -67,7 +67,7 @@ def pull_file(cache: Redis, fid: FilePtr) -> Optional[bytes]:
     return out
 
 
-def pull_fileptr(cache: Redis, fid: int) -> Optional[FilePtr]:
+def pull_fileptr(cache: Redis, fid: bytes) -> Optional[FilePtr]:
     """Extract a FilePtr from its id."""
     out = cache.hget(__OBJECTS, fid)
     if out is not None:
@@ -85,7 +85,7 @@ def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> Fi
             tmp = db.hget(__IDS, value)
             # pull the id from the db
             assert tmp is not None
-            out = pull_fileptr(db, int(tmp))
+            out = pull_fileptr(db, tmp)
             assert out is not None
             # done
             return out
@@ -93,8 +93,7 @@ def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> Fi
     # If it doesn't exist, we make the FilePtr.
 
     # grab a new id
-    task_id = db.incrby(__TASK_ID, 1)  # type:ignore
-    task_id = int(task_id)
+    task_id = db.incrby(__TASK_ID, 1)
 
     # output object
     out = FilePtr(task_id, filename)

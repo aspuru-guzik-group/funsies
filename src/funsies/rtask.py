@@ -25,7 +25,7 @@ class RTask:
     """Holds a registered task."""
 
     # task info
-    task_id: int
+    task_id: bytes
 
     # commands and outputs
     commands: List[CachedCommandOutput]
@@ -35,7 +35,7 @@ class RTask:
     inputs: Dict[str, FilePtr]
     outputs: Dict[str, FilePtr]
 
-    def pack(self: "RTask") -> str:
+    def pack(self: "RTask") -> bytes:
         """Return a packed version of myself."""
         return packb(asdict(self))
 
@@ -53,7 +53,7 @@ class RTask:
         )
 
 
-def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
+def pull_task(db: Redis, task_id: bytes) -> Optional[RTask]:
     """Pull a TaskOutput from redis using its task_id."""
     val = db.hget(__OBJECTS, task_id)
     if val is None:
@@ -64,32 +64,6 @@ def pull_task(db: Redis, task_id: int) -> Optional[RTask]:
 
 # ------------------------------------------------------------------------------
 # Register task on db
-@dataclass
-class UnregisteredTask:
-    """Holds a task that is not yet registered with Redis."""
-
-    commands: List[Command] = field(default_factory=list)
-    inputs: Dict[str, FilePtr] = field(default_factory=dict)
-    outputs: Dict[str, FilePtr] = field(default_factory=dict)
-    env: Optional[Dict[str, str]] = None
-
-    def pack(self: "UnregisteredTask") -> bytes:
-        """Return unpacked version of myself."""
-        return packb(asdict(self))
-
-    @classmethod
-    def unpack(cls: Type["UnregisteredTask"], inp: bytes) -> "UnregisteredTask":
-        """Make an UnregisteredTask from packed representation."""
-        d = unpackb(inp)
-
-        return UnregisteredTask(
-            commands=[Command(**c) for c in d["commands"]],
-            inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
-            outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
-            env=d["env"],
-        )
-
-
 def register_task(
     cache: Redis,
     commands: List[Command],
@@ -124,14 +98,12 @@ def register_task(
         # TODO better error catching
         # pull the id from the db
         assert tmp is not None
-        out = pull_task(cache, int(tmp))
+        out = pull_task(cache, tmp)
         assert out is not None
         return out
 
-    # If it doesn't exist, we make the task
-    # If not cached, get a new task_id and start running task.
-    task_id = cache.incrby(__TASK_ID, 1)  # type:ignore
-    task_id = int(task_id)
+    # If it doesn't exist, we make the task with a new id
+    task_id = cache.incrby(__TASK_ID, 1)
 
     # build cmd outputs
     couts = []
@@ -203,7 +175,7 @@ def __log_output(task: RTask) -> None:
 
 
 # runner
-def run_rtask(objcache: Redis, task: RTask) -> int:
+def run_rtask(objcache: Redis, task: RTask) -> bytes:
     """Execute a registered task and return its task id."""
     # Check status
     task_id = task.task_id

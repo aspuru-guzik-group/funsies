@@ -19,7 +19,7 @@ class RTransformer:
     """Holds a registered transformer."""
 
     # task info
-    task_id: int
+    task_id: bytes
 
     # The transformation function
     fun: bytes
@@ -46,7 +46,7 @@ class RTransformer:
         )
 
 
-def pull_transformer(db: Redis, task_id: int) -> Optional[RTransformer]:
+def pull_transformer(db: Redis, task_id: bytes) -> Optional[RTransformer]:
     """Pull a TaskOutput from redis using its task_id."""
     val = db.hget(__OBJECTS, task_id)
     if val is None:
@@ -82,16 +82,14 @@ def register_transformer(
         tmp = cache.hget(__IDS, key)
         # pull the id from the db
         assert tmp is not None
-        out = pull_transformer(cache, int(tmp))
+        out = pull_transformer(cache, tmp)
         assert out is not None
         # done
         return out
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
-    # TODO: fix
-    task_id = cache.incrby(__TASK_ID, 1)  # type:ignore
-    task_id = int(task_id)
+    task_id = cache.incrby(__TASK_ID, 1)
 
     # register outputs
     outputs = [register_file(cache, f"out{i+1}") for i in range(nout)]
@@ -107,7 +105,7 @@ def register_transformer(
     return out
 
 
-def run_rtransformer(objcache: Redis, task: RTransformer) -> int:
+def run_rtransformer(objcache: Redis, task: RTransformer) -> bytes:
     """Execute a registered transformer and return its task id."""
     # Check status
     task_id = task.task_id
