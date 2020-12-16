@@ -3,7 +3,6 @@
 import os
 import shlex
 from typing import (
-    Callable,
     Dict,
     Iterable,
     List,
@@ -20,7 +19,7 @@ from redis import Redis
 # module
 from .cached import FilePtr, register_file
 from .command import Command
-from .constants import _AnyPath
+from .constants import _AnyPath, _TransformerFun
 from .rtask import register_task, RTask
 from .rtransformer import register_transformer, RTransformer
 
@@ -123,7 +122,10 @@ def task(  # noqa:C901
 
 
 def transformer(
-    db: Redis, fun: Callable, inp: Optional[Iterable[FilePtr]] = None, noutputs: int = 1
+    db: Redis,
+    fun: _TransformerFun,
+    inp: Optional[Iterable[FilePtr]] = None,
+    noutputs: int = 1,
 ) -> RTransformer:
     """Make and register a Transformer."""
     # todo guess noutputs from type hint if possible

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 import logging
 import subprocess
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, TypedDict, Union
 
 # module
 from .cached import FilePtr
@@ -35,7 +35,7 @@ class CommandOutput:
 
 
 @dataclass
-class CachedCommandOutput:
+class SavedCommand:
     """Holds the result of running a command, with its stdout and err cached.."""
 
     returncode: int
@@ -46,11 +46,11 @@ class CachedCommandOutput:
 
     # Maybe we just want to get rid of these classes altogether.
     @classmethod
-    def from_dict(
-        cls: Type["CachedCommandOutput"], c: Dict[str, Any]
-    ) -> "CachedCommandOutput":
+    def from_dict(  # type:ignore
+        cls: Type["SavedCommand"], c: Dict[str, Any]
+    ) -> "SavedCommand":
         """Populate from a dictionary."""
-        return CachedCommandOutput(
+        return SavedCommand(
             returncode=c["returncode"],
             executable=c["executable"],
             args=c["args"],
@@ -62,7 +62,7 @@ class CachedCommandOutput:
 def run_command(
     dir: _AnyPath,
     environ: Optional[Dict[str, str]],
-    command: Union[Command, CachedCommandOutput],
+    command: Union[Command, SavedCommand],
 ) -> CommandOutput:
     """Run a Command."""
     args = [command.executable] + [a for a in command.args]

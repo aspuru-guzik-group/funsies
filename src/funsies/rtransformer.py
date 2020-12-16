@@ -2,7 +2,7 @@
 # std
 from dataclasses import asdict, dataclass
 import logging
-from typing import Callable, List, Optional, Sequence, Type
+from typing import Callable, cast, List, Optional, Sequence, Type
 
 # external
 import cloudpickle
@@ -11,7 +11,7 @@ from redis import Redis
 
 # module
 from .cached import FilePtr, pull_file, put_file, register_file
-from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID
+from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _TransformerFun
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ def pull_transformer(db: Redis, task_id: bytes) -> Optional[RTransformer]:
 # Register transformer on db
 def register_transformer(
     cache: Redis,
-    fun: Callable,
+    fun: _TransformerFun,
     inputs: Sequence[FilePtr],
     nout: int,
 ) -> RTransformer:
@@ -89,7 +89,8 @@ def register_transformer(
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
-    task_id = cache.incrby(__TASK_ID, 1)
+    task_id = cast(Optional[bytes], cache.incrby(__TASK_ID, 1))  # type:ignore
+    assert task_id is not None  # TODO fix
 
     # register outputs
     outputs = [register_file(cache, f"out{i+1}") for i in range(nout)]

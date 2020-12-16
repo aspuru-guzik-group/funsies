@@ -1,10 +1,10 @@
 """Cached tasks in redis."""
 # std
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import logging
 import os
 import tempfile
-from typing import Dict, List, Optional, Sequence, Type
+from typing import cast, Dict, List, Optional, Sequence, Type
 
 # external
 from msgpack import packb, unpackb
@@ -12,7 +12,7 @@ from redis import Redis
 
 # module
 from .cached import FilePtr, pull_file, put_file, register_file
-from .command import CachedCommandOutput, Command, run_command
+from .command import SavedCommand, Command, run_command
 from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _AnyPath
 
 # ------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ class RTask:
     task_id: bytes
 
     # commands and outputs
-    commands: List[CachedCommandOutput]
+    commands: List[SavedCommand]
     env: Optional[Dict[str, str]]
 
     # input & output files
@@ -46,7 +46,7 @@ class RTask:
 
         return RTask(
             task_id=d["task_id"],
-            commands=[CachedCommandOutput.from_dict(c) for c in d["commands"]],
+            commands=[SavedCommand.from_dict(c) for c in d["commands"]],
             env=d["env"],
             inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
             outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
@@ -103,18 +103,19 @@ def register_task(
         return out
 
     # If it doesn't exist, we make the task with a new id
-    task_id = cache.incrby(__TASK_ID, 1)
+    task_id = cast(Optional[bytes], cache.incrby(__TASK_ID, 1))  # type:ignore
+    assert task_id is not None  # TODO fix
 
     # build cmd outputs
     couts = []
     for cmd_id, cmd in enumerate(commands):
         couts += [
-            CachedCommandOutput(
+            SavedCommand(
                 -1,
                 cmd.executable,
                 cmd.args,
-                register_file(cache, f"task{task_id}.cmd{cmd_id}.stdout"),
-                register_file(cache, f"task{task_id}.cmd{cmd_id}.stderr"),
+                register_file(cache, f"task{str(task_id)}.cmd{cmd_id}.stdout"),
+                register_file(cache, f"task{str(task_id)}.cmd{cmd_id}.stderr"),
             )
         ]
 
@@ -204,7 +205,7 @@ def run_rtask(objcache: Redis, task: RTask) -> bytes:
         for _, c in enumerate(task.commands):
             cout = run_command(dir, task.env, c)
             couts += [
-                CachedCommandOutput(
+                SavedCommand(
                     cout.returncode,
                     c.executable,
                     c.args,
