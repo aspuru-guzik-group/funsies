@@ -1,0 +1,64 @@
+"""A quantum chemistry example."""
+# external
+import redis
+from rq import Queue
+
+# module
+from funsies import run, task
+
+# To run this example, you will need openbabel and xtb installed and on path
+# on all worker nodes.
+
+# as usual, we start with the Redis server and setting up the job queue.
+db = redis.Redis()
+queue = Queue(connection=db)
+
+# our task is to take a bunch of molecules, given as SMILES, make conformers
+# for them, optimize those conformers with xtb and extract their xtb HOMO-LUMO
+# gap.
+
+# Below is a list of random small drug molecules,
+smiles = [
+    r"CC\C=C/C\C=C/C\C=C/CCCCCCCC(O)=O",
+    r"CCN(CC)CC1=C(O)C=CC(NC2=C3C=CC(Cl)=CC3=NC=C2)=C1",
+    r"NCCCNCCSP(O)(O)=O",
+    r"NC12CC3CC(CC(C3)C1)C2",
+    r"CC(C)NCC(O)COC1=CC=C(CCOCC2CC2)C=C1",
+    r"CCC(C)C1(CC)C(=O)NC(=O)NC1=O",
+    r"CCN1N=C(C(O)=O)C(=O)C2=CC3=C(OCO3)C=C12",
+    r"CN(C)CCCC1(OCC2=C1C=CC(=C2)C#N)C1=CC=C(F)C=C1",
+    r"NC1=CC=NC=C1",
+    r"NC(=N)N1CCC2=CC=CC=C2C1",
+    r"CCN(CC)CCOC(=O)C1(CCCCC1)C1CCCCC1",
+    r"FC(F)OC(F)(F)C(F)Cl",
+    r"CCNC1C2CCC(C2)C1C1=CC=CC=C1",
+    r"FC1=CNC(=O)NC1=O",
+]
+
+# We start by running obabel to transform those from SMILES to 3d conformers.
+for i, smi in enumerate(smiles):
+    inf = f"{i}.smi"
+    t1 = task(
+        db,
+        f"obabel {inf} --addh --gen3d -O init.xyz",
+        inp={inf: smi},
+        out=["init.xyz"],
+    )
+
+    job1 = queue.enqueue(run, t1)  # this starts running the job
+
+    # t1 outputs can already be used as inputs in other jobs, even if the task
+    # is not yet completed, because they are not actual values. They are
+    # instead pointers to file on the redis server.
+
+    # we use the output init.xyz from t1 as the input to xtb.
+    t2 = task(
+        db,
+        "xtb init.xyz --opt --parallel 1",
+        inp={"init.xyz": t1.outputs["init.xyz"]},
+        out=["xtbopt.xyz"],
+    )
+
+    # note that we have a dependency on t1 and we need to tell the queue about
+    # it.
+    job2 = queue.enqueue(run, t2, depends_on=job1)
