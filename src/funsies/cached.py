@@ -91,7 +91,6 @@ def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> Fi
             return out
 
     # If it doesn't exist, we make the FilePtr.
-
     # grab a new id
     task_id = cast(Optional[bytes], db.incrby(__TASK_ID, 1))  # type:ignore
     assert task_id is not None  # TODO fix

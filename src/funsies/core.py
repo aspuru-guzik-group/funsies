@@ -18,7 +18,7 @@ def __job_connection() -> Redis:
     return connect
 
 
-def run(thing: Union[RTask, RTransformer]) -> bytes:
+def run(thing: Union[RTask, RTransformer]) -> str:
     """Run a task or transformer."""
     # Get cache
     objcache = __job_connection()

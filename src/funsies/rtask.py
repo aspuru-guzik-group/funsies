@@ -13,7 +13,7 @@ from redis import Redis
 # module
 from .cached import FilePtr, pull_file, put_file, register_file
 from .command import Command, run_command, SavedCommand
-from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _AnyPath
+from .constants import __IDS, __OBJECTS, __DONE, __TASK_ID, _AnyPath
 
 # ------------------------------------------------------------------------------
 # Config
@@ -25,7 +25,7 @@ class RTask:
     """Holds a registered task."""
 
     # task info
-    task_id: bytes
+    task_id: str
 
     # commands and outputs
     commands: List[SavedCommand]
@@ -53,7 +53,7 @@ class RTask:
         )
 
 
-def pull_task(db: Redis, task_id: bytes) -> Optional[RTask]:
+def pull_task(db: Redis, task_id: str) -> Optional[RTask]:
     """Pull a TaskOutput from redis using its task_id."""
     val = db.hget(__OBJECTS, task_id)
     if val is None:
@@ -98,12 +98,12 @@ def register_task(
         # TODO better error catching
         # pull the id from the db
         assert tmp is not None
-        out = pull_task(cache, tmp)
+        out = pull_task(cache, tmp.decode())
         assert out is not None
         return out
 
     # If it doesn't exist, we make the task with a new id
-    task_id = cast(Optional[bytes], cache.incrby(__TASK_ID, 1))  # type:ignore
+    task_id = cast(Optional[str], cache.incrby(__TASK_ID, 1))  # type:ignore
     assert task_id is not None  # TODO fix
 
     # build cmd outputs
@@ -176,18 +176,16 @@ def __log_output(task: RTask) -> None:
 
 
 # runner
-def run_rtask(objcache: Redis, task: RTask) -> bytes:
+def run_rtask(objcache: Redis, task: RTask) -> str:
     """Execute a registered task and return its task id."""
     # Check status
     task_id = task.task_id
 
-    if objcache.hget(__STATUS, task_id) == __SDONE:
+    if objcache.sismember(__DONE, task_id) == 1:  # type:ignore
         logging.debug("task is cached.")
-        out = pull_task(objcache, task_id)
-        if out is not None:
-            return task_id
-        else:
-            logging.warning("Pulling task out of cache failed, re-executing.")
+        return task_id
+    else:
+        logging.debug(f"evaluating task {task_id}.")
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -245,7 +243,6 @@ def run_rtask(objcache: Redis, task: RTask) -> bytes:
 
     # update cached copy
     __cache_task(objcache, task)
-    # TODO: possible race condition?
-    objcache.hset(__STATUS, task_id, __SDONE)  # set done
+    objcache.sadd(__DONE, task_id)  # type:ignore
 
     return task_id

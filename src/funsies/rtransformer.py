@@ -11,7 +11,7 @@ from redis import Redis
 
 # module
 from .cached import FilePtr, pull_file, put_file, register_file
-from .constants import __IDS, __OBJECTS, __SDONE, __STATUS, __TASK_ID, _TransformerFun
+from .constants import __IDS, __OBJECTS, __DONE, __TASK_ID, _TransformerFun
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class RTransformer:
     """Holds a registered transformer."""
 
     # task info
-    task_id: bytes
+    task_id: str
 
     # The transformation function
     fun: bytes
@@ -46,7 +46,7 @@ class RTransformer:
         )
 
 
-def pull_transformer(db: Redis, task_id: bytes) -> Optional[RTransformer]:
+def pull_transformer(db: Redis, task_id: str) -> Optional[RTransformer]:
     """Pull a TaskOutput from redis using its task_id."""
     val = db.hget(__OBJECTS, task_id)
     if val is None:
@@ -82,14 +82,14 @@ def register_transformer(
         tmp = cache.hget(__IDS, key)
         # pull the id from the db
         assert tmp is not None
-        out = pull_transformer(cache, tmp)
+        out = pull_transformer(cache, tmp.decode())
         assert out is not None
         # done
         return out
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
-    task_id = cast(Optional[bytes], cache.incrby(__TASK_ID, 1))  # type:ignore
+    task_id = cast(Optional[str], cache.incrby(__TASK_ID, 1))  # type:ignore
     assert task_id is not None  # TODO fix
 
     # register outputs
@@ -106,18 +106,16 @@ def register_transformer(
     return out
 
 
-def run_rtransformer(objcache: Redis, task: RTransformer) -> bytes:
+def run_rtransformer(objcache: Redis, task: RTransformer) -> str:
     """Execute a registered transformer and return its task id."""
     # Check status
     task_id = task.task_id
 
-    if objcache.hget(__STATUS, task_id) == __SDONE:
-        logging.debug("transformer result is cached.")
-        out = pull_transformer(objcache, task_id)
-        if out is not None:
-            return task_id
-        else:
-            logging.warning("Pulling transformer out of cache failed, re-executing.")
+    if objcache.sismember(__DONE, task_id) == 1:  # type:ignore
+        logging.debug("transformer is cached.")
+        return task_id
+    else:
+        logging.debug(f"evaluating transformer {task_id}.")
 
     # build function
     fun = cloudpickle.loads(task.fun)
@@ -136,10 +134,12 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> bytes:
     else:
         outputs = list(outputs_)
 
-    # Change output files
+    # race conditions?
+    # Update output files
     for i, el in enumerate(task.outputs):
         put_file(objcache, el, outputs[i])
 
-    objcache.hset(__STATUS, task_id, __SDONE)
+    # Mark as evaluated
+    objcache.sadd(__DONE, task_id)  # type:ignore
 
     return task_id

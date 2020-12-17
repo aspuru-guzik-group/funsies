@@ -8,10 +8,8 @@ __IDS = "funsies.ids"
 __OBJECTS = "funsies.objects"
 __FILES = "funsies.files"
 __TASK_ID = "funsies.current"
+__DONE = "funsies.done_jobs"
 
-# status
-__STATUS = "funsies.status"
-__SDONE = b"done"
 
 # Type for paths
 _AnyPath = Union[str, PathLike]
