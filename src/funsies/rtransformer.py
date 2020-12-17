@@ -2,7 +2,7 @@
 # std
 from inspect import getsource
 import logging
-from typing import cast, List, Optional, Sequence
+from typing import cast, List, Sequence
 
 # external
 import cloudpickle
@@ -54,8 +54,7 @@ def register_transformer(
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
-    task_id = cast(Optional[str], cache.incrby(__TASK_ID, 1))  # type:ignore
-    assert task_id is not None  # TODO fix
+    task_id = cast(str, str(cache.incrby(__TASK_ID, 1)))  # type:ignore
 
     # register outputs
     outputs = [register_file(cache, f"out{i+1}", comefrom=task_id) for i in range(nout)]

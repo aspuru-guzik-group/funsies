@@ -73,8 +73,7 @@ def register_file(
 
     # If it doesn't exist, we make the FilePtr.
     # grab a new id
-    task_id = cast(Optional[str], db.incrby(__TASK_ID, 1))  # type:ignore
-    assert task_id is not None  # TODO fix
+    task_id = cast(str, str(db.incrby(__TASK_ID, 1)))  # type:ignore
 
     # output object
     out = FilePtr(task_id, filename, cf)

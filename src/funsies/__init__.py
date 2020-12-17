@@ -1,15 +1,18 @@
 """Funsies is a functional wrapper for terminal commands."""
 from .cached import pull_file, put_file
-from .core import pull, run
+from .core import run, runall
+from .types import pull
 from .ui import file, task, transformer
 
 __all__ = [
     # core
     "run",
-    "pull",
+    "runall",
     # cached
     "pull_file",
     "put_file",
+    # types
+    "pull",
     # ui
     "file",
     "task",

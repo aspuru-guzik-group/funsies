@@ -66,8 +66,7 @@ def register_task(
             return out
 
     # If it doesn't exist, we make the task with a new id
-    task_id = cast(Optional[str], cache.incrby(__TASK_ID, 1))  # type:ignore
-    assert task_id is not None  # TODO fix
+    task_id = cast(str, str(cache.incrby(__TASK_ID, 1)))  # type:ignore
 
     # build cmd outputs
     couts = []
