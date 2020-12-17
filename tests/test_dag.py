@@ -4,8 +4,7 @@ import time
 from typing import Optional, Union
 
 # external
-# from fakeredis import FakeStrictRedis as Redis
-from redis import Redis
+from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
 from rq.job import Job
 
@@ -24,12 +23,13 @@ def assert_file(db: Redis, fid: Optional[FilePtr], equals: bytes) -> None:
     assert out == equals
 
 
-def wait_for(job: Job) -> Union[RTask, RTransformer, FilePtr]:
+def wait_for(job: Job) -> Union[RTask, RTransformer]:
     """Busily wait for a job to finish."""
     while True:
         if job.result is not None:
             t = pull(job.connection, job.result)
             assert t is not None
+            assert isinstance(t, RTask) or isinstance(t, RTransformer)
             return t
         time.sleep(0.02)
 
@@ -75,18 +75,21 @@ def test_dependents_complex() -> None:
 def test_dag_execution() -> None:
     """Test that a simple DAG runs."""
     db = Redis()
-    q = Queue(connection=db, default_timeout=-1, is_async=True)
+    q = Queue(connection=db, default_timeout=-1, is_async=False)
     t = task(db, "cat file", inp={"file": b"1bla bla\n"})
-    tr = transformer(
-        db, lambda x: x.decode().upper().encode(), inp=[t.commands[0].stdout]
-    )
 
-    tr2 = transformer(db, lambda x, y: x + y, inp=[t.commands[0].stdout, tr.outputs[0]])
-    job = runall(db, q, tr2.task_id)
-    print("deferred:", q.deferred_job_registry.get_job_ids())
+    def tfun(x: bytes) -> bytes:
+        return x.decode().upper().encode()
 
-    # q.enqueue_job(job)
+    def cat(x: bytes, y: bytes) -> bytes:
+        return x + y
+
+    tr = transformer(db, tfun, inp=[t.commands[0].stdout])
+
+    tr2 = transformer(db, cat, inp=[t.commands[0].stdout, tr.outputs[0]])
+    job = runall(q, tr2.task_id)
 
     # read
     result = wait_for(job)
-    assert_file(db, result.outputs[0], b"1BLA BLA\n")
+    assert isinstance(result, RTransformer)
+    assert_file(db, result.outputs[0], b"1bla bla\n1BLA BLA\n")

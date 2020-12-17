@@ -75,11 +75,11 @@ def get_dependencies(cache: Redis, task_id: str) -> List[str]:
     return out
 
 
-def runall(cache: Redis, q, task_id: str) -> Job:
+def runall(queue: rq.Queue, task_id: str) -> Job:
     """Execute a job and any / all of its dependencies."""
     # TODO add task metadata.
     logging.info(f"runall : {task_id}")
-    dependencies = get_dependencies(cache, task_id)
+    dependencies = get_dependencies(queue.connection, task_id)
     logging.info(f"n of dependencies : {len(dependencies)}")
     logging.debug(f"dependencies: {dependencies}")
 
@@ -90,16 +90,16 @@ def runall(cache: Redis, q, task_id: str) -> Job:
         # end up creating dependencies for a different job. This is a mess in
         # general, so here we just fetch one at a time.
         try:
-            djob = Job.fetch(tid, connection=cache)
+            djob = Job.fetch(tid, connection=queue.connection)
         except rq.exceptions.NoSuchJobError:
             # generate the dependency
-            djob = runall(cache, q, tid)
+            djob = runall(queue, tid)
         djobs += [djob.id]
 
     job = Job.create(
         run,
         args=(task_id,),
-        connection=cache,
+        connection=queue.connection,
         timeout="10d",
         result_ttl="10d",
         ttl="10d",
@@ -109,8 +109,8 @@ def runall(cache: Redis, q, task_id: str) -> Job:
 
     # hack around multi dependencies not yet supported,
     for i in djobs:
-        cache.sadd(job.dependencies_key, i)
+        queue.connection.sadd(job.dependencies_key, i)
 
-    q.enqueue_job(job)
+    queue.enqueue_job(job)
 
     return job

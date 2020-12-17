@@ -1,6 +1,6 @@
 msgpack
 cloudpickle
 redis
-rq
+rq>=1.7
 fakeredis
 msgpack-types
