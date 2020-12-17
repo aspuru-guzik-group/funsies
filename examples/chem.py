@@ -80,7 +80,7 @@ for i, smi in enumerate(smiles):
     t2 = task(
         db,
         "xtb init.xyz --opt --parallel 1",
-        inp={"init.xyz": t1.outputs["init.xyz"]},
+        inp={"init.xyz": t1.out["init.xyz"]},
         out=["xtbopt.xyz"],
     )
 

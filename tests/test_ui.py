@@ -63,7 +63,7 @@ def test_files_parsing() -> None:
         f.write(b"bla bla")
         f.flush()
         task2 = funsies.task(db, "cat file", inp=[f.name])
-        tmp = funsies.pull_file(db, task2.inputs[os.path.basename(f.name)])
+        tmp = funsies.pull_file(db, task2.inp[os.path.basename(f.name)])
         assert tmp is not None
         assert tmp == b"bla bla"
 
@@ -71,4 +71,4 @@ def test_files_parsing() -> None:
 def test_outfiles_parsing() -> None:
     """Test input files parsing."""
     task1 = funsies.task(db, "cp file1 file2", inp={"file1": "bla"}, out=["file2"])
-    assert tuple(task1.outputs) == ("file2",)
+    assert tuple(task1.out) == ("file2",)

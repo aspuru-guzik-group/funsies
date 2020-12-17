@@ -157,7 +157,7 @@ def run_rtask(objcache: Redis, task: RTask) -> str:
     # TODO setable tempdir
     with tempfile.TemporaryDirectory(dir=__TMPDIR) as dir:
         # Put in dir the input files
-        for fn, cachedfile in task.inputs.items():
+        for fn, cachedfile in task.inp.items():
             with open(os.path.join(dir, fn), "wb") as f:
                 val = pull_file(objcache, cachedfile)
                 if val is not None:
@@ -192,7 +192,7 @@ def run_rtask(objcache: Redis, task: RTask) -> str:
 
         # Output files
         outputs = {}
-        for file, value in task.outputs.items():
+        for file, value in task.out.items():
             try:
                 with open(os.path.join(dir, file), "rb") as f:
                     outputs[str(file)] = put_file(
@@ -205,7 +205,7 @@ def run_rtask(objcache: Redis, task: RTask) -> str:
                 logging.warning(f"expected file {file}, but didn't find it")
 
     # Make output object and update db
-    task = RTask(task_id, couts, task.env, task.inputs, outputs)
+    task = RTask(task_id, couts, task.env, task.inp, outputs)
 
     # update cached copy
     __cache_task(objcache, task)

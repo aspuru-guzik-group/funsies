@@ -86,7 +86,7 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> str:
 
     # load inputs and outputs
     inputs = []
-    for el in task.inputs:
+    for el in task.inp:
         source = pull_file(objcache, el)
         assert source is not None  # TODO:fix
         inputs.append(source)
@@ -100,7 +100,7 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> str:
 
     # race conditions?
     # Update output files
-    for i, el in enumerate(task.outputs):
+    for i, el in enumerate(task.out):
         put_file(objcache, el, outputs[i])
 
     # Mark as evaluated

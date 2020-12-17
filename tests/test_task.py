@@ -86,7 +86,7 @@ def test_task_identical_parameters() -> None:
     )
     job = q.enqueue(run, t.task_id)
     result = wait_for(job)
-    assert_file(db, t.outputs["f"], b"bla bla\n")
+    assert_file(db, t.out["f"], b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
     id1 = job.result
 
@@ -95,7 +95,7 @@ def test_task_identical_parameters() -> None:
     )
     job = q.enqueue(run, t.task_id)
     result = wait_for(job)
-    assert_file(db, t.outputs["f"], b"bla bla\n")
+    assert_file(db, t.out["f"], b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
     id2 = job.result
     assert id1 == id2
@@ -114,7 +114,7 @@ def test_transformer() -> None:
     job = q.enqueue(run, t.task_id)
     job2 = q.enqueue(run, t2.task_id, depends_on=job)
     result = wait_for_transformer(job2)
-    assert_file(db, result.outputs[0], b"BLA BLA\n")
+    assert_file(db, result.out[0], b"BLA BLA\n")
 
 
 def test_multitransformer() -> None:
@@ -130,8 +130,8 @@ def test_multitransformer() -> None:
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result = wait_for_transformer(job)
-    assert_file(db, result.outputs[0], b"BLA BLA\n")
-    assert_file(db, result.outputs[1], b"lol")
+    assert_file(db, result.out[0], b"BLA BLA\n")
+    assert_file(db, result.out[1], b"lol")
 
 
 def test_cached_transformer() -> None:
@@ -147,14 +147,14 @@ def test_cached_transformer() -> None:
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
     result1 = wait_for_transformer(job)
-    assert_file(db, result1.outputs[0], b"BLA BLA\n")
+    assert_file(db, result1.out[0], b"BLA BLA\n")
 
     t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
     t2 = transformer(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result2 = wait_for_transformer(job)
-    assert_file(db, result2.outputs[0], b"BLA BLA\n")
+    assert_file(db, result2.out[0], b"BLA BLA\n")
     assert t2.task_id == t1.task_id
     assert result1 == result2
 
@@ -172,7 +172,7 @@ def test_notcached_transformer() -> None:
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
     result1 = wait_for_transformer(job)
-    assert_file(db, result1.outputs[0], b"BLA BLA\n")
+    assert_file(db, result1.out[0], b"BLA BLA\n")
 
     # the comment type:ignore is enough to get it to redefine as a new
     # transformer.
@@ -185,6 +185,6 @@ def test_notcached_transformer() -> None:
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result2 = wait_for_transformer(job)
-    assert_file(db, result2.outputs[0], b"BLA BLA\n")
+    assert_file(db, result2.out[0], b"BLA BLA\n")
     assert t2.task_id != t1.task_id
     assert result1 != result2

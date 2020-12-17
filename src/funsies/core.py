@@ -67,10 +67,10 @@ def get_dependencies(cache: Redis, task_id: str) -> List[str]:
             return []
 
     elif isinstance(thing, RTask):
-        out = [i.task_id for i in thing.inputs.values()]
+        out = [i.task_id for i in thing.inp.values()]
 
     elif isinstance(thing, RTransformer):
-        out = [i.task_id for i in thing.inputs]
+        out = [i.task_id for i in thing.inp]
 
     return out
 

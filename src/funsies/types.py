@@ -61,8 +61,8 @@ class RTransformer:
     fun: bytes
 
     # input & output files
-    inputs: List[FilePtr]
-    outputs: List[FilePtr]
+    inp: List[FilePtr]
+    out: List[FilePtr]
 
     def pack(self: "RTransformer") -> bytes:
         """Pack self to bytes."""
@@ -76,8 +76,8 @@ class RTransformer:
         return RTransformer(
             task_id=d["task_id"],
             fun=d["fun"],
-            inputs=[FilePtr(**v) for v in d["inputs"]],
-            outputs=[FilePtr(**v) for v in d["outputs"]],
+            inp=[FilePtr(**v) for v in d["inp"]],
+            out=[FilePtr(**v) for v in d["out"]],
         )
 
 
@@ -143,8 +143,8 @@ class RTask:
     env: Optional[Dict[str, str]]
 
     # input & output files
-    inputs: Dict[str, FilePtr]
-    outputs: Dict[str, FilePtr]
+    inp: Dict[str, FilePtr]
+    out: Dict[str, FilePtr]
 
     def pack(self: "RTask") -> bytes:
         """Pack self to bytes."""
@@ -159,8 +159,8 @@ class RTask:
             task_id=d["task_id"],
             commands=[SavedCommand.from_dict(c) for c in d["commands"]],
             env=d["env"],
-            inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
-            outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
+            inp=dict((k, FilePtr(**v)) for k, v in d["inp"].items()),
+            out=dict((k, FilePtr(**v)) for k, v in d["out"].items()),
         )
 
 

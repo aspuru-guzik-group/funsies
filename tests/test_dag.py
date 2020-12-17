@@ -62,8 +62,8 @@ def test_dependents_complex() -> None:
         "cat file",
         inp={
             "bla": b"whatsup",
-            "file": t2.outputs[0],
-            "something else": t.outputs["lol"],
+            "file": t2.out[0],
+            "something else": t.out["lol"],
         },
     )
 
@@ -86,10 +86,10 @@ def test_dag_execution() -> None:
 
     tr = transformer(db, tfun, inp=[t.commands[0].stdout])
 
-    tr2 = transformer(db, cat, inp=[t.commands[0].stdout, tr.outputs[0]])
+    tr2 = transformer(db, cat, inp=[t.commands[0].stdout, tr.out[0]])
     job = runall(q, tr2.task_id)
 
     # read
     result = wait_for(job)
     assert isinstance(result, RTransformer)
-    assert_file(db, result.outputs[0], b"1bla bla\n1BLA BLA\n")
+    assert_file(db, result.out[0], b"1bla bla\n1BLA BLA\n")
