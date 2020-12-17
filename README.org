@@ -1,24 +1,54 @@
-Funsies is a typed and functional python library for running shell programs in
-parallel, backed by a persistent [[https://pypi.org/project/diskcache/][disk-based cache.]]
+*Funsies* is a typed python library to build reproducible, composable and
+data-persistent computational workflows described entirely in Python. It uses
+the minimal queuing library [[https://python-rq.org/][rq]] and it's own memoization / caching structures,
+both backed by [[https://redis.io/][an in-memory, persistent redis server]]. 
+
+* A little tour
+** Building a workflow
+In practice, using funsies looks like this:
 #+BEGIN_SRC python
-  import funsies
+  from funsies import task, transformer
+  from redis import Redis
 
-  # Make a Task object
-  task = funsies.task("echo 123")
-  # Open a Cache connection to my_cache
-  cache = funsies.Cache("my_cache")
-  # Run the task backed up by the cache
-  result = funsies.run(cache.spec, task)
+  db = Redis()
 
-  from concurrent.futures import ThreadPoolExecutor
-  with ThreadPoolExecutor() as t:
-      # This would work just as well using ProcessPoolExecutor, or dask.
-      futures = [t.submit(funsies.run, cache.spec, task) for _ in range(10)]
-      results = [f.result() for f in futures]
-
-  # Result contains only cache references to the files and command captured
-  # standard output and error, to minimize interprocess communication. The
-  # easiest way to access this data is using cache.unwrap, which will load into
-  # memory all the data in result.
-  final = cache.unwrap(result)
+  t1 = task(db, ["qchem params.in"], inp={"file.in": parameters}, out=["params.out"])
 #+END_SRC
+Tasks are simple shell commands with expected input and output files. All
+input and output files are automatically saved in Redis.
+
+Chaining tasks is simple,
+#+BEGIN_SRC python
+  t2 = task(
+      db,
+      ['grep "HOMO-LUMO ENERGY" myfile'],
+      inp={"myfile": t1.outputs["params.out"]},
+  )
+#+END_SRC
+The outputs from a task can immediately be used as inputs to other tasks, even
+as none of the tasks have even started computing. This is because the "files"
+are not actual populated values but pointers to (currently absent) data on the
+redis server.
+
+Python can also be used to do computations. Transformers are simple python
+callables and can be used to transform database "files". Here we apply
+a_python_function directly to the output of grep above,
+#+BEGIN_SRC python
+  t3 = transformer(db, a_python_function, inp=t2.commands[0].stdout)
+#+END_SRC
+
+** TODO Running the workflow
+** TODO Results, memoization and persistence
+* Why not x ?
+(where x ∈ S, [[https://github.com/pditommaso/awesome-pipeline][awesome pipelining]] ∪ [[https://github.com/meirwah/awesome-workflow-engines][workflow codes]] ⊂ S)
+
+I've created funsies because I wanted a pipelining code that is minimal,
+typed, deployable on HPC resources (not dependent on docker, AWS, etc.) and
+(most importantly) with *reproducible, persistent memoization*.
+
+funsies is specifically built for the kind of workflows common in
+computational chemistry. 
+
+
+* TODO File input / output
+* TODO queueing
