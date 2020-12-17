@@ -1,6 +1,7 @@
 """Data transformations."""
 # std
 from dataclasses import asdict, dataclass
+from inspect import getsource
 import logging
 from typing import cast, List, Optional, Sequence, Type
 
@@ -64,17 +65,25 @@ def register_transformer(
     nout: int,
 ) -> RTransformer:
     """Register a transformation function into Redis to get an RTransformer."""
-    # load function
-    fun_bytes = cloudpickle.dumps(fun)
+    # TODO: Document this
+    # Make a key for the transformer. Note that the key is defined as:
+    # - the source of fun().
+    # - the (NOT order invariant) inputs to fun.
+    # - the number of outputs to fun.
 
-    # make a key for the transformer
+    # Using the source _won't work_ for lambdas or with different comments
+    # etc. Not sure if it's a good idea... The alternative, using cloudpickle,
+    # will give different result with different python and python library versions.
+    fun_source = getsource(fun).strip()
     key = packb(
         {
-            "fun": fun_bytes,
+            "fun": fun_source,
             "inputs": [asdict(inp) for inp in inputs],
             "nout": nout,
         }
     )
+    logging.debug(f"transformer function defined as...\n{fun_source}")
+    logging.debug(f"transformer function as key: {str(key)}")
 
     if cache.hexists(__IDS, key):
         logging.debug("transformer key already exists.")
@@ -96,7 +105,7 @@ def register_transformer(
     outputs = [register_file(cache, f"out{i+1}") for i in range(nout)]
 
     # output object
-    out = RTransformer(task_id, fun_bytes, list(inputs), list(outputs))
+    out = RTransformer(task_id, cloudpickle.dumps(fun), list(inputs), list(outputs))
 
     # save transformer
     # TODO catch errors

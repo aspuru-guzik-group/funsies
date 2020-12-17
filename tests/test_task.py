@@ -145,15 +145,46 @@ def test_cached_transformer() -> None:
         return inp.decode().upper().encode()
 
     t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    t1 = transformer(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t)
-    job = q.enqueue(run, t2, depends_on=job)
-    result = wait_for_transformer(job)
-    assert_file(db, result.outputs[0], b"BLA BLA\n")
+    job = q.enqueue(run, t1, depends_on=job)
+    result1 = wait_for_transformer(job)
+    assert_file(db, result1.outputs[0], b"BLA BLA\n")
 
     t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
     t2 = transformer(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t)
     job = q.enqueue(run, t2, depends_on=job)
-    result = wait_for_transformer(job)
-    assert_file(db, result.outputs[0], b"BLA BLA\n")
+    result2 = wait_for_transformer(job)
+    assert_file(db, result2.outputs[0], b"BLA BLA\n")
+    assert t2.task_id == t1.task_id
+    assert result1 == result2
+
+
+def test_notcached_transformer() -> None:
+    """Test transformer capabilities."""
+    db = Redis()
+    q = Queue(connection=db, is_async=False, default_timeout=-1)
+
+    def tfun(inp: bytes) -> bytes:
+        return inp.decode().upper().encode()
+
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t1 = transformer(db, tfun, [t.commands[0].stdout])
+    job = q.enqueue(run, t)
+    job = q.enqueue(run, t1, depends_on=job)
+    result1 = wait_for_transformer(job)
+    assert_file(db, result1.outputs[0], b"BLA BLA\n")
+
+    def tfun(inp: bytes) -> bytes:
+        # different but the same
+        return inp.decode().upper().encode()
+
+    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    job = q.enqueue(run, t)
+    job = q.enqueue(run, t2, depends_on=job)
+    result2 = wait_for_transformer(job)
+    assert_file(db, result2.outputs[0], b"BLA BLA\n")
+    assert t2.task_id != t1.task_id
+    assert result1 != result2

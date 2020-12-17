@@ -26,7 +26,7 @@ class FilePtr:
 
     """
 
-    task_id: bytes
+    task_id: str
     name: str
 
     def __str__(self: "FilePtr") -> str:
@@ -79,10 +79,11 @@ def pull_fileptr(cache: Redis, fid: bytes) -> Optional[FilePtr]:
 def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> FilePtr:
     """Register a new file pointer into the database."""
     if value is not None:
-        if db.hexists(__IDS, value):
+        key = b"file contents:" + value
+        if db.hexists(__IDS, key):
             logging.debug("file already exists, return cached version.")
             # if it does, get task id
-            tmp = db.hget(__IDS, value)
+            tmp = db.hget(__IDS, key)
             # pull the id from the db
             assert tmp is not None
             out = pull_fileptr(db, tmp)
@@ -106,6 +107,6 @@ def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> Fi
     # TODO different IDs for files tasks and transformers?
     if value is not None:
         put_file(db, out, value)
-        db.hset(__IDS, value, task_id)
+        db.hset(__IDS, key, task_id)
 
     return out
