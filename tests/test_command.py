@@ -1,6 +1,7 @@
 """Tests for commandline wrapper."""
 # module
-from funsies.command import Command, run_command
+from funsies.command import run_command
+from funsies.types import Command
 
 
 # test of just simple command runner

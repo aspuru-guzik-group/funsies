@@ -1,54 +1,18 @@
 """Cached files."""
 # std
-from dataclasses import asdict, dataclass
 import logging
-from typing import cast, Optional, Type
+from typing import cast, Literal, Optional, overload
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 
 # module
 from .constants import __FILES, __IDS, __OBJECTS, __TASK_ID
+from .types import FilePtr, pull
 
 
 # ------------------------------------------------------------------------------
-# Pointers for file in redis
-@dataclass(frozen=True)
-class FilePtr:
-    """A pointer to a file on cache.
-
-    FilePtr is the main class that provides a way to uniquely access files
-    that are currently cached for writing and reading. Basically, Tasks have
-    file inputs and outputs as well as stdouts and stderr. All of these are
-    stored in the cache and are accessed using the associated CachedFiles as
-    keys.
-
-    """
-
-    task_id: str
-    name: str
-
-    def __str__(self: "FilePtr") -> str:
-        """Return string representation."""
-        return f"{str(self.task_id)}::{self.name}"
-
-    def pack(self: "FilePtr") -> bytes:
-        """Pack a FilePtr."""
-        d = asdict(self)
-        return packb(d)
-
-    @classmethod
-    def unpack(cls: Type["FilePtr"], inp: bytes) -> "FilePtr":
-        """Build a transformer from packed form."""
-        d = unpackb(inp)
-
-        return FilePtr(
-            task_id=d["task_id"],
-            name=d["name"],
-        )
-
-
+# Routine to set file *values* at locations of *pointers*
 def put_file(cache: Redis, fid: FilePtr, data: Optional[bytes]) -> FilePtr:
     """Set value of a FilePtr."""
     if data is None:
@@ -67,18 +31,29 @@ def pull_file(cache: Redis, fid: FilePtr) -> Optional[bytes]:
     return out
 
 
-def pull_fileptr(cache: Redis, fid: bytes) -> Optional[FilePtr]:
-    """Extract a FilePtr from its id."""
-    out = cache.hget(__OBJECTS, fid)
-    if out is not None:
-        return FilePtr.unpack(out)
-    else:
-        return None
+# Note: register file EITHER takes a value OR a comefrom. Importantly, it is
+# not called with both or neither. In addition, both value and comefrom *must*
+# be keyword arguments. Getting mypy to enfore this is the reason for all the
+# fancy overloading below.
+
+# fmt: off
+@overload
+def register_file(db: Redis, filename: str, *, value: bytes, comefrom: Literal[None] = None) -> FilePtr: ...  # noqa
+@overload
+def register_file(db: Redis, filename: str, *, comefrom: str, value: Literal[None] = None) -> FilePtr: ...  # noqa
+# fmt: on
 
 
-def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> FilePtr:
+def register_file(
+    db: Redis,
+    filename: str,
+    *,
+    value: Optional[bytes] = None,
+    comefrom: Optional[str] = None,
+) -> FilePtr:
     """Register a new file pointer into the database."""
     if value is not None:
+        cf = "0"
         key = b"file contents:" + value
         if db.hexists(__IDS, key):
             logging.debug("file already exists, return cached version.")
@@ -86,18 +61,23 @@ def register_file(db: Redis, filename: str, value: Optional[bytes] = None) -> Fi
             tmp = db.hget(__IDS, key)
             # pull the id from the db
             assert tmp is not None
-            out = pull_fileptr(db, tmp)
-            assert out is not None
-            # done
-            return out
+            out = pull(db, tmp.decode(), which="FilePtr")
+            if out is None:
+                logging.error("Tried to extract RTask but failed! recomputing...")
+            else:
+                return out
+
+    else:
+        assert comefrom is not None
+        cf = comefrom
 
     # If it doesn't exist, we make the FilePtr.
     # grab a new id
-    task_id = cast(Optional[bytes], db.incrby(__TASK_ID, 1))  # type:ignore
+    task_id = cast(Optional[str], db.incrby(__TASK_ID, 1))  # type:ignore
     assert task_id is not None  # TODO fix
 
     # output object
-    out = FilePtr(task_id, filename)
+    out = FilePtr(task_id, filename, cf)
 
     # Save
     # TODO catch errors

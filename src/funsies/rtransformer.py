@@ -1,63 +1,20 @@
 """Data transformations."""
 # std
-from dataclasses import asdict, dataclass
 from inspect import getsource
 import logging
-from typing import cast, List, Optional, Sequence, Type
+from typing import cast, List, Optional, Sequence
 
 # external
 import cloudpickle
-from msgpack import packb, unpackb
+from msgpack import packb
 from redis import Redis
 
 # module
-from .cached import FilePtr, pull_file, put_file, register_file
-from .constants import __IDS, __OBJECTS, __DONE, __TASK_ID, _TransformerFun
+from .cached import pull_file, put_file, register_file
+from .constants import __DONE, __IDS, __OBJECTS, __TASK_ID, _TransformerFun
+from .types import FilePtr, pull, RTransformer
 
 
-@dataclass(frozen=True)
-class RTransformer:
-    """Holds a registered transformer."""
-
-    # task info
-    task_id: str
-
-    # The transformation function
-    fun: bytes
-
-    # input & output files
-    inputs: List[FilePtr]
-    outputs: List[FilePtr]
-
-    def pack(self: "RTransformer") -> bytes:
-        """Pack a transformer."""
-        d = asdict(self)
-        return packb(d)
-
-    @classmethod
-    def unpack(cls: Type["RTransformer"], inp: bytes) -> "RTransformer":
-        """Build a transformer from packed form."""
-        d = unpackb(inp)
-
-        return RTransformer(
-            task_id=d["task_id"],
-            fun=d["fun"],
-            inputs=[FilePtr(**v) for v in d["inputs"]],
-            outputs=[FilePtr(**v) for v in d["outputs"]],
-        )
-
-
-def pull_transformer(db: Redis, task_id: str) -> Optional[RTransformer]:
-    """Pull a TaskOutput from redis using its task_id."""
-    val = db.hget(__OBJECTS, task_id)
-    if val is None:
-        return None
-    else:
-        return RTransformer.unpack(val)
-
-
-# ------------------------------------------------------------------------------
-# Register transformer on db
 def register_transformer(
     cache: Redis,
     fun: _TransformerFun,
@@ -74,16 +31,14 @@ def register_transformer(
     # Using the source _won't work_ for lambdas or with different comments
     # etc. Not sure if it's a good idea... The alternative, using cloudpickle,
     # will give different result with different python and python library versions.
-    fun_source = getsource(fun).strip()
-    key = packb(
-        {
-            "fun": fun_source,
-            "inputs": [asdict(inp) for inp in inputs],
-            "nout": nout,
-        }
-    )
-    logging.debug(f"transformer function defined as...\n{fun_source}")
-    logging.debug(f"transformer function as key: {str(key)}")
+    invariants = {
+        "fun": getsource(fun).strip(),
+        "inputs": [inp.pack() for inp in inputs],
+        "nout": nout,
+    }
+    key = packb(invariants)
+    logging.debug(f"transformer invariants: \n{str(invariants)}")
+    logging.debug(f"transformer key: {str(key)}")
 
     if cache.hexists(__IDS, key):
         logging.debug("transformer key already exists.")
@@ -91,10 +46,11 @@ def register_transformer(
         tmp = cache.hget(__IDS, key)
         # pull the id from the db
         assert tmp is not None
-        out = pull_transformer(cache, tmp.decode())
-        assert out is not None
-        # done
-        return out
+        out = pull(cache, tmp.decode(), which="RTransformer")
+        if out is None:
+            logging.error("Tried to extract RTask but failed! recomputing...")
+        else:
+            return out
 
     # If it doesn't exist, we make the RTransformer (this is the same code
     # basically as rtask).
@@ -102,7 +58,7 @@ def register_transformer(
     assert task_id is not None  # TODO fix
 
     # register outputs
-    outputs = [register_file(cache, f"out{i+1}") for i in range(nout)]
+    outputs = [register_file(cache, f"out{i+1}", comefrom=task_id) for i in range(nout)]
 
     # output object
     out = RTransformer(task_id, cloudpickle.dumps(fun), list(inputs), list(outputs))

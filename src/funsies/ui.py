@@ -17,11 +17,11 @@ from typing import (
 from redis import Redis
 
 # module
-from .cached import FilePtr, register_file
-from .command import Command
+from .cached import register_file
 from .constants import _AnyPath, _TransformerFun
-from .rtask import register_task, RTask
-from .rtransformer import register_transformer, RTransformer
+from .rtask import register_task
+from .rtransformer import register_transformer
+from .types import Command, FilePtr, RTask, RTransformer
 
 
 # Types
@@ -92,9 +92,9 @@ def task(  # noqa:C901
         for key, val in inp.items():
             skey = str(key)
             if isinstance(val, str):
-                inputs[skey] = register_file(db, skey, val.encode())
+                inputs[skey] = register_file(db, skey, value=val.encode())
             elif isinstance(val, bytes):
-                inputs[skey] = register_file(db, skey, val)
+                inputs[skey] = register_file(db, skey, value=val)
             elif isinstance(val, FilePtr):
                 inputs[skey] = val
             else:
@@ -107,7 +107,7 @@ def task(  # noqa:C901
         for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = register_file(db, skey, f.read())
+                inputs[skey] = register_file(db, skey, value=f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -146,8 +146,8 @@ def file(  # noqa:C901
     """Make and register a FilePtr."""
     skey = str(name)
     if isinstance(value, str):
-        return register_file(db, skey, value.encode())
+        return register_file(db, skey, value=value.encode())
     elif isinstance(value, bytes):
-        return register_file(db, skey, value)
+        return register_file(db, skey, value=value)
     else:
         raise TypeError("value of {name_or_path} not bytes or string")

@@ -1,69 +1,27 @@
 """Cached tasks in redis."""
 # std
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 import logging
 import os
 import tempfile
-from typing import cast, Dict, List, Optional, Sequence, Type
+from typing import cast, Dict, List, Optional, Sequence
 
 # external
-from msgpack import packb, unpackb
+from msgpack import packb
 from redis import Redis
 
 # module
-from .cached import FilePtr, pull_file, put_file, register_file
-from .command import Command, run_command, SavedCommand
-from .constants import __IDS, __OBJECTS, __DONE, __TASK_ID, _AnyPath
+from .cached import pull_file, put_file, register_file
+from .command import run_command
+from .constants import __DONE, __IDS, __OBJECTS, __TASK_ID, _AnyPath
+from .types import Command, FilePtr, pull, RTask, SavedCommand
 
 # ------------------------------------------------------------------------------
 # Config
 __TMPDIR: Optional[_AnyPath] = None
 
 
-@dataclass
-class RTask:
-    """Holds a registered task."""
-
-    # task info
-    task_id: str
-
-    # commands and outputs
-    commands: List[SavedCommand]
-    env: Optional[Dict[str, str]]
-
-    # input & output files
-    inputs: Dict[str, FilePtr]
-    outputs: Dict[str, FilePtr]
-
-    def pack(self: "RTask") -> bytes:
-        """Return a packed version of myself."""
-        return packb(asdict(self))
-
-    @classmethod
-    def unpack(cls: Type["RTask"], inp: bytes) -> "RTask":
-        """Build a registered task from packed representation."""
-        d = unpackb(inp)
-
-        return RTask(
-            task_id=d["task_id"],
-            commands=[SavedCommand.from_dict(c) for c in d["commands"]],
-            env=d["env"],
-            inputs=dict((k, FilePtr(**v)) for k, v in d["inputs"].items()),
-            outputs=dict((k, FilePtr(**v)) for k, v in d["outputs"].items()),
-        )
-
-
-def pull_task(db: Redis, task_id: str) -> Optional[RTask]:
-    """Pull a TaskOutput from redis using its task_id."""
-    val = db.hget(__OBJECTS, task_id)
-    if val is None:
-        return None
-    else:
-        return RTask.unpack(val)
-
-
 # ------------------------------------------------------------------------------
-# Register task on db
 def register_task(
     cache: Redis,
     commands: List[Command],
@@ -82,6 +40,7 @@ def register_task(
     # outputs are a strictly smaller set, we don't do that yet for ease of
     # implementation.
     invariants = {
+        # TODO: switch to using packb for invariants as opposed to asdict
         "commands": [asdict(c) for c in commands],
         "inputs": sorted([(k, asdict(v)) for k, v in inputs.items()]),
         "outputs": sorted(list(outputs)),
@@ -90,17 +49,21 @@ def register_task(
         invariants["env"] = sorted([(k, v) for k, v in env.items()])
 
     task_key = packb(invariants)
+    logging.debug(f"task invariants: \n{str(invariants)}")
+    logging.debug(f"task key: {str(task_key)}")
 
     if cache.hexists(__IDS, task_key):
-        logging.debug("task key already exists.")
+        logging.info("task key already exists.")
         # if it does, get task id
         tmp = cache.hget(__IDS, task_key)
         # TODO better error catching
         # pull the id from the db
         assert tmp is not None
-        out = pull_task(cache, tmp.decode())
-        assert out is not None
-        return out
+        out = pull(cache, tmp.decode(), which="RTask")
+        if out is None:
+            logging.error("Tried to extract RTask but failed! recomputing...")
+        else:
+            return out
 
     # If it doesn't exist, we make the task with a new id
     task_id = cast(Optional[str], cache.incrby(__TASK_ID, 1))  # type:ignore
@@ -114,15 +77,19 @@ def register_task(
                 -1,
                 cmd.executable,
                 cmd.args,
-                register_file(cache, f"task{str(task_id)}.cmd{cmd_id}.stdout"),
-                register_file(cache, f"task{str(task_id)}.cmd{cmd_id}.stderr"),
+                register_file(
+                    cache, f"task{str(task_id)}.cmd{cmd_id}.stdout", comefrom=task_id
+                ),
+                register_file(
+                    cache, f"task{str(task_id)}.cmd{cmd_id}.stderr", comefrom=task_id
+                ),
             )
         ]
 
     # build file outputs
     myoutputs = {}
     for f in outputs:
-        myoutputs[f] = register_file(cache, f)
+        myoutputs[f] = register_file(cache, f, comefrom=task_id)
 
     # output object
     out = RTask(task_id, couts, env, inputs, myoutputs)
@@ -182,10 +149,10 @@ def run_rtask(objcache: Redis, task: RTask) -> str:
     task_id = task.task_id
 
     if objcache.sismember(__DONE, task_id) == 1:  # type:ignore
-        logging.debug("task is cached.")
+        logging.info("task is cached.")
         return task_id
     else:
-        logging.debug(f"evaluating task {task_id}.")
+        logging.info(f"evaluating task {task_id}.")
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
