@@ -1,18 +1,27 @@
-*Funsies* is a typed python library to build reproducible, composable and
-data-persistent computational workflows described entirely in Python. It uses
-the minimal queuing library [[https://python-rq.org/][rq]] and it's own memoization / caching structures,
-both backed by [[https://redis.io/][an in-memory, persistent redis server]]. 
+*Funsies* is an opinionated typed python library to build /reproducible,
+composable and data-persistent/ computational workflows that are described
+entirely in Python. It uses the minimal queuing library [[https://python-rq.org/][rq]] and it's own
+memoization / caching structures, both backed by [[https://redis.io/][an in-memory, persistent
+redis server]].
 
 * A little tour
 ** Building a workflow
-In practice, using funsies looks like this:
+Funsies is built to be simple to use. First, it needs a redis server, which
+can be locally installed in anaconda,
+#+BEGIN_SRC shell
+  conda install -c anaconda redis
+  redis-server
+#+END_SRC
+Then, the workflow can be built and registered in the Redis database entirely
+in python,
 #+BEGIN_SRC python
-  from funsies import task, transformer
+  from funsies import runall, task, transformer
   from redis import Redis
 
   db = Redis()
 
-  t1 = task(db, ["qchem params.in"], inp={"file.in": parameters}, out=["params.out"])
+  t1 = task(db, ["qchem params.in"],
+            inp={"file.in": parameters}, out=["params.out"])
 #+END_SRC
 Tasks are simple shell commands with expected input and output files. All
 input and output files are automatically saved in Redis.
@@ -22,7 +31,7 @@ Chaining tasks is simple,
   t2 = task(
       db,
       ['grep "HOMO-LUMO ENERGY" myfile'],
-      inp={"myfile": t1.outputs["params.out"]},
+      inp={"myfile": t1.out["params.out"]},
   )
 #+END_SRC
 The outputs from a task can immediately be used as inputs to other tasks, even
@@ -37,18 +46,82 @@ a_python_function directly to the output of grep above,
   t3 = transformer(db, a_python_function, inp=t2.commands[0].stdout)
 #+END_SRC
 
-** TODO Running the workflow
-** TODO Results, memoization and persistence
-* Why not x ?
-(where x ∈ S, [[https://github.com/pditommaso/awesome-pipeline][awesome pipelining]] ∪ [[https://github.com/meirwah/awesome-workflow-engines][workflow codes]] ⊂ S)
+** Running a workflow
+Running workflows is done using rq, a minimalist job queue library. To create
+workers, simply run the following in the shell,
+#+BEGIN_SRC shell
+rq worker
+#+END_SRC
+There are many settings available. Importantly, workers can connect to remote
+Redis servers, which allow full distributed computations.
+
+Once that is done workflow is setup, the ~runall~ function applied to any of the
+workflow's object (Task, Transformer or a FilePtr) enqueues all the jobs
+required to produce the object or it's outputs. It's as simple as doing,
+#+BEGIN_SRC python
+  import rq
+  queue = rq.Queue(connection=db)
+  runall(queue, t3)
+  db.save()                       # save the database explicitly.
+#+END_SRC
+
+** Results, memoization and persistence
+The major advantage of using funsies is that it automatically and
+transparently saves all *marked* input and output "files". This memoization
+enables automatic checkpointing and incremental computing.
+
+Following on the example above, re-running the same script, *even on a
+different machine*, will not perform any computations (beyond database
+lookups). Modifying the script and re-running it will only recompute changed
+results. This means, for example, that if we want to change slightly the final
+data outputs of an expensive computation, we can do so entirely out of the
+cluster. We only ever need to carry around two files: the database dump and
+the computation script. 
+
+To go back to our example, we can get the result from ~t3~ by pulling it's
+output file once the computation is done. For example, we could ~scp~ the
+database ~dump.db~ file to a local machine, start redis, and re-run the entire
+script with only this line added,
+#+BEGIN_SRC python
+  from funsies import pull_file
+  print(pull_file(db, t3.out[0]))
+#+END_SRC
+to print the result from ~t3~. If we additionally wanted to inspect the stdout
+from t1, we could add this at the end,
+#+BEGIN_SRC python
+  print(pull_file(db, t1.commands[0].stdout))
+#+END_SRC
+No expensive computations are performed in either case.
+
+* Why not /x/ ?
+(where /x/ ∈ S, [[https://github.com/pditommaso/awesome-pipeline][awesome pipelining]] ∪ [[https://github.com/meirwah/awesome-workflow-engines][workflow codes]] ⊂ S)
 
 I've created funsies because I wanted a pipelining code that is minimal,
 typed, deployable on HPC resources (not dependent on docker, AWS, etc.) and
 (most importantly) with *reproducible, persistent memoization*.
 
-funsies is specifically built for the kind of workflows common in
-computational chemistry. 
+Funsies is specifically built for the kind of workflows common in
+computational chemistry. It is most similar to [[https://github.com/grailbio/reflow][reflow]], albeit in python
+instead of Go, and significantly simpler (and less robust / featureful of
+course).
+- *Single source of truth*: In funsies, the script that generates the data also
+  describes the data. While keeping code and data tightly coupled is often
+  frowned upon, it ensures that there is no documentation that will go out of
+  date or lab notebooks that are more "post-it notes on a board" than
+  "notebook".
+- *The precious few*: Funsies assumes that tasks are few but that they are very
+  expensive to compute. It is designed for workflow with 100s ⨉ 40 core hour
+  jobs (like optimizing molecular geometries) not workflows with 100,000 ⨉ 10
+  core second jobs, as may be present in large scale data analytics.
+- *Run anywhere*: Academic research is always severely financially constrained,
+  and computational chemistry software is often site-locked. Containerization
+  (like Docker) is still slowly coming into the HPC sphere. Funsies is built
+  so that it can run anywhere without root access.
+- *Minimal setup and interface*: Although full-scale workflow software is
+  obviously more robust, it is also much too cumbersome to setup. Similarly,
+  extensive design of database schema is too unwieldy, even if it is by far
+  the better solution. Funsies target instead the "file-driven databases" used
+  by academics that rapidly become unreadable, non-backed up messes (~expt_2020/jun/ParameterSearch3/alpha=0point3.csv~)
+ 
 
-
-* TODO File input / output
-* TODO queueing
+* TODO Persistence, memoization and supporting architecture
