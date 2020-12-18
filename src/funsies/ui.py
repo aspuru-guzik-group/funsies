@@ -138,7 +138,7 @@ def transformer(
     return register_transformer(db, fun, inputs, noutputs)
 
 
-def file(  # noqa:C901
+def file(
     db: Redis,
     name: _AnyPath,
     value: Union[bytes, str],

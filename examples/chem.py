@@ -1,31 +1,28 @@
 """A quantum chemistry example."""
+# std
+import sys
+
 # external
 import redis
 from rq import Queue
 
 # module
-from funsies import run, task, transformer
+from funsies import runall, task, transformer, pull_file
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
 
-# as usual, we start with the Redis server and setting up the job queue.
+# Setup the Redis server
+# ----------------------
+# this will ensure that the database is fully persistent
+# between runs.
 db = redis.Redis()
-queue = Queue(connection=db)
+db.config_set("appendonly", "yes")  # type:ignore
 
-# Set some good defaults for the jobs on queue. In general, it's not worth
-# setting ttl or result_ttl to other values because when doing chemistry
-# simulations, we are not going to run 1 million jobs per minute and thus
-# crash because of out-of-memory errors. However, as all the jobs are really
-# long, we don't want jobs to be cancelled just because it's taking a while to
-# find a worker.
-job_defaults = dict(
-    timeout="3h",  # how long each job has
-    ttl="10d",  # how long jobs are kept on queue
-    result_ttl="10d",  # how long job result objects are kept
-)
 
-# our task is to take a bunch of molecules, given as SMILES, make conformers
+# Start of computational workflow
+# -------------------------------
+# Our task is to take a bunch of molecules, given as SMILES, make conformers
 # for them, optimize those conformers with xtb and extract their xtb HOMO-LUMO
 # gap.
 
@@ -49,31 +46,31 @@ smiles = [
 
 
 # # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
-def get_gap(inp: bytes) -> bytes:
+def get_gap(smi: bytes, xtbout: bytes) -> bytes:
     """Take HOMO-LUMO gap in inp, and output it to out."""
-    for line in inp.decode().splitlines():
+    for line in xtbout.decode().splitlines():
         # we are looking for this line
         # | HOMO-LUMO GAP               1.390012170128 eV   |
         if "HOMO-LUMO GAP" in line:
-            f = float(line.strip()[18:-7].strip())
-            return str(f).encode()
-    return b""
+            gap = float(line.strip()[18:-7].strip())
+            break
+
+    # output is a csv row
+    output = f"{smi.decode()},{gap}\n"
+    return output.encode()
 
 
 # We start by running obabel to transform those from SMILES to 3d conformers.
+outputs = []
 for i, smi in enumerate(smiles):
-    inf = f"{i}.smi"
     t1 = task(
         db,
-        f"obabel {inf} --addh --gen3d -O init.xyz",
-        inp={inf: smi},
+        f"obabel in.smi --addh --gen3d -O init.xyz",
+        inp={"in.smi": smi},
         out=["init.xyz"],
     )
-
-    job1 = queue.enqueue_call(run, [t1], **job_defaults)  # this starts running the job
-
     # t1 outputs can already be used as inputs in other jobs, even if the task
-    # is not yet completed, because they are not actual values. They are
+    # is not yet completed, because they are not actual values: they are
     # instead pointers to file on the redis server.
 
     # we use the output init.xyz from t1 as the input to xtb.
@@ -84,17 +81,62 @@ for i, smi in enumerate(smiles):
         out=["xtbopt.xyz"],
     )
 
-    # note that we have a dependency on t1 and we need to tell the queue about
-    # it.
-    job2 = queue.enqueue_call(run, [t2], depends_on=job1, **job_defaults)
-
     # Now the HOMO-LUMO gap is in the xtb std output. To get it, we will use a
-    # python IO transform.
+    # python IO transform on the xtb stdout,
     xtb_out = t2.commands[0].stdout
 
-    # if instead of a commandline command we pass a python function fun to
-    # task(), we create a transformer that takes input files in inp to output
-    # files in out using the function fun(*inputs, *outputs), where inputs and
-    # outputs are IO sources and sinks.
-    tr = transformer(db, get_gap, inp=[xtb_out])
-    queue.enqueue_call(run, [tr], depends_on=job2, **job_defaults)
+    # We use get_gap defined above to do the transformation. We also add the
+    # SMILES string so that we can keep track of molecules.
+    tr = transformer(db, get_gap, inp=[t1.inp["in.smi"], xtb_out])
+    outputs += [tr.out[0]]
+
+
+# Final transformer that joins all the outputs.
+def join(*args: bytes) -> bytes:
+    out = b""
+    for a in args:
+        out += a
+    return out
+
+
+tr = transformer(db, join, inp=outputs)
+
+if sys.argv[-1] != "read":
+    # Setup the RQ job queue and run
+    # ------------------------------
+    # Set some good defaults for the jobs on queue. In general, it's not worth
+    # setting ttl or result_ttl to other values because when doing chemistry
+    # simulations, we are not going to run 1 million jobs per minute and thus
+    # crash because of out-of-memory errors. However, as all the jobs are really
+    # long, we don't want jobs to be cancelled just because it's taking a while to
+    # find a worker.
+    queue = Queue(connection=db)
+    job_defaults = dict(
+        timeout="3h",  # how long each job has
+        ttl="10d",  # how long jobs are kept on queue
+        result_ttl="10d",  # how long job result objects are kept
+    )
+    # run everything by using the fact that the last transformer depends on all
+    # the outputs
+    runall(queue, tr.task_id)
+
+else:
+    # Analyze / compile results
+    # -------------------------
+    # Traditionally, we would then use a wait() routine to wait
+    # for all results to come in and then do final DB join/concat operations.
+    # Here, we use the fact that all simulations were recorded to simply
+    # re-run everything in sync mode (meaning without separate worker
+    # threads), playing back all the operations using the memoized data.
+    queue = Queue(connection=db, is_async=False)
+
+    # tip: set the read_only flag to ensure you are not doing any operations
+    # that would crash your weak local data analysis machine!
+    runall(queue, tr.task_id, no_exec=True)
+
+    # Because it's not async, we know that the outputs of the transformer are
+    # fully populated here already, so we can just print them.
+    out = pull_file(db, tr.out[0])
+
+    # Voila! Results to stdout using simply python chem.py read
+    print(out.decode().rstrip() + "\n")

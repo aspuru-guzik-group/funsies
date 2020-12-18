@@ -70,7 +70,7 @@ def register_transformer(
     return out
 
 
-def run_rtransformer(objcache: Redis, task: RTransformer) -> str:
+def run_rtransformer(objcache: Redis, task: RTransformer, no_exec: bool = False) -> str:
     """Execute a registered transformer and return its task id."""
     # Check status
     task_id = task.task_id
@@ -80,6 +80,12 @@ def run_rtransformer(objcache: Redis, task: RTransformer) -> str:
         return task_id
     else:
         logging.debug(f"evaluating transformer {task_id}.")
+
+    if no_exec:
+        logging.critical(
+            "no_exec flag is specifically set but transformer needs evaluation!"
+        )
+        raise RuntimeError("execution denied.")
 
     # build function
     fun = cloudpickle.loads(task.fun)

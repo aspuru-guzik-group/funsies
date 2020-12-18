@@ -142,7 +142,7 @@ def __log_output(task: RTask) -> None:
 
 
 # runner
-def run_rtask(objcache: Redis, task: RTask) -> str:
+def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:
     """Execute a registered task and return its task id."""
     # Check status
     task_id = task.task_id
@@ -152,6 +152,10 @@ def run_rtask(objcache: Redis, task: RTask) -> str:
         return task_id
     else:
         logging.info(f"evaluating task {task_id}.")
+
+    if no_exec:
+        logging.critical("no_exec flag is specifically set but task needs evaluation!")
+        raise RuntimeError("execution denied.")
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir

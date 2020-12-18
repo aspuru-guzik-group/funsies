@@ -21,7 +21,7 @@ def __job_connection() -> Redis:
     return connect
 
 
-def run(task_id: str) -> str:
+def run(task_id: str, no_exec: bool = False) -> str:
     """Run a task or transformer."""
     # Get cache
     objcache = __job_connection()
@@ -40,9 +40,9 @@ def run(task_id: str) -> str:
 
     # dispatch based on task id
     if isinstance(thing, RTask):
-        return run_rtask(objcache, thing)
+        return run_rtask(objcache, thing, no_exec)
     elif isinstance(thing, RTransformer):
-        return run_rtransformer(objcache, thing)
+        return run_rtransformer(objcache, thing, no_exec)
     elif isinstance(thing, FilePtr):
         # TODO check that the file is the same here.
         return task_id
@@ -75,9 +75,10 @@ def get_dependencies(cache: Redis, task_id: str) -> List[str]:
     return out
 
 
-def runall(queue: rq.Queue, task_id: str) -> Job:
+def runall(queue: rq.Queue, task_id: str, no_exec: bool = False) -> Job:
     """Execute a job and any / all of its dependencies."""
     # TODO add task metadata.
+    # TODO readonly flag.
     logging.info(f"runall : {task_id}")
     dependencies = get_dependencies(queue.connection, task_id)
     logging.info(f"n of dependencies : {len(dependencies)}")
@@ -93,12 +94,13 @@ def runall(queue: rq.Queue, task_id: str) -> Job:
             djob = Job.fetch(tid, connection=queue.connection)
         except rq.exceptions.NoSuchJobError:
             # generate the dependency
-            djob = runall(queue, tid)
+            djob = runall(queue, tid, no_exec=no_exec)
         djobs += [djob.id]
 
     job = Job.create(
         run,
         args=(task_id,),
+        kwargs=dict(no_exec=no_exec),
         connection=queue.connection,
         timeout="10d",
         result_ttl="10d",
