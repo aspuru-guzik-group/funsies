@@ -1,8 +1,8 @@
 """Main type definitions."""
 # stdlib
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 import logging
-from typing import Any, Dict, List, Literal, Optional, overload, Type, Union
+from typing import Any, Dict, List, Literal, Optional, overload, Type, TypeVar, Union
 
 # external
 from msgpack import packb, unpackb
@@ -11,10 +11,31 @@ from redis import Redis
 # module
 from .constants import __OBJECTS
 
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class Thing:
+    """Represent a calculation step registered to the database."""
+
+    task_id: str
+
+    def invariant(self) -> bytes:
+        pass
+
+    def pack(self) -> bytes:
+        out = {}
+        for k, v in asdict(self).items():
+            if isinstance(v, Thing):
+                out[k] = v.pack()
+            else:
+                out[k] = v
+        return packb((type(self).__name__, packb(out)))
+
 
 # --------------------------------- FILEPTR -------------------------------------
 @dataclass(frozen=True)
-class FilePtr:
+class FilePtr(Thing):
     """A pointer to a file on cache.
 
     FilePtr is the main class that provides a way to uniquely access files
@@ -25,17 +46,12 @@ class FilePtr:
 
     """
 
-    task_id: str
     name: str
     comefrom: str
 
     def __str__(self: "FilePtr") -> str:
         """Return string representation."""
         return f"{str(self.task_id)}::{self.name}"
-
-    def pack(self: "FilePtr") -> bytes:
-        """Pack self to bytes."""
-        return packb(("FilePtr", packb(asdict(self))))
 
     @classmethod
     def unpack(cls: Type["FilePtr"], inp: bytes) -> "FilePtr":
@@ -51,7 +67,7 @@ class FilePtr:
 
 # --------------------------------- TRANSFORMER -------------------------------------
 @dataclass(frozen=True)
-class RTransformer:
+class RTransformer(Thing):
     """Holds a registered transformer."""
 
     # task info
@@ -63,10 +79,6 @@ class RTransformer:
     # input & output files
     inp: List[FilePtr]
     out: List[FilePtr]
-
-    def pack(self: "RTransformer") -> bytes:
-        """Pack self to bytes."""
-        return packb(("RTransformer", packb(asdict(self))))
 
     @classmethod
     def unpack(cls: Type["RTransformer"], inp: bytes) -> "RTransformer":
@@ -131,8 +143,8 @@ class SavedCommand:
 
 
 # --------------------------------- TASK -------------------------------------
-@dataclass
-class RTask:
+@dataclass(frozen=True)
+class RTask(Thing):
     """Holds a registered task."""
 
     # task info
@@ -145,10 +157,6 @@ class RTask:
     # input & output files
     inp: Dict[str, FilePtr]
     out: Dict[str, FilePtr]
-
-    def pack(self: "RTask") -> bytes:
-        """Pack self to bytes."""
-        return packb(("RTask", packb(asdict(self))))
 
     @classmethod
     def unpack(cls: Type["RTask"], inp: bytes) -> "RTask":
