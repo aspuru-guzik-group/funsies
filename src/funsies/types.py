@@ -1,6 +1,7 @@
 """Main type definitions."""
 # stdlib
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
+import hashlib
 import logging
 from typing import Any, Dict, List, Literal, Optional, overload, Type, TypeVar, Union
 
@@ -20,10 +21,8 @@ class Thing:
 
     task_id: str
 
-    def invariant(self) -> bytes:
-        pass
-
-    def pack(self) -> bytes:
+    def pack(self: "Thing") -> bytes:
+        """Pack a thing into bytes."""
         out = {}
         for k, v in asdict(self).items():
             if isinstance(v, Thing):
@@ -69,9 +68,6 @@ class FilePtr(Thing):
 @dataclass(frozen=True)
 class RTransformer(Thing):
     """Holds a registered transformer."""
-
-    # task info
-    task_id: str
 
     # The transformation function
     fun: bytes
@@ -147,9 +143,6 @@ class SavedCommand:
 class RTask(Thing):
     """Holds a registered task."""
 
-    # task info
-    task_id: str
-
     # commands and outputs
     commands: List[SavedCommand]
     env: Optional[Dict[str, str]]
@@ -170,6 +163,18 @@ class RTask(Thing):
             inp=dict((k, FilePtr(**v)) for k, v in d["inp"].items()),
             out=dict((k, FilePtr(**v)) for k, v in d["out"].items()),
         )
+
+
+# ----------------------------------------------------------------------------
+# Invariants
+def get_hash_id(invariants: bytes) -> str:
+    """Transform a bytestring to a SHA256 hash string."""
+    m = hashlib.sha256()
+    m.update(invariants)
+    task_id = m.hexdigest()
+    logging.debug(f"invariants: \n{str(invariants)}")
+    logging.debug(f"key: {task_id}")
+    return task_id
 
 
 # -----------------------------------------------------------------------------------

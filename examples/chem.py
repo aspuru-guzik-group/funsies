@@ -7,7 +7,7 @@ import redis
 from rq import Queue
 
 # module
-from funsies import runall, task, transformer, pull_file
+from funsies import pull_file, runall, task, transformer
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
@@ -62,10 +62,10 @@ def get_gap(smi: bytes, xtbout: bytes) -> bytes:
 
 # We start by running obabel to transform those from SMILES to 3d conformers.
 outputs = []
-for i, smi in enumerate(smiles):
+for _, smi in enumerate(smiles):
     t1 = task(
         db,
-        f"obabel in.smi --addh --gen3d -O init.xyz",
+        "obabel in.smi --addh --gen3d -O init.xyz",
         inp={"in.smi": smi},
         out=["init.xyz"],
     )
@@ -93,6 +93,7 @@ for i, smi in enumerate(smiles):
 
 # Final transformer that joins all the outputs.
 def join(*args: bytes) -> bytes:
+    """Join multiple files together."""
     out = b""
     for a in args:
         out += a
@@ -139,4 +140,5 @@ else:
     out = pull_file(db, tr.out[0])
 
     # Voila! Results to stdout using simply python chem.py read
+    assert out is not None
     print(out.decode().rstrip() + "\n")

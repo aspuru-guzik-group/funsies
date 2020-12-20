@@ -4,7 +4,7 @@ from dataclasses import asdict
 import logging
 import os
 import tempfile
-from typing import cast, Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 # external
 from msgpack import packb
@@ -13,8 +13,8 @@ from redis import Redis
 # module
 from .cached import pull_file, put_file, register_file
 from .command import run_command
-from .constants import __DONE, __IDS, __OBJECTS, __TASK_ID, _AnyPath
-from .types import Command, FilePtr, pull, RTask, SavedCommand
+from .constants import __DONE, __OBJECTS, _AnyPath
+from .types import Command, FilePtr, get_hash_id, pull, RTask, SavedCommand
 
 # ------------------------------------------------------------------------------
 # Config
@@ -39,34 +39,26 @@ def register_task(
     # Note that although in principle we could return a cache copy when
     # outputs are a strictly smaller set, we don't do that yet for ease of
     # implementation.
-    invariants = {
-        # TODO: switch to using packb for invariants as opposed to asdict
-        "commands": [asdict(c) for c in commands],
-        "inputs": sorted([(k, asdict(v)) for k, v in inputs.items()]),
-        "outputs": sorted(list(outputs)),
-    }
+    invariants = b""
+    for c in commands:
+        invariants += packb(asdict(c))
+    for k, v in sorted(inputs.items()):
+        invariants += k.encode() + v.pack()
+    for o in outputs:
+        invariants += o.encode()
     if env is not None:
-        invariants["env"] = sorted([(k, v) for k, v in env.items()])
+        for k2, v2 in sorted(env.items()):
+            invariants += k2.encode() + v2.encode()
 
-    task_key = packb(invariants)
-    logging.debug(f"task invariants: \n{str(invariants)}")
-    logging.debug(f"task key: {str(task_key)}")
+    task_id = get_hash_id(invariants)
 
-    if cache.hexists(__IDS, task_key):
+    if cache.hexists(__OBJECTS, task_id):
         logging.info("task key already exists.")
-        # if it does, get task id
-        tmp = cache.hget(__IDS, task_key)
-        # TODO better error catching
-        # pull the id from the db
-        assert tmp is not None
-        out = pull(cache, tmp.decode(), which="RTask")
+        out = pull(cache, task_id, which="RTask")
         if out is None:
             logging.error("Tried to extract RTask but failed! recomputing...")
         else:
             return out
-
-    # If it doesn't exist, we make the task with a new id
-    task_id = cast(str, str(cache.incrby(__TASK_ID, 1)))  # type:ignore
 
     # build cmd outputs
     couts = []
@@ -77,10 +69,10 @@ def register_task(
                 cmd.executable,
                 cmd.args,
                 register_file(
-                    cache, f"task{str(task_id)}.cmd{cmd_id}.stdout", comefrom=task_id
+                    cache, f"task{task_id}.cmd{cmd_id}.stdout", comefrom=task_id
                 ),
                 register_file(
-                    cache, f"task{str(task_id)}.cmd{cmd_id}.stderr", comefrom=task_id
+                    cache, f"task{task_id}.cmd{cmd_id}.stderr", comefrom=task_id
                 ),
             )
         ]
@@ -94,16 +86,9 @@ def register_task(
     out = RTask(task_id, couts, env, inputs, myoutputs)
 
     # save task
-    __cache_task(cache, out)
-    cache.hset(__IDS, task_key, task_id)  # save task
+    cache.hset(__OBJECTS, out.task_id, out.pack())
 
     return out
-
-
-def __cache_task(cache: Redis, task: RTask) -> None:
-    # save id
-    # TODO catch errors
-    cache.hset(__OBJECTS, task.task_id, task.pack())
 
 
 # ------------------------------------------------------------------------------
@@ -212,7 +197,7 @@ def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:
     task = RTask(task_id, couts, task.env, task.inp, outputs)
 
     # update cached copy
-    __cache_task(objcache, task)
+    objcache.hset(__OBJECTS, task.task_id, task.pack())
     objcache.sadd(__DONE, task_id)  # type:ignore
 
     return task_id

@@ -85,7 +85,6 @@ def test_dag_execution() -> None:
         return x + y
 
     tr = transformer(db, tfun, inp=[t.commands[0].stdout])
-
     tr2 = transformer(db, cat, inp=[t.commands[0].stdout, tr.out[0]])
     job = runall(q, tr2.task_id)
 

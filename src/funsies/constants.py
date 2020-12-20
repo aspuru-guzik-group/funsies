@@ -4,10 +4,8 @@ from typing import Callable, Tuple, Union
 
 
 # Redis tables
-__IDS = "funsies.ids"
 __OBJECTS = "funsies.objects"
 __FILES = "funsies.files"
-__TASK_ID = "funsies.current"
 __DONE = "funsies.done_jobs"
 
 

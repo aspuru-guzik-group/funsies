@@ -26,16 +26,6 @@ def run(task_id: str, no_exec: bool = False) -> str:
     # Get cache
     objcache = __job_connection()
     logging.debug(f"pulling {task_id} from redis.")
-    try:
-        if int(task_id) < 1:
-            logging.warning(f"task_id={task_id} is pre-initialization, nothing to run.")
-            return "0"
-    except ValueError as e:
-        logging.critical(
-            f"task_id={task_id} not a valid string representation for an int."
-        )
-        raise e
-
     thing = pull(objcache, task_id)
 
     # dispatch based on task id
@@ -61,7 +51,7 @@ def get_dependencies(cache: Redis, task_id: str) -> List[str]:
         raise RuntimeError("{task_id} is an invalid key.")
 
     if isinstance(thing, FilePtr):
-        if int(thing.comefrom) > 0:
+        if len(thing.comefrom) > 0:
             out = [thing.comefrom]
         else:
             return []

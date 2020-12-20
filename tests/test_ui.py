@@ -5,7 +5,6 @@ import tempfile
 
 # external
 from fakeredis import FakeStrictRedis as Redis
-from rq import Queue
 
 # module
 import funsies
@@ -75,14 +74,14 @@ def test_outfiles_parsing() -> None:
     assert tuple(task1.out) == ("file2",)
 
 
-def test_concat() -> None:
-    """Test 'concat' functionality."""
-    db = Redis()
-    q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t1 = funsies.task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t2 = funsies.task(db, ["echo", "lololol"])
-    t3 = funsies.concat(
-        db, [t1.commands[0].stdout, t2.commands[0].stdout, t1.inp["i am a file"]]
-    )
+# def test_concat() -> None:
+#     """Test 'concat' functionality."""
+#     db = Redis()
+#     q = Queue(connection=db, is_async=False, default_timeout=-1)
+#     t1 = funsies.task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+#     t2 = funsies.task(db, ["echo", "lololol"])
+#     t3 = funsies.concat(
+#         db, [t1.commands[0].stdout, t2.commands[0].stdout, t1.inp["i am a file"]]
+#     )
 
-    funsies.runall(q, t3)
+#     funsies.runall(q, t3)

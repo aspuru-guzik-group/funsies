@@ -1,14 +1,14 @@
 """Cached files."""
 # std
 import logging
-from typing import cast, Literal, Optional, overload
+from typing import Literal, Optional, overload
 
 # external
 from redis import Redis
 
 # module
-from .constants import __FILES, __IDS, __OBJECTS, __TASK_ID
-from .types import FilePtr, pull
+from .constants import __FILES, __OBJECTS
+from .types import FilePtr, get_hash_id, pull
 
 
 # ------------------------------------------------------------------------------
@@ -52,28 +52,24 @@ def register_file(
     comefrom: Optional[str] = None,
 ) -> FilePtr:
     """Register a new file pointer into the database."""
-    if value is not None:
-        cf = "0"
-        key = b"file contents:" + value
-        if db.hexists(__IDS, key):
-            logging.debug("file already exists, return cached version.")
-            # if it does, get task id
-            tmp = db.hget(__IDS, key)
-            # pull the id from the db
-            assert tmp is not None
-            out = pull(db, tmp.decode(), which="FilePtr")
-            if out is None:
-                logging.error("Tried to extract RTask but failed! recomputing...")
-            else:
-                return out
-
-    else:
-        assert comefrom is not None
+    invariants = b""
+    if comefrom is not None:
         cf = comefrom
+        invariants += comefrom.encode()
+    else:
+        cf = ""
+        assert value is not None
+        invariants += value
+    invariants += filename.encode()
+    task_id = get_hash_id(invariants)
 
-    # If it doesn't exist, we make the FilePtr.
-    # grab a new id
-    task_id = cast(str, str(db.incrby(__TASK_ID, 1)))  # type:ignore
+    if db.hexists(__OBJECTS, task_id):
+        logging.debug("file already exists, return cached version.")
+        out = pull(db, task_id, which="FilePtr")
+        if out is None:
+            logging.error("Tried to extract FilePtr but failed! recomputing...")
+        else:
+            return out
 
     # output object
     out = FilePtr(task_id, filename, cf)
@@ -86,6 +82,5 @@ def register_file(
     # TODO different IDs for files tasks and transformers?
     if value is not None:
         put_file(db, out, value)
-        db.hset(__IDS, key, task_id)
 
     return out

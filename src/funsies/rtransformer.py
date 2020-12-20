@@ -2,17 +2,16 @@
 # std
 from inspect import getsource
 import logging
-from typing import cast, List, Sequence
+from typing import List, Sequence
 
 # external
 import cloudpickle
-from msgpack import packb
 from redis import Redis
 
 # module
 from .cached import pull_file, put_file, register_file
-from .constants import __DONE, __IDS, __OBJECTS, __TASK_ID, _TransformerFun
-from .types import FilePtr, pull, RTransformer
+from .constants import __DONE, __OBJECTS, _TransformerFun
+from .types import FilePtr, get_hash_id, pull, RTransformer
 
 
 def register_transformer(
@@ -22,7 +21,6 @@ def register_transformer(
     nout: int,
 ) -> RTransformer:
     """Register a transformation function into Redis to get an RTransformer."""
-    # TODO: Document this
     # Make a key for the transformer. Note that the key is defined as:
     # - the source of fun().
     # - the (NOT order invariant) inputs to fun.
@@ -31,30 +29,24 @@ def register_transformer(
     # Using the source _won't work_ for lambdas or with different comments
     # etc. Not sure if it's a good idea... The alternative, using cloudpickle,
     # will give different result with different python and python library versions.
-    invariants = {
-        "fun": getsource(fun).strip(),
-        "inputs": [inp.pack() for inp in inputs],
-        "nout": nout,
-    }
-    key = packb(invariants)
-    logging.debug(f"transformer invariants: \n{str(invariants)}")
-    logging.debug(f"transformer key: {str(key)}")
+    invariants = b""
+    invariants += getsource(fun).strip().encode()
+    for i in inputs:
+        invariants += i.pack()
+    invariants += f"{nout}".encode()
 
-    if cache.hexists(__IDS, key):
+    task_id = get_hash_id(invariants)
+
+    logging.debug(f"transformer invariants: \n{str(invariants)}")
+    logging.debug(f"transformer key: {task_id}")
+
+    if cache.hexists(__OBJECTS, task_id):
         logging.debug("transformer key already exists.")
-        # if it does, get task id
-        tmp = cache.hget(__IDS, key)
-        # pull the id from the db
-        assert tmp is not None
-        out = pull(cache, tmp.decode(), which="RTransformer")
+        out = pull(cache, task_id, which="RTransformer")
         if out is None:
             logging.error("Tried to extract RTask but failed! recomputing...")
         else:
             return out
-
-    # If it doesn't exist, we make the RTransformer (this is the same code
-    # basically as rtask).
-    task_id = cast(str, str(cache.incrby(__TASK_ID, 1)))  # type:ignore
 
     # register outputs
     outputs = [register_file(cache, f"out{i+1}", comefrom=task_id) for i in range(nout)]
@@ -65,7 +57,6 @@ def register_transformer(
     # save transformer
     # TODO catch errors
     cache.hset(__OBJECTS, task_id, out.pack())
-    cache.hset(__IDS, key, task_id)
 
     return out
 
