@@ -99,36 +99,22 @@ def __log_task(task: RTask) -> None:
     for i, c in enumerate(task.commands):
         info += "cmd {} ${}\n".format(i, c)
 
-    # # detailed trace of task
-    # debug = f"environment variables: {task.env}\n"
-    # for key, val in task.inputs.items():
-    #     debug += "filename : {} contains\n{}\n EOF ----------\n".format(
-    #         key, val.decode()
-    #     )
-    # debug += "expecting files: {}".format(task.outputs)
-    # logging.info(info.rstrip())
-    # logging.debug(debug)
-
-
-def __log_output(task: RTask) -> None:
-    """Log a completed task."""
-    info = "TASK OUT\n"
-    for i, c in enumerate(task.commands):
-        info += "cmd {} return code: {}\n".format(i, c.returncode)
-
-    # # detailed trace of task
-    # debug = "TASK OUT TRACE\n"
-    # for key, val in task.outputs.items():
-    #     debug += "filename : {} contains\n{}\n EOF ----------\n".format(
-    #         key, val.decode()
-    #     )
-    # logging.info(info.rstrip())
-    # logging.debug(debug.rstrip())
+    # detailed trace of task
+    debug = f"\nenvironment variables: {task.env}\ninput files\n"
+    for key, val in task.inp.items():
+        debug += "  {} -> {}\n".format(key, val)
+    debug += "output files\n"
+    for key, val in task.out.items():
+        debug += "  {} -> {}\n".format(key, val)
+    logging.info(info.rstrip())
+    logging.debug(debug)
 
 
 # runner
 def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:
     """Execute a registered task and return its task id."""
+    # logging
+    __log_task(task)
     # Check status
     task_id = task.task_id
 

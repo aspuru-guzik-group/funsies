@@ -62,7 +62,8 @@ required to produce the object or it's outputs. It's as simple as doing,
   import rq
   queue = rq.Queue(connection=db)
   runall(queue, t3)
-  db.save()                       # save the database explicitly.
+  db.save()                       # save the database explicitly. Not really
+                                  # needed in general.
 #+END_SRC
 
 ** Results, memoization and persistence
@@ -123,5 +124,57 @@ course).
   the better solution. Funsies target instead the "file-driven databases" used
   by academics that rapidly become unreadable, non-backed up messes (~expt_2020/jun/ParameterSearch3/alpha=0point3.csv~)
  
+* Architecture
+** Hash-based graph
+Funsies stores all tasks and transformers as values in redis store, with keys
+given by hashing a set of invariants. For commmand-line tasks, these are:
+- Input file hashes (unordered)
+- Output file names (unordered)
+- Shell commands
 
-* TODO Persistence, memoization and supporting architecture
+For python functions, the chosen invariants are:
+- Input file hashes
+- Number of outputs
+- The source code of the function
+
+(Although cloudpickle is used to call python functions, the function
+source code, as given by [[https://docs.python.org/3/library/inspect.html#inspect.getsource][getsource()]], is used to generate the address hash, as
+the pickle form is python version dependent.)
+
+Files with explicitly given content are hashed based on this content, while
+files generated as outputs to other commands are only hashed based on the hash
+of the generator.
+
+This structure is analoguous to that of a blockchain (but as a directed
+acyclic graph). Like a blockchain, it has the advantage that any modification
+to the chain is immediately and automatically detectable as it yields
+completely different hashes for all descending "blocks". Using this
+architecture, we get transparent caching and incremental recomputation of
+tasks and their dependent tasks.
+
+** No filesystem
+Funsies "files" are solely entries in the database. This abstraction is
+enforced by running all commandline tasks entirely in temporary directories.
+Any files not explicitly saved as an output is *deleted*.
+
+This is obviously a very opinionated design choice, but it is also one that
+enables the caching scheme used by funsies. Indeed, by completely removing any
+direct file management, we can ensure that *all file-like objects* are accounted
+for at every point in incremental calculations, with no side-effects. I should
+note that this means that "restart" files must be explicitly accounted for by
+the user.
+
+By completely abstracting away the filesystem, we ensure that every generated
+result is fully specified within the calculation workflow.
+
+
+* Future work
+This code works but it's not production ready. This is a list of some action
+items that need to be implemented before this package is deemed no longer
+experimental:
+- [ ] Abstract some repeated code fragments (Task / Transformer)
+- [ ] Handle dependency failures.
+- [ ] Include higher-order operations on "files" (joins / concats)
+- [ ] Input and output functions.
+- [ ] Add elegant workflow dynamicism.
+- [ ] Explicit directory structures.
