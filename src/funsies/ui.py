@@ -42,7 +42,7 @@ def __split(arg: Iterable[T]) -> Tuple[T, List[T]]:
     return this_arg[0], rest
 
 
-def task(  # noqa:C901
+def shell(  # noqa:C901
     db: Redis,
     *args: _ARGS,
     inp: _INP_FILES = None,
@@ -121,7 +121,7 @@ def task(  # noqa:C901
     return rtask
 
 
-def transformer(
+def pyfunc(
     db: Redis,
     fun: _TransformerFun,
     inp: Optional[Iterable[FilePtr]] = None,

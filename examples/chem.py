@@ -7,7 +7,7 @@ import redis
 from rq import Queue
 
 # module
-from funsies import pull_file, runall, task, transformer
+from funsies import pull_file, pyfunc, runall, shell
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
@@ -63,7 +63,7 @@ def get_gap(smi: bytes, xtbout: bytes) -> bytes:
 # We start by running obabel to transform those from SMILES to 3d conformers.
 outputs = []
 for _, smi in enumerate(smiles):
-    t1 = task(
+    t1 = shell(
         db,
         "obabel in.smi --addh --gen3d -O init.xyz",
         inp={"in.smi": smi},
@@ -74,7 +74,7 @@ for _, smi in enumerate(smiles):
     # instead pointers to file on the redis server.
 
     # we use the output init.xyz from t1 as the input to xtb.
-    t2 = task(
+    t2 = shell(
         db,
         "xtb init.xyz --opt --parallel 1",
         inp={"init.xyz": t1.out["init.xyz"]},
@@ -87,7 +87,7 @@ for _, smi in enumerate(smiles):
 
     # We use get_gap defined above to do the transformation. We also add the
     # SMILES string so that we can keep track of molecules.
-    tr = transformer(db, get_gap, inp=[t1.inp["in.smi"], xtb_out])
+    tr = pyfunc(db, get_gap, inp=[t1.inp["in.smi"], xtb_out])
     outputs += [tr.out[0]]
 
 
@@ -100,7 +100,7 @@ def join(*args: bytes) -> bytes:
     return out
 
 
-tr = transformer(db, join, inp=outputs)
+tr = pyfunc(db, join, inp=outputs)
 
 if sys.argv[-1] != "read":
     # Setup the RQ job queue and run

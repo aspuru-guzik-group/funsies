@@ -9,7 +9,7 @@ from rq import Queue
 from rq.job import Job
 
 # module
-from funsies import pull_file, run, task, transformer
+from funsies import pull_file, pyfunc, run, shell
 from funsies.types import FilePtr, pull, RTask, RTransformer
 
 
@@ -45,10 +45,10 @@ def test_task() -> None:
     """Test that a task even runs."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(db, "echo bla bla")
+    t = shell(db, "echo bla bla")
     job = q.enqueue(run, t.task_id)
     result = wait_for(job)
-    print(task)
+    print(shell)
 
     # read
     assert result.commands[0].stdout is not None
@@ -61,7 +61,7 @@ def test_task_environ() -> None:
     """Test environment variable."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(db, "env", env={"VARIABLE": "bla bla"})
+    t = shell(db, "env", env={"VARIABLE": "bla bla"})
     result = wait_for(q.enqueue(run, t.task_id))
     assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
@@ -71,7 +71,7 @@ def test_task_file_in() -> None:
     """Test file input."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
     result = wait_for(q.enqueue(run, t.task_id))
     assert_file(db, result.commands[0].stdout, b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
@@ -81,7 +81,7 @@ def test_task_identical_parameters() -> None:
     """Test task caching."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(
+    t = shell(
         db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
     )
     job = q.enqueue(run, t.task_id)
@@ -90,7 +90,7 @@ def test_task_identical_parameters() -> None:
     assert_file(db, result.commands[0].stderr, b"")
     id1 = job.result
 
-    t = task(
+    t = shell(
         db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
     )
     job = q.enqueue(run, t.task_id)
@@ -105,12 +105,12 @@ def test_transformer() -> None:
     """Test transformer capabilities."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
 
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
 
-    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    t2 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job2 = q.enqueue(run, t2.task_id, depends_on=job)
     result = wait_for_transformer(job2)
@@ -121,12 +121,12 @@ def test_multitransformer() -> None:
     """Test transformer capabilities."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
 
     def tfun(inp: bytes) -> Tuple[bytes, bytes]:
         return inp.decode().upper().encode(), "lol".encode()
 
-    t2 = transformer(db, tfun, [t.commands[0].stdout], 2)
+    t2 = pyfunc(db, tfun, [t.commands[0].stdout], 2)
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result = wait_for_transformer(job)
@@ -142,15 +142,15 @@ def test_cached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
 
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t1 = transformer(db, tfun, [t.commands[0].stdout])
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t1 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
     result1 = wait_for_transformer(job)
     assert_file(db, result1.out[0], b"BLA BLA\n")
 
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t2 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result2 = wait_for_transformer(job)
@@ -167,8 +167,8 @@ def test_notcached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
 
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t1 = transformer(db, tfun, [t.commands[0].stdout])
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t1 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
     result1 = wait_for_transformer(job)
@@ -180,8 +180,8 @@ def test_notcached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:  # type:ignore
         return inp.decode().upper().encode()
 
-    t = task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-    t2 = transformer(db, tfun, [t.commands[0].stdout])
+    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t2 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
     result2 = wait_for_transformer(job)

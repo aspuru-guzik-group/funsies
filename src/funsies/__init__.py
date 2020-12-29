@@ -2,7 +2,7 @@
 from .cached import pull_file, put_file
 from .core import run, runall
 from .types import pull
-from .ui import file, task, transformer
+from .ui import file, pyfunc, shell
 
 __all__ = [
     # core
@@ -15,8 +15,8 @@ __all__ = [
     "pull",
     # ui
     "file",
-    "task",
-    "transformer",
+    "shell",
+    "pyfunc",
 ]
 
 # versioning information

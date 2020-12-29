@@ -9,7 +9,7 @@ from rq import Queue
 from rq.job import Job
 
 # module
-from funsies import pull, pull_file, runall, task, transformer
+from funsies import pull, pull_file, pyfunc, runall, shell
 from funsies.core import get_dependencies
 from funsies.types import FilePtr, RTask, RTransformer
 
@@ -37,7 +37,7 @@ def wait_for(job: Job) -> Union[RTask, RTransformer]:
 def test_dependents() -> None:
     """Test that a task can find dependents properly."""
     db = Redis()
-    t = task(db, "cat file", inp={"file": "blabla"})
+    t = shell(db, "cat file", inp={"file": "blabla"})
 
     # depends on file
     depends = get_dependencies(db, t.task_id)
@@ -55,9 +55,9 @@ def test_dependents_complex() -> None:
         return x
 
     db = Redis()
-    t = task(db, "cat file", inp={"file": "blabla"}, out=["lol"])
-    t2 = transformer(db, do_something, inp={t.commands[0].stdout})
-    t3 = task(
+    t = shell(db, "cat file", inp={"file": "blabla"}, out=["lol"])
+    t2 = pyfunc(db, do_something, inp={t.commands[0].stdout})
+    t3 = shell(
         db,
         "cat file",
         inp={
@@ -76,7 +76,7 @@ def test_dag_execution() -> None:
     """Test that a simple DAG runs."""
     db = Redis()
     q = Queue(connection=db, default_timeout=-1, is_async=False)
-    t = task(db, "cat file", inp={"file": b"1bla bla\n"})
+    t = shell(db, "cat file", inp={"file": b"1bla bla\n"})
 
     def tfun(x: bytes) -> bytes:
         return x.decode().upper().encode()
@@ -84,8 +84,8 @@ def test_dag_execution() -> None:
     def cat(x: bytes, y: bytes) -> bytes:
         return x + y
 
-    tr = transformer(db, tfun, inp=[t.commands[0].stdout])
-    tr2 = transformer(db, cat, inp=[t.commands[0].stdout, tr.out[0]])
+    tr = pyfunc(db, tfun, inp=[t.commands[0].stdout])
+    tr2 = pyfunc(db, cat, inp=[t.commands[0].stdout, tr.out[0]])
     job = runall(q, tr2.task_id)
 
     # read
