@@ -1,6 +1,6 @@
 """Main type definitions."""
 # stdlib
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import hashlib
 import logging
 from typing import Any, Dict, List, Literal, Optional, overload, Type, TypeVar, Union
@@ -90,49 +90,24 @@ class RTransformer(Thing):
 
 
 # -------------------------  CLI COMMANDS --------------------------------------
-# TODO REFACTOR
 @dataclass
-class Command:
-    """A shell command executed by a task."""
-
-    executable: str
-    args: List[str] = field(default_factory=list)
-
-    def __repr__(self: "Command") -> str:
-        """Return command as a string."""
-        return self.executable + " " + " ".join([a for a in self.args])
-
-
-@dataclass
-class CommandOutput:
-    """Holds the result of running a command."""
-
-    returncode: int
-    stdout: Optional[bytes]
-    stderr: Optional[bytes]
-    raises: Optional[Exception] = None
-
-
-@dataclass
-class SavedCommand:
+class ShellOutput:
     """Holds the result of running a command, with its stdout and err cached.."""
 
     returncode: int
-    executable: str
-    args: List[str]
+    command: str
     stdout: FilePtr
     stderr: FilePtr
 
     # Maybe we just want to get rid of these classes altogether.
     @classmethod
     def from_dict(  # type:ignore
-        cls: Type["SavedCommand"], c: Dict[str, Any]
-    ) -> "SavedCommand":
+        cls: Type["ShellOutput"], c: Dict[str, Any]
+    ) -> "ShellOutput":
         """Populate from a dictionary."""
-        return SavedCommand(
+        return ShellOutput(
             returncode=c["returncode"],
-            executable=c["executable"],
-            args=c["args"],
+            command=c["command"],
             stdout=FilePtr(**c["stdout"]),
             stderr=FilePtr(**c["stderr"]),
         )
@@ -144,7 +119,7 @@ class RTask(Thing):
     """Holds a registered task."""
 
     # commands and outputs
-    commands: List[SavedCommand]
+    commands: List[ShellOutput]
     env: Optional[Dict[str, str]]
 
     # input & output files
@@ -158,7 +133,7 @@ class RTask(Thing):
 
         return RTask(
             task_id=d["task_id"],
-            commands=[SavedCommand.from_dict(c) for c in d["commands"]],
+            commands=[ShellOutput.from_dict(c) for c in d["commands"]],
             env=d["env"],
             inp=dict((k, FilePtr(**v)) for k, v in d["inp"].items()),
             out=dict((k, FilePtr(**v)) for k, v in d["out"].items()),

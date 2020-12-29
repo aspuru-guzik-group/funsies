@@ -1,7 +1,6 @@
 """User-friendly interfaces to funsies functionality."""
 # std
 import os
-import shlex
 from typing import (
     Dict,
     Iterable,
@@ -21,11 +20,10 @@ from .cached import register_file
 from .constants import _AnyPath, _TransformerFun
 from .rtask import register_task
 from .rtransformer import register_transformer
-from .types import Command, FilePtr, RTask, RTransformer
+from .types import FilePtr, RTask, RTransformer
 
 
 # Types
-_ARGS = Union[str, Iterable[str]]
 _INP_FILES = Optional[
     Union[Mapping[_AnyPath, Union[FilePtr, str, bytes]], Iterable[_AnyPath]]
 ]
@@ -44,7 +42,7 @@ def __split(arg: Iterable[T]) -> Tuple[T, List[T]]:
 
 def shell(  # noqa:C901
     db: Redis,
-    *args: _ARGS,
+    *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
@@ -73,16 +71,14 @@ def shell(  # noqa:C901
         raise TypeError("First argument is not a Redis connection.")
 
     # Parse args --------------------------------------------
-    cmds: List[Command] = []
+    cmds: List[str] = []
     inputs: Dict[str, FilePtr] = {}
 
     for arg in args:
         if isinstance(arg, str):
-            cmds += [Command(*__split(shlex.split(arg)))]
-        elif isinstance(arg, Iterable):
-            cmds += [Command(*__split(arg))]
+            cmds += [arg]
         else:
-            raise TypeError(f"argument {arg} not str or iterable")
+            raise TypeError(f"argument {arg} not str.")
 
     # Parse input files -------------------------------------
     if inp is None:

@@ -63,7 +63,11 @@ def test_task_environ() -> None:
     q = Queue(connection=db, is_async=False, default_timeout=-1)
     t = shell(db, "env", env={"VARIABLE": "bla bla"})
     result = wait_for(q.enqueue(run, t.task_id))
-    assert_file(db, result.commands[0].stdout, b"VARIABLE=bla bla\n")
+
+    assert result.commands[0].stdout is not None
+    out = pull_file(db, result.commands[0].stdout)
+    assert out is not None
+    assert out.splitlines()[0] == b"VARIABLE=bla bla"
     assert_file(db, result.commands[0].stderr, b"")
 
 
@@ -71,7 +75,7 @@ def test_task_file_in() -> None:
     """Test file input."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file", inp={"file": b"bla bla\n"})
     result = wait_for(q.enqueue(run, t.task_id))
     assert_file(db, result.commands[0].stdout, b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
@@ -81,22 +85,16 @@ def test_task_identical_parameters() -> None:
     """Test task caching."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = shell(
-        db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
-    )
+    t = shell(db, "cp file1 file2", inp={"file1": b"bla bla\n"}, out=["file2"])
     job = q.enqueue(run, t.task_id)
     result = wait_for(job)
-    assert_file(db, t.out["f"], b"bla bla\n")
+    assert_file(db, t.out["file2"], b"bla bla\n")
     assert_file(db, result.commands[0].stderr, b"")
     id1 = job.result
 
-    t = shell(
-        db, ["cp", "i am a file", "f"], inp={"i am a file": b"bla bla\n"}, out=["f"]
-    )
+    t = shell(db, "cp file1 file2", inp={"file1": b"bla bla\n"}, out=["file2"])
     job = q.enqueue(run, t.task_id)
     result = wait_for(job)
-    assert_file(db, t.out["f"], b"bla bla\n")
-    assert_file(db, result.commands[0].stderr, b"")
     id2 = job.result
     assert id1 == id2
 
@@ -105,7 +103,7 @@ def test_transformer() -> None:
     """Test transformer capabilities."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
 
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
@@ -121,7 +119,7 @@ def test_multitransformer() -> None:
     """Test transformer capabilities."""
     db = Redis()
     q = Queue(connection=db, is_async=False, default_timeout=-1)
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
 
     def tfun(inp: bytes) -> Tuple[bytes, bytes]:
         return inp.decode().upper().encode(), "lol".encode()
@@ -142,14 +140,14 @@ def test_cached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
 
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
     t1 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
     result1 = wait_for_transformer(job)
     assert_file(db, result1.out[0], b"BLA BLA\n")
 
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
     t2 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)
@@ -167,7 +165,7 @@ def test_notcached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:
         return inp.decode().upper().encode()
 
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
     t1 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t1.task_id, depends_on=job)
@@ -180,7 +178,7 @@ def test_notcached_transformer() -> None:
     def tfun(inp: bytes) -> bytes:  # type:ignore
         return inp.decode().upper().encode()
 
-    t = shell(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
+    t = shell(db, "cat file1", inp={"file1": b"bla bla\n"})
     t2 = pyfunc(db, tfun, [t.commands[0].stdout])
     job = q.enqueue(run, t.task_id)
     job = q.enqueue(run, t2.task_id, depends_on=job)

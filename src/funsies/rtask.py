@@ -1,8 +1,8 @@
 """Cached tasks in redis."""
 # std
-from dataclasses import asdict
 import logging
 import os
+import subprocess
 import tempfile
 from typing import Dict, List, Optional, Sequence
 
@@ -12,9 +12,8 @@ from redis import Redis
 
 # module
 from .cached import pull_file, put_file, register_file
-from .command import run_command
 from .constants import __DONE, __OBJECTS, _AnyPath
-from .types import Command, FilePtr, get_hash_id, pull, RTask, SavedCommand
+from .types import FilePtr, get_hash_id, pull, RTask, ShellOutput
 
 # ------------------------------------------------------------------------------
 # Config
@@ -24,7 +23,7 @@ __TMPDIR: Optional[_AnyPath] = None
 # ------------------------------------------------------------------------------
 def register_task(
     cache: Redis,
-    commands: List[Command],
+    commands: List[str],
     inputs: Dict[str, FilePtr],
     outputs: Sequence[str],
     env: Optional[Dict[str, str]] = None,
@@ -41,7 +40,7 @@ def register_task(
     # implementation.
     invariants = b""
     for c in commands:
-        invariants += packb(asdict(c))
+        invariants += packb(c)
     for k, v in sorted(inputs.items()):
         invariants += k.encode() + v.pack()
     for o in outputs:
@@ -64,10 +63,9 @@ def register_task(
     couts = []
     for cmd_id, cmd in enumerate(commands):
         couts += [
-            SavedCommand(
+            ShellOutput(
                 -1,
-                cmd.executable,
-                cmd.args,
+                cmd,
                 register_file(
                     cache, f"task{task_id}.cmd{cmd_id}.stdout", comefrom=task_id
                 ),
@@ -111,7 +109,7 @@ def __log_task(task: RTask) -> None:
 
 
 # runner
-def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:
+def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:  # noqa:C901
     """Execute a registered task and return its task id."""
     # logging
     __log_task(task)
@@ -142,28 +140,35 @@ def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:
 
         couts = []
         for _, c in enumerate(task.commands):
-            cout = run_command(dir, task.env, c)
+            try:
+                proc = subprocess.run(
+                    c.command,
+                    cwd=dir,
+                    capture_output=True,
+                    env=task.env,
+                    shell=True,
+                )
+            except Exception as e:
+                logging.exception("run_command failed with exception")
+                # todo: handle
+                raise e
+
             couts += [
-                SavedCommand(
-                    cout.returncode,
-                    c.executable,
-                    c.args,
+                ShellOutput(
+                    proc.returncode,
+                    c.command,
                     put_file(
                         objcache,
                         c.stdout,
-                        cout.stdout,
+                        proc.stdout,
                     ),
                     put_file(
                         objcache,
                         c.stderr,
-                        cout.stderr,
+                        proc.stderr,
                     ),
                 )
             ]
-            if cout.raises:
-                # Stop, something went wrong
-                logging.warning(f"command did not run: {c}")
-                break
 
         # Output files
         outputs = {}

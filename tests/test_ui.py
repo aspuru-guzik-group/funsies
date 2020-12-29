@@ -16,27 +16,12 @@ def test_simple_arg_parsing() -> None:
     """Test simple argument parsing."""
     task = funsies.shell(db, "echo 123")
     assert len(task.commands) == 1
-    assert task.commands[0].executable == "echo"
-    assert task.commands[0].args == ["123"]
+    assert task.commands[0].command == "echo 123"
 
     task = funsies.shell(db, "echo", "echo")
     assert len(task.commands) == 2
-    assert task.commands[0].executable == "echo"
-    assert task.commands[0].args == []
-
-
-def test_complex_arg_parsing() -> None:
-    """Test less simple argument parsing."""
-    task = funsies.shell(db, *["echo 123", ["echo", "22", "33"]])
-    assert len(task.commands) == 2
-    assert task.commands[0].executable == "echo"
-    assert task.commands[1].executable == "echo"
-    assert task.commands[1].args == ["22", "33"]
-
-    task = funsies.shell(db, *[["bla"], ["bla bla", "k"], ["bla"], "bla"])
-    assert task.commands[0].executable == "bla"
-    assert task.commands[1].executable == "bla bla"
-    assert task.commands[1].args == ["k"]
+    assert task.commands[0].command == "echo"
+    assert task.commands[1].command == "echo"
 
 
 def test_arg_errors() -> None:
