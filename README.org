@@ -15,35 +15,38 @@ can be locally installed in anaconda,
 Then, the workflow can be built and registered in the Redis database entirely
 in python,
 #+BEGIN_SRC python
-  from funsies import runall, task, transformer
+  from funsies import pyfunc, runall, shell
   from redis import Redis
 
   db = Redis()
 
-  t1 = task(db, ["qchem params.in"],
+  t1 = shell(db, ["qchem params.in"],
             inp={"file.in": parameters}, out=["params.out"])
 #+END_SRC
-Tasks are simple shell commands with expected input and output files. All
+~shell()~ make simple shell commands with explicit input and output files. All
 input and output files are automatically saved in Redis.
 
-Chaining tasks is simple,
+Chaining shell commands is simple,
 #+BEGIN_SRC python
-  t2 = task(
+  t2 = shell(
       db,
       ['grep "HOMO-LUMO ENERGY" myfile'],
       inp={"myfile": t1.out["params.out"]},
   )
 #+END_SRC
-The outputs from a task can immediately be used as inputs to other tasks, even
-as none of the tasks have even started computing. This is because the "files"
-are not actual populated values but pointers to (currently absent) data on the
-redis server.
+The outputs from a call to ~shell()~ can immediately be used as inputs to other
+tasks, even as none of the shell commands have even started computing. This is
+because the "files" are not actual populated values but pointers to (currently
+absent) data on the redis server.
 
-Python can also be used to do computations. Transformers are simple python
-callables and can be used to transform database "files". Here we apply
-a_python_function directly to the output of grep above,
+Python can also be used to do computations. ~pyfunc()~ wraps python callables
+and can be used to transform database "files". Here we apply ~a_python_function~
+directly to the output of grep above,
 #+BEGIN_SRC python
-  t3 = transformer(db, a_python_function, inp=t2.commands[0].stdout)
+  def a_python_function(arg: bytes) -> bytes:
+      return arg
+    
+  t3 = pyfunc(db, a_python_function, inp=t2.commands[0].stdout)
 #+END_SRC
 
 ** Running a workflow
@@ -56,7 +59,7 @@ There are many settings available. Importantly, workers can connect to remote
 Redis servers, which allow full distributed computations.
 
 Once that is done workflow is setup, the ~runall~ function applied to any of the
-workflow's object (Task, Transformer or a FilePtr) enqueues all the jobs
+workflow's object (from ~shell()~ etc.) enqueues all the jobs
 required to produce the object or it's outputs. It's as simple as doing,
 #+BEGIN_SRC python
   import rq
@@ -110,7 +113,7 @@ course).
   frowned upon, it ensures that there is no documentation that will go out of
   date or lab notebooks that are more "post-it notes on a board" than
   "notebook".
-- *The precious few*: Funsies assumes that tasks are few but that they are very
+- *Few but expensive*: Funsies assumes that tasks are few but that they are very
   expensive to compute. It is designed for workflow with 100s ⨉ 40 core hour
   jobs (like optimizing molecular geometries) not workflows with 100,000 ⨉ 10
   core second jobs, as may be present in large scale data analytics.
@@ -126,8 +129,9 @@ course).
  
 * Architecture
 ** Hash-based graph
-Funsies stores all tasks and transformers as values in redis store, with keys
-given by hashing a set of invariants. For commmand-line tasks, these are:
+Funsies stores all shell commands and python functions as values in redis
+store, with keys given by hashing a set of invariants. For commmand-line
+tasks, these are:
 - Input file hashes (unordered)
 - Output file names (unordered)
 - Shell commands
@@ -136,7 +140,6 @@ For python functions, the chosen invariants are:
 - Input file hashes
 - Number of outputs
 - The source code of the function
-
 (Although cloudpickle is used to call python functions, the function
 source code, as given by [[https://docs.python.org/3/library/inspect.html#inspect.getsource][getsource()]], is used to generate the address hash, as
 the pickle form is python version dependent.)
@@ -172,7 +175,7 @@ result is fully specified within the calculation workflow.
 This code works but it's not production ready. This is a list of some action
 items that need to be implemented before this package is deemed no longer
 experimental:
-- [ ] Abstract some repeated code fragments (Task / Transformer)
+- [ ] Abstract some repeated code fragments 
 - [ ] Handle dependency failures.
 - [ ] Include higher-order operations on "files" (joins / concats)
 - [ ] Input and output functions.
