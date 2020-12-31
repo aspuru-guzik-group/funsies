@@ -1,7 +1,7 @@
 """Functional wrappers for commandline programs."""
 # std
 import logging
-from typing import List
+from typing import Any, List, Mapping, Optional
 
 # external
 from redis import Redis
@@ -14,17 +14,8 @@ from .rtransformer import run_rtransformer
 from .types import FilePtr, pull, RTask, RTransformer
 
 
-def __job_connection() -> Redis:
-    """Get a connection to the current cache."""
-    job = rq.get_current_job()
-    connect: Redis = job.connection
-    return connect
-
-
-def run(task_id: str, no_exec: bool = False) -> str:
+def run(objcache: Redis, task_id: str, no_exec: bool = False) -> bool:
     """Run a task or transformer."""
-    # Get cache
-    objcache = __job_connection()
     logging.debug(f"pulling {task_id} from redis.")
     thing = pull(objcache, task_id)
 
@@ -35,12 +26,19 @@ def run(task_id: str, no_exec: bool = False) -> str:
         return run_rtransformer(objcache, thing, no_exec)
     elif isinstance(thing, FilePtr):
         # TODO check that the file is the same here.
-        return task_id
+        return True
     else:
         logging.critical(
-            f"Thing to run is {type(thing)} not a Task or Transformer, aborting."
+            f"Thing to run is {type(thing)} not a Task, Transformer or FilePtr, aborting."
         )
-        raise RuntimeError("Run failed.")
+        return False
+
+
+def run_rq(task_id: str, no_exec: bool = False) -> bool:
+    """Run a task on the Redis Queue."""
+    job = rq.get_current_job()
+    cache: Redis = job.connection
+    return run(cache, task_id, no_exec)
 
 
 def get_dependencies(cache: Redis, task_id: str) -> List[str]:
@@ -65,7 +63,12 @@ def get_dependencies(cache: Redis, task_id: str) -> List[str]:
     return out
 
 
-def runall(queue: rq.Queue, task_id: str, no_exec: bool = False) -> Job:
+def runall(
+    queue: rq.Queue,
+    task_id: str,
+    no_exec: bool = False,
+    job_params: Optional[Mapping[str, Any]] = None,
+) -> Job:
     """Execute a job and any / all of its dependencies."""
     # TODO add task metadata.
     # TODO readonly flag.
@@ -84,20 +87,19 @@ def runall(queue: rq.Queue, task_id: str, no_exec: bool = False) -> Job:
             djob = Job.fetch(tid, connection=queue.connection)
         except rq.exceptions.NoSuchJobError:
             # generate the dependency
-            djob = runall(queue, tid, no_exec=no_exec)
+            djob = runall(queue, tid, no_exec=no_exec, job_params=job_params)
         djobs += [djob.id]
 
-    job = Job.create(
-        run,
+    p = dict(
         args=(task_id,),
         kwargs=dict(no_exec=no_exec),
         connection=queue.connection,
-        timeout="10d",
-        result_ttl="10d",
-        ttl="10d",
-        failure_ttl="10d",
         id=task_id,
     )
+    if job_params is not None:
+        p.update(job_params)
+
+    job = Job.create(run_rq, **p)
 
     # hack around multi dependencies not yet supported,
     for i in djobs:

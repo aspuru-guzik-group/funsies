@@ -109,7 +109,7 @@ def __log_task(task: RTask) -> None:
 
 
 # runner
-def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:  # noqa:C901
+def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> bool:  # noqa:C901
     """Execute a registered task and return its task id."""
     # logging
     __log_task(task)
@@ -118,13 +118,13 @@ def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:  # no
 
     if objcache.sismember(__DONE, task_id) == 1:  # type:ignore
         logging.info("task is cached.")
-        return task_id
+        return True
     else:
         logging.info(f"evaluating task {task_id}.")
 
     if no_exec:
         logging.critical("no_exec flag is specifically set but task needs evaluation!")
-        raise RuntimeError("execution denied.")
+        return False
 
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -149,9 +149,8 @@ def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:  # no
                     shell=True,
                 )
             except Exception as e:
-                logging.exception("run_command failed with exception")
-                # todo: handle
-                raise e
+                logging.exception(f"run_command failed with exception {e}")
+                return False
 
             couts += [
                 ShellOutput(
@@ -191,4 +190,4 @@ def run_rtask(objcache: Redis, task: RTask, no_exec: bool = False) -> str:  # no
     objcache.hset(__OBJECTS, task.task_id, task.pack())
     objcache.sadd(__DONE, task_id)  # type:ignore
 
-    return task_id
+    return True

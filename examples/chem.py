@@ -1,6 +1,7 @@
 """A quantum chemistry example."""
 # std
 import sys
+from typing import Optional
 
 # external
 import redis
@@ -92,11 +93,12 @@ for _, smi in enumerate(smiles):
 
 
 # Final transformer that joins all the outputs.
-def join(*args: bytes) -> bytes:
+def join(*args: Optional[bytes]) -> bytes:
     """Join multiple files together."""
     out = b""
     for a in args:
-        out += a
+        if a is not None:
+            out += a
     return out
 
 
@@ -119,7 +121,7 @@ if sys.argv[-1] != "read":
     )
     # run everything by using the fact that the last transformer depends on all
     # the outputs
-    runall(queue, tr.task_id)
+    runall(queue, tr.task_id, job_params=job_defaults)
 
 else:
     # Analyze / compile results

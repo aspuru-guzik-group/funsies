@@ -1,12 +1,13 @@
 """Funsies is a functional wrapper for terminal commands."""
 from .cached import pull_file, put_file
-from .core import run, runall
+from .core import run, run_rq, runall
 from .types import pull
 from .ui import file, pyfunc, shell
 
 __all__ = [
     # core
     "run",
+    "run_rq",
     "runall",
     # cached
     "pull_file",

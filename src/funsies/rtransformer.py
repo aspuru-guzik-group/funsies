@@ -61,22 +61,24 @@ def register_transformer(
     return out
 
 
-def run_rtransformer(objcache: Redis, task: RTransformer, no_exec: bool = False) -> str:
+def run_rtransformer(
+    objcache: Redis, task: RTransformer, no_exec: bool = False
+) -> bool:
     """Execute a registered transformer and return its task id."""
     # Check status
     task_id = task.task_id
 
     if objcache.sismember(__DONE, task_id) == 1:  # type:ignore
-        logging.debug("transformer is cached.")
-        return task_id
+        logging.info("transformer is cached.")
+        return True
     else:
-        logging.debug(f"evaluating transformer {task_id}.")
+        logging.info(f"evaluating transformer {task_id}.")
 
     if no_exec:
         logging.critical(
             "no_exec flag is specifically set but transformer needs evaluation!"
         )
-        raise RuntimeError("execution denied.")
+        return False
 
     # build function
     fun = cloudpickle.loads(task.fun)
@@ -85,7 +87,6 @@ def run_rtransformer(objcache: Redis, task: RTransformer, no_exec: bool = False)
     inputs = []
     for el in task.inp:
         source = pull_file(objcache, el)
-        assert source is not None  # TODO:fix
         inputs.append(source)
 
     # Call the function
@@ -103,4 +104,4 @@ def run_rtransformer(objcache: Redis, task: RTransformer, no_exec: bool = False)
     # Mark as evaluated
     objcache.sadd(__DONE, task_id)  # type:ignore
 
-    return task_id
+    return True

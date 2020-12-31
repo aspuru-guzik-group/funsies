@@ -13,4 +13,4 @@ __DONE = "funsies.done_jobs"
 _AnyPath = Union[str, PathLike]
 
 # TODO
-_TransformerFun = Callable[..., Union[Tuple[bytes, ...], bytes]]  # type:ignore
+_TransformerFun = Callable[..., Union[Tuple[bytes, ...], bytes]]

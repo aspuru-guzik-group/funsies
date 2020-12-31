@@ -101,9 +101,7 @@ class ShellOutput:
 
     # Maybe we just want to get rid of these classes altogether.
     @classmethod
-    def from_dict(  # type:ignore
-        cls: Type["ShellOutput"], c: Dict[str, Any]
-    ) -> "ShellOutput":
+    def from_dict(cls: Type["ShellOutput"], c: Dict[str, Any]) -> "ShellOutput":
         """Populate from a dictionary."""
         return ShellOutput(
             returncode=c["returncode"],

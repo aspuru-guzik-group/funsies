@@ -27,7 +27,7 @@ def wait_for(job: Job) -> Union[RTask, RTransformer]:
     """Busily wait for a job to finish."""
     while True:
         if job.result is not None:
-            t = pull(job.connection, job.result)
+            t = pull(job.connection, job.args[0])
             assert t is not None
             assert isinstance(t, RTask) or isinstance(t, RTransformer)
             return t
