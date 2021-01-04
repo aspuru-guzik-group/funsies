@@ -2,16 +2,15 @@
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-import hashlib
-from typing import Dict, List, Literal, Optional, Type, Union
+from typing import Dict, Literal, Optional, Type, Union
 
 # external
 from msgpack import packb, unpackb
 
 # --------------------------------------------------------------------------------
 # Constants
-ART_TYPES = ["bytes", "str", "int"]
 _ART_TYPES = Union[Literal["bytes"], Literal["str"], Literal["int"]]
+ART_TYPES = Union[bytes, str, int]
 
 
 # --------------------------------------------------------------------------------
@@ -40,27 +39,20 @@ class Funsie:
     """
 
     how: FunsieHow
-    what: str
+    what: bytes
     inp: Dict[str, _ART_TYPES]
     out: Dict[str, _ART_TYPES]
     aux: Optional[bytes] = None
 
     def __str__(self: "Funsie") -> str:
         """Get the string representation of a funsie."""
-        out = f"Funsie[\n  how={self.how}" + f"\n  what={self.what}" + "\n  inputs\n"
+        out = f"Funsie[\n  how={self.how}" + f"\n  what={self.what!r}" + "\n  inputs\n"
         for key, val in sorted(self.inp.items(), key=lambda x: x[0]):
             out += f"    {key} = {val}\n"
         out += "  outputs\n"
         for key, val in sorted(self.out.items(), key=lambda x: x[0]):
             out += f"    {key} = {val}\n"
         return out + "  ]"
-
-    def hash(self: "Funsie") -> str:
-        """Compute the hash value of a Funsie."""
-        m = hashlib.sha256()
-        m.update(str(self).encode())
-        result = m.hexdigest()
-        return result
 
     def pack(self: "Funsie") -> bytes:
         """Pack a Funsie to a bytestring."""
@@ -70,15 +62,3 @@ class Funsie:
     def unpack(cls: Type["Funsie"], data: bytes) -> "Funsie":
         """Unpack a Funsie from a byte string."""
         return Funsie(**unpackb(data))
-
-
-# --------------------------------------------------------------------------------
-# Graph
-def store_artefact(store, value):
-    what = type(value).__name__
-    if what not in ART_TYPES:
-        raise TypeError(f"Type {what} not in {ART_TYPES}")
-
-
-def add_funsie(kv):
-    pass
