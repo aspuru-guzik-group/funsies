@@ -8,11 +8,12 @@ from redis import Redis
 # module
 from ._funsies import FunsieHow
 from ._graph import get_artefact, get_data, get_op, set_data
+from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t
 
 # Dictionary of runners
-RUNNERS = {FunsieHow.shell: run_shell_funsie}
+RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
 
 
 def run_op(db: Redis, address: hash_t) -> bool:
