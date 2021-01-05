@@ -13,7 +13,7 @@ from funsies import _graph
 def test_artefact_add() -> None:
     """Test adding explicit artefacts."""
     store = Redis()
-    a = _graph.store_explicit_artefact(store, "bla bla")
+    a = _graph.store_explicit_artefact(store, b"bla bla")
     b = _graph.get_artefact(store, a.hash)
     assert b is not None
     assert a == b
@@ -22,7 +22,7 @@ def test_artefact_add() -> None:
 def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     store = Redis()
-    art = _graph.store_generated_artefact(store, "1", "file", "str")
+    art = _graph.store_generated_artefact(store, "1", "file")
     assert _graph.get_data(store, art) is None
 
 
@@ -33,19 +33,19 @@ def test_artefact_errors() -> None:
         _ = _graph.get_artefact(store, "bla")
 
     # TODO check that warnings are logged?
-    _graph.store_explicit_artefact(store, "bla bla")
-    _graph.store_explicit_artefact(store, "bla bla")
+    _graph.store_explicit_artefact(store, b"bla bla")
+    _graph.store_explicit_artefact(store, b"bla bla")
 
-    _graph.store_generated_artefact(store, "1", "file", "str")
-    _graph.store_generated_artefact(store, "1", "file", "str")
+    _graph.store_generated_artefact(store, "1", "file")
+    _graph.store_generated_artefact(store, "1", "file")
 
 
 def test_artefact_update() -> None:
     """Test adding explicit artefacts."""
     store = Redis()
-    art = _graph.store_explicit_artefact(store, "bla bla")
-    _graph.update_artefact(store, art, "b")
-    assert _graph.get_data(store, art) == "b"
+    art = _graph.store_explicit_artefact(store, b"bla bla")
+    _graph.set_data(store, art, "b")
+    assert _graph.get_data(store, art) == b"b"
 
 
 def test_operation_pack() -> None:
@@ -55,8 +55,8 @@ def test_operation_pack() -> None:
     fun = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
-        inp={"infile": "bytes"},
-        out={"out2": "bytes", "stdout": "bytes"},
+        inp=["infile"],
+        out=["out"],
     )
     op = _graph.make_op(store, fun, {"infile": a})
     op2 = _graph.get_op(store, op.hash)
@@ -65,9 +65,9 @@ def test_operation_pack() -> None:
     with pytest.raises(AttributeError):
         op = _graph.make_op(store, fun, {})
 
-    b = _graph.store_explicit_artefact(store, "bla bla")
-    with pytest.raises(TypeError):
-        op = _graph.make_op(store, fun, {"infile": b})
+    # b = _graph.store_explicit_artefact(store, b"bla bla")
+    # with pytest.raises(TypeError):
+    #     op = _graph.make_op(store, fun, {"infile": b})
 
     with pytest.raises(RuntimeError):
         op = _graph.get_op(store, "b")

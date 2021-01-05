@@ -2,16 +2,10 @@
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-from typing import Dict, Literal, Optional, Type, Union
+from typing import Dict, Literal, List, Optional, Type, Union
 
 # external
 from msgpack import packb, unpackb
-
-# --------------------------------------------------------------------------------
-# Constants
-_ART_TYPES = Union[Literal["bytes"], Literal["str"], Literal["int"]]
-ART_TYPES = Union[bytes, str, int]
-
 
 # --------------------------------------------------------------------------------
 class FunsieHow(IntEnum):
@@ -40,18 +34,18 @@ class Funsie:
 
     how: FunsieHow
     what: bytes
-    inp: Dict[str, _ART_TYPES]
-    out: Dict[str, _ART_TYPES]
+    inp: List[str]
+    out: List[str]
     aux: Optional[bytes] = None
 
     def __str__(self: "Funsie") -> str:
         """Get the string representation of a funsie."""
         out = f"Funsie[\n  how={self.how}" + f"\n  what={self.what!r}" + "\n  inputs\n"
-        for key, val in sorted(self.inp.items(), key=lambda x: x[0]):
-            out += f"    {key} = {val}\n"
+        for key in sorted(self.inp):
+            out += f"    {key}\n"
         out += "  outputs\n"
-        for key, val in sorted(self.out.items(), key=lambda x: x[0]):
-            out += f"    {key} = {val}\n"
+        for key in sorted(self.out):
+            out += f"    {key}\n"
         return out + "  ]"
 
     def pack(self: "Funsie") -> bytes:

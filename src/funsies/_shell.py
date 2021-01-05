@@ -8,29 +8,45 @@ from typing import Dict, Optional, Sequence
 
 # external
 from msgpack import packb, unpackb
-from redis import Redis
 
 # module
-from ._funsies import ART_TYPES, _ART_TYPES, Funsie, FunsieHow
-from ._graph import Artefact, update_artefact, get_data
+from ._funsies import Funsie, FunsieHow
+
+# Special namespaced "files"
+SPECIAL = "__special__"
+STDOUT = f"{SPECIAL}/stdout"
+STDERR = f"{SPECIAL}/stderr"
+RETURNCODE = f"{SPECIAL}/returncode"
 
 
 class ShellOutput:
     """A convenience wrapper for a shell operation."""
 
-    def __init__(self, op, ncommands):
+    def __init__(self, op):
+        """Generate a ShellOutput wrapper around a shell operation."""
+        # stuff that is the same
         self.op = op
         self.hash = op.hash
-        self.out = op.out
+
+        self.out = {}
+        self.n = 0
+        for key, val in op.out.items():
+            if SPECIAL in key:
+                if RETURNCODE in key:
+                    self.n += 1  # count the number of commands
+            else:
+                self.out[key] = val
+
+            self.out = op.out
         self.inp = op.inp
-        self.n = ncommands
+
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
-        for i in range(ncommands):
-            self.stdouts += [op.out[f"stdout:{i}"]]
-            self.stderrs += [op.out[f"stderr:{i}"]]
-            self.returncodes += [op.out[f"returncode:{i}"]]
+        for i in range(self.n):
+            self.stdouts += [op.out[f"{STDOUT}{i}"]]
+            self.stderrs += [op.out[f"{STDERR}{i}"]]
+            self.returncodes += [op.out[f"{RETURNCODE}{i}"]]
 
     def __warn_len(self):
         if self.n > 1:
@@ -61,17 +77,14 @@ def shell_funsie(
     env: Optional[Dict[str, str]] = None,
 ) -> Funsie:
     """Wrap a shell command."""
-    out: Dict[str, _ART_TYPES] = dict([(k, "bytes") for k in output_files])
-
+    out = output_files
     for k in range(len(cmds)):
-        out[f"stdout:{k}"] = "bytes"
-        out[f"stderr:{k}"] = "bytes"
-        out[f"returncode:{k}"] = "int"
+        out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
 
     return Funsie(
         how=FunsieHow.shell,
         what=packb({"cmds": cmds, "env": env}),
-        inp=dict([(k, "bytes") for k in input_files]),
+        inp=input_files,
         out=out,
     )
 
@@ -79,7 +92,7 @@ def shell_funsie(
 def run_shell_funsie(
     funsie: Funsie,
     input_values: Dict[str, Optional[bytes]],
-) -> Dict[str, ART_TYPES]:  # noqa:C901
+) -> Dict[str, Optional[bytes]]:  # noqa:C901
     """Execute a shell command."""
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -113,13 +126,13 @@ def run_shell_funsie(
                 logging.exception(f"run_command failed with exception {e}")
                 return False
 
-            out[f"stdout:{k}"] = proc.stdout
-            out[f"stderr:{k}"] = proc.stderr
-            out[f"returncode:{k}"] = proc.returncode
+            out[f"{STDOUT}{k}"] = proc.stdout
+            out[f"{STDERR}{k}"] = proc.stderr
+            out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
 
         # Output files
-        for file in funsie.out.keys():
-            if "stdout" in file or "stderr" in file or "returncode" in file:
+        for file in funsie.out:
+            if SPECIAL in file:
                 pass
             else:
                 try:
@@ -127,4 +140,5 @@ def run_shell_funsie(
                         out[file] = f.read()
                 except FileNotFoundError:
                     logging.warning(f"expected file {file}, but didn't find it")
+                    out[file] = None
     return out

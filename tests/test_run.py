@@ -23,6 +23,6 @@ def test_shell_run() -> None:
         == b"bla bla"
     )
     assert (
-        _graph.get_data(db, _graph.get_artefact(db, operation.out["stdout:0"]))
+        _graph.get_data(db, _graph.get_artefact(db, operation.out[f"{s.STDOUT}0"]))
         == b"bla bla"
     )

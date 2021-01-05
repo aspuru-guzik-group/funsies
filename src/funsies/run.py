@@ -10,9 +10,9 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from ._funsies import ART_TYPES, Funsie, FunsieHow
+from ._funsies import Funsie, FunsieHow
 from ._locations import _ARTEFACTS, _OPERATIONS, _STORE
-from ._graph import update_artefact, get_artefact, get_data, get_op, Operation
+from ._graph import set_data, get_artefact, get_data, get_op, Operation
 
 # runners
 from ._shell import run_shell_funsie
@@ -37,6 +37,6 @@ def run(db: Redis, address: str) -> bool:
 
     for key, val in out_data.items():
         artefact = get_artefact(db, op.out[key])
-        update_artefact(db, artefact, val)
+        set_data(db, artefact, val)
 
     return True

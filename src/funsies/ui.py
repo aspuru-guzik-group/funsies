@@ -16,7 +16,6 @@ from typing import (
 from redis import Redis
 
 # module
-from ._funsies import ART_TYPES
 from ._graph import Artefact, get_artefact, get_data, make_op, store_explicit_artefact
 from ._shell import shell_funsie, ShellOutput
 
@@ -95,9 +94,9 @@ def shell(  # noqa:C901
     else:
         outputs = [str(o) for o in out]
 
-    funsie = shell_funsie(cmds, inputs.keys(), outputs, env)
+    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env)
     operation = make_op(db, funsie, inputs)
-    return ShellOutput(operation, len(cmds))
+    return ShellOutput(operation)
 
 
 def store(
@@ -116,7 +115,7 @@ def store(
 def grab(
     db: Redis,
     where: Union[Artefact, str],
-) -> Optional[ART_TYPES]:
+) -> Optional[bytes]:
     """Make and register a FilePtr."""
     if isinstance(where, Artefact):
         obj = where

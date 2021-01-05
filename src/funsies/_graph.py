@@ -10,16 +10,18 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from ._funsies import ART_TYPES, Funsie
+from ._funsies import Funsie
 from ._locations import _ARTEFACTS, _OPERATIONS, _STORE
+
+# Constants
+hash_t = str
 
 
 @dataclass(frozen=True)
 class Artefact:
     """An instantiated artefact."""
 
-    hash: str
-    kind: str
+    hash: hash_t
     parent: Optional[str] = None
 
     def pack(self: "Artefact") -> bytes:
@@ -36,10 +38,10 @@ class Artefact:
 class Operation:
     """An instantiated Funsie."""
 
-    hash: str
+    hash: hash_t
     funsie: Funsie
-    inp: Dict[str, str]
-    out: Dict[str, str]
+    inp: Dict[str, hash_t]
+    out: Dict[str, hash_t]
 
     def pack(self: "Operation") -> bytes:
         """Pack an Operation to a bytestring."""
@@ -60,18 +62,35 @@ class Operation:
 
 
 # --------------------------------------------------------------------------------
-# Graph generation and operations
-def store_explicit_artefact(store: Redis, value: ART_TYPES) -> Artefact:
+# Artefacts
+def get_data(store: Redis, artefact: Artefact) -> bytes:
+    """Retrieve data corresponding to an artefact."""
+    valb = store.hget(_STORE, artefact.hash)
+    if valb is None:
+        logging.warning("Attempted to retrieve missing data.")
+        return None
+    else:
+        return valb
+
+
+def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
+    """Update an artefact with a value."""
+    val = store.hset(
+        _STORE,
+        artefact.hash,
+        value,
+    )
+
+
+def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
-    # TODO: explicit type check of value?
     what = type(value).__name__
-    bvalue = packb(value)
     m = hashlib.sha256()
     m.update(b"artefact\n")
     m.update(b"explicit\n")
-    m.update(bvalue)
+    m.update(value)
     h = m.hexdigest()
-    node = Artefact(hash=h, kind=what)
+    node = Artefact(hash=h)
 
     # store the artefact
     val = store.hset(
@@ -84,52 +103,12 @@ def store_explicit_artefact(store: Redis, value: ART_TYPES) -> Artefact:
         logging.warning(f'Artefact with value "{value!r}" already exists.')
 
     # store the artefact
-    val = store.hset(
-        _STORE,
-        h,
-        packb(value),
-    )
-
-    if val != 1:
-        logging.warning(f'Artefact with value "{value!r}" already exists in store.')
+    set_data(store, node, value)
 
     return node
 
 
-def get_data(store: Redis, artefact: Artefact) -> Optional[ART_TYPES]:
-    """Retrieve data corresponding to an artefact."""
-    valb = store.hget(_STORE, artefact.hash)
-    if valb is None:
-        logging.warning("Attempted to retrieve missing data.")
-        return None
-    else:
-        val = unpackb(valb)
-        what = type(val).__name__
-        if artefact.kind != what:
-            raise TypeError(f"expected {artefact.kind}, got {what}")
-        return val  # type:ignore
-
-
-def update_artefact(store: Redis, artefact: Artefact, value: ART_TYPES) -> None:
-    """Update an artefact with a value."""
-    what = type(value).__name__
-    if artefact.kind != what:
-        raise TypeError(f"expected {artefact.kind}, got {what}")
-
-    # update the artefact
-    val = store.hset(
-        _STORE,
-        artefact.hash,
-        packb(value),
-    )
-
-    if val != 1:
-        logging.warning(f'Artefact with value "{value!r}" already exists.')
-
-
-def store_generated_artefact(
-    store: Redis, parent_hash: str, name: str, kind: str
-) -> Artefact:
+def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
     """Store an artefact with a generated value."""
     m = hashlib.sha256()
     m.update(b"artefact\n")
@@ -137,7 +116,7 @@ def store_generated_artefact(
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
     h = m.hexdigest()
-    node = Artefact(hash=h, kind=kind, parent=parent_hash)
+    node = Artefact(hash=h, parent=parent_hash)
 
     # store the artefact
     val = store.hset(
@@ -160,7 +139,6 @@ def get_artefact(store: Redis, hash: str) -> Artefact:
     out = store.hget(_ARTEFACTS, hash)
     if out is None:
         raise RuntimeError(f"Artefact at {hash} could not be found.")
-
     return Artefact.unpack(out)
 
 
@@ -168,13 +146,9 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
-    for key, val in funsie.inp.items():
+    for key in funsie.inp:
         if key not in inp:
             raise AttributeError(f"Missing {key} from inputs required by funsie.")
-        elif val != inp[key].kind:
-            raise TypeError(
-                f"Expected input {key} of type {inp[key].kind} but got type {val} instead"
-            )
         else:
             inp_art[key] = inp[key].hash
 
@@ -191,8 +165,8 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
 
     # Setup the output artefacts.
     out_art = {}
-    for key, val in funsie.out.items():
-        out_art[key] = store_generated_artefact(store, ophash, key, val).hash
+    for key in funsie.out:
+        out_art[key] = store_generated_artefact(store, ophash, key).hash
 
     # Make the node
     node = Operation(ophash, funsie, inp_art, out_art)

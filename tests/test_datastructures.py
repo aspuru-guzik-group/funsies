@@ -8,8 +8,8 @@ def test_instantiate() -> None:
     out = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
-        inp={"infile": "bytes"},
-        out={"stdout": "bytes"},
+        inp=["infile"],
+        out=["outfile"],
     )
     assert out is not None
 
@@ -19,8 +19,8 @@ def test_pack_unpack() -> None:
     out = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
-        inp={"infile": "bytes"},
-        out={"stdout": "bytes"},
+        inp=["infile"],
+        out=["stdout"],
     )
 
     b = out.pack()
@@ -33,22 +33,22 @@ def test_str() -> None:
     out = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
-        inp={"infile": "bytes", "infile2": "str"},
-        out={"out2": "bytes", "stdout": "bytes"},
+        inp=["infile1", "infile2"],
+        out=["out2", "stdout"],
     )
 
     out2 = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
-        inp={"infile2": "str", "infile": "bytes"},
-        out={"stdout": "bytes", "out2": "bytes"},
+        inp=["infile2", "infile1"],
+        out=["out2", "stdout"],
     )
 
     out3 = f.Funsie(
         how=f.FunsieHow.python,
         what=b"cat",
-        inp={"infile2": "str", "infile": "bytes"},
-        out={"stdout": "bytes", "out2": "bytes"},
+        inp=["infile2", "infile1"],
+        out=["out2", "stdout"],
     )
 
     assert str(out) == str(out2)
