@@ -2,7 +2,7 @@
 from ._funsies import Funsie, FunsieHow
 from .constants import hash_t, pyfunc_t
 from .run import run_op, RUNNERS
-from .ui import shell
+from .ui import morph, put, shell, take
 
 __all__ = [
     # funsie
@@ -10,6 +10,9 @@ __all__ = [
     "FunsieHow",
     # ui
     "shell",
+    "morph",
+    "put",
+    "take",
     # run
     "run_op",
     "RUNNERS",

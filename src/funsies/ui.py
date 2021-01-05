@@ -150,14 +150,14 @@ def shell(  # noqa:C901
             if isinstance(val, Artefact):
                 inputs[skey] = val
             else:
-                inputs[skey] = store(db, val)
+                inputs[skey] = put(db, val)
 
     # multiple input files as a list of paths
     elif isinstance(inp, Iterable):
         for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = store(db, f.read())
+                inputs[skey] = put(db, f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -172,7 +172,7 @@ def shell(  # noqa:C901
 
 
 # --------------------------------------------------------------------------------
-# Various data transformers
+# Data transformers
 def morph(
     db: Redis,
     inp: Artefact,
@@ -195,7 +195,9 @@ def morph(
     return get_artefact(db, operation.out["out"])
 
 
-def store(
+# --------------------------------------------------------------------------------
+# Data loading
+def put(
     db: Redis,
     value: Union[bytes, str],
 ) -> Artefact:
@@ -208,7 +210,7 @@ def store(
         raise TypeError("value of {name_or_path} not bytes or string")
 
 
-def grab(
+def take(
     db: Redis,
     where: Union[Artefact, str],
 ) -> Optional[bytes]:
