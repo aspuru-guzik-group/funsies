@@ -14,3 +14,12 @@ def test_shell_run() -> None:
     assert _graph.get_data(db, _graph.get_artefact(db, s.op.inp["file1"])) == b"wawa"
     assert _graph.get_data(db, _graph.get_artefact(db, s.stdout)) == b""
     assert ui.grab(db, s.out["file2"]) == b"wawa"
+
+
+def test_store_cache() -> None:
+    """Test store for caching."""
+    db = Redis()
+    s = ui.store(db, "bla bla")
+    s2 = ui.store(db, b"bla bla")
+    assert s == s2
+    assert ui.grab(db, s) == b"bla bla"

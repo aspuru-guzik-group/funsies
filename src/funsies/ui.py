@@ -125,35 +125,3 @@ def grab(
 
     dat = get_data(db, obj)
     return dat
-
-
-# def pyfunc(
-#     db: Redis,
-#     fun: _TransformerFun,
-#     inp: Optional[Iterable[FilePtr]] = None,
-#     noutputs: int = 1,
-# ) -> RTransformer:
-#     """Make and register a Transformer."""
-#     # todo guess noutputs from type hint if possible
-#     inputs = []
-#     if inp is None:
-#         pass
-#     else:
-#         inputs = list(inp)
-
-#     return register_transformer(db, fun, inputs, noutputs)
-
-
-# def file(
-#     db: Redis,
-#     name: _AnyPath,
-#     value: Union[bytes, str],
-# ) -> FilePtr:
-#     """Make and register a FilePtr."""
-#     skey = str(name)
-#     if isinstance(value, str):
-#         return register_file(db, skey, value=value.encode())
-#     elif isinstance(value, bytes):
-#         return register_file(db, skey, value=value)
-#     else:
-#         raise TypeError("value of {name_or_path} not bytes or string")
