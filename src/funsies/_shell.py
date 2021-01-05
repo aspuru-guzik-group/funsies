@@ -94,7 +94,7 @@ def shell_funsie(
     )
 
 
-def run_shell_funsie(
+def run_shell_funsie(  # noqa:C901
     funsie: Funsie,
     input_values: Mapping[str, Optional[bytes]],
 ) -> Dict[str, Optional[bytes]]:
@@ -103,12 +103,19 @@ def run_shell_funsie(
     # TODO setable tempdir
     with tempfile.TemporaryDirectory(dir=None) as dir:
         # Put in dir the input files
-        for fn, val in input_values.items():
-            with open(os.path.join(dir, fn), "wb") as f:
-                if val is not None:
+        for fn in funsie.inp:
+            if fn not in input_values:
+                logging.error(f"Missing data for arg {fn}!")
+                val = None
+            else:
+                val = input_values[fn]
+
+            val = input_values[fn]
+            if val is not None:
+                with open(os.path.join(dir, fn), "wb") as f:
                     f.write(val)
-                else:
-                    logging.warning(f"file {fn} not there.")
+            else:
+                logging.warning(f"file {fn} not present.")
 
         shell = unpackb(funsie.what)
 
