@@ -7,7 +7,6 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -34,7 +33,7 @@ def shell(  # noqa:C901
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
-):
+) -> ShellOutput:
     """Make a shell command.
 
     Make a shell operationfor running with run(). This is a more user-friendly

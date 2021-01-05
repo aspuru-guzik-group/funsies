@@ -44,7 +44,7 @@ def test_artefact_update() -> None:
     """Test adding explicit artefacts."""
     store = Redis()
     art = _graph.store_explicit_artefact(store, b"bla bla")
-    _graph.set_data(store, art, "b")
+    _graph.set_data(store, art, b"b")
     assert _graph.get_data(store, art) == b"b"
 
 

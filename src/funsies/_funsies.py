@@ -2,10 +2,11 @@
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-from typing import Dict, Literal, List, Optional, Type, Union
+from typing import List, Optional, Type
 
 # external
 from msgpack import packb, unpackb
+
 
 # --------------------------------------------------------------------------------
 class FunsieHow(IntEnum):

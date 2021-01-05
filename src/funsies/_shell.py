@@ -4,13 +4,15 @@ import logging
 import os
 import subprocess
 import tempfile
-from typing import Dict, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 # external
 from msgpack import packb, unpackb
 
 # module
 from ._funsies import Funsie, FunsieHow
+from ._graph import Operation
+from .constants import hash_t
 
 # Special namespaced "files"
 SPECIAL = "__special__"
@@ -22,7 +24,7 @@ RETURNCODE = f"{SPECIAL}/returncode"
 class ShellOutput:
     """A convenience wrapper for a shell operation."""
 
-    def __init__(self, op):
+    def __init__(self: "ShellOutput", op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
         # stuff that is the same
         self.op = op
@@ -48,25 +50,28 @@ class ShellOutput:
             self.stderrs += [op.out[f"{STDERR}{i}"]]
             self.returncodes += [op.out[f"{RETURNCODE}{i}"]]
 
-    def __warn_len(self):
+    def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:
             raise AttributeError(
                 "More than one shell command are included in this run."
             )
 
     @property
-    def returncode(self):
-        self.__warn_len()
+    def returncode(self: "ShellOutput") -> hash_t:
+        """Return code of a shell command."""
+        self.__check_len()
         return self.returncodes[0]
 
     @property
-    def stdout(self):
-        self.__warn_len()
+    def stdout(self: "ShellOutput") -> hash_t:
+        """Stdout of a shell command."""
+        self.__check_len()
         return self.stdouts[0]
 
     @property
-    def stderr(self):
-        self.__warn_len()
+    def stderr(self: "ShellOutput") -> hash_t:
+        """Stderr of a shell command."""
+        self.__check_len()
         return self.stderr[0]
 
 
@@ -77,22 +82,22 @@ def shell_funsie(
     env: Optional[Dict[str, str]] = None,
 ) -> Funsie:
     """Wrap a shell command."""
-    out = output_files
+    out = list(output_files)
     for k in range(len(cmds)):
         out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
 
     return Funsie(
         how=FunsieHow.shell,
         what=packb({"cmds": cmds, "env": env}),
-        inp=input_files,
+        inp=list(input_files),
         out=out,
     )
 
 
 def run_shell_funsie(
     funsie: Funsie,
-    input_values: Dict[str, Optional[bytes]],
-) -> Dict[str, Optional[bytes]]:  # noqa:C901
+    input_values: Mapping[str, Optional[bytes]],
+) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
@@ -100,7 +105,6 @@ def run_shell_funsie(
         # Put in dir the input files
         for fn, val in input_values.items():
             with open(os.path.join(dir, fn), "wb") as f:
-                # load the artefact
                 if val is not None:
                     f.write(val)
                 else:
@@ -111,7 +115,7 @@ def run_shell_funsie(
         # goto shell funsie above for definitions of those.
         cmds = shell["cmds"]
         env = shell["env"]
-        out = {}
+        out: Dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
             try:
@@ -124,11 +128,13 @@ def run_shell_funsie(
                 )
             except Exception as e:
                 logging.exception(f"run_command failed with exception {e}")
-                return False
-
-            out[f"{STDOUT}{k}"] = proc.stdout
-            out[f"{STDERR}{k}"] = proc.stderr
-            out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+                out[f"{STDOUT}{k}"] = None
+                out[f"{STDERR}{k}"] = None
+                out[f"{RETURNCODE}{k}"] = None
+            else:
+                out[f"{STDOUT}{k}"] = proc.stdout
+                out[f"{STDERR}{k}"] = proc.stderr
+                out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
 
         # Output files
         for file in funsie.out:

@@ -11,10 +11,7 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie
-from ._locations import _ARTEFACTS, _OPERATIONS, _STORE
-
-# Constants
-hash_t = str
+from .constants import ARTEFACTS, hash_t, OPERATIONS, STORE
 
 
 @dataclass(frozen=True)
@@ -63,9 +60,9 @@ class Operation:
 
 # --------------------------------------------------------------------------------
 # Artefacts
-def get_data(store: Redis, artefact: Artefact) -> bytes:
+def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
     """Retrieve data corresponding to an artefact."""
-    valb = store.hget(_STORE, artefact.hash)
+    valb = store.hget(STORE, artefact.hash)
     if valb is None:
         logging.warning("Attempted to retrieve missing data.")
         return None
@@ -75,8 +72,8 @@ def get_data(store: Redis, artefact: Artefact) -> bytes:
 
 def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     """Update an artefact with a value."""
-    val = store.hset(
-        _STORE,
+    _ = store.hset(
+        STORE,
         artefact.hash,
         value,
     )
@@ -84,7 +81,6 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
 
 def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
-    what = type(value).__name__
     m = hashlib.sha256()
     m.update(b"artefact\n")
     m.update(b"explicit\n")
@@ -94,7 +90,7 @@ def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
 
     # store the artefact
     val = store.hset(
-        _ARTEFACTS,
+        ARTEFACTS,
         h,
         node.pack(),
     )
@@ -120,7 +116,7 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
 
     # store the artefact
     val = store.hset(
-        _ARTEFACTS,
+        ARTEFACTS,
         h,
         node.pack(),
     )
@@ -136,7 +132,7 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
 def get_artefact(store: Redis, hash: str) -> Artefact:
     """Pull an artefact from the Redis store."""
     # store the artefact
-    out = store.hget(_ARTEFACTS, hash)
+    out = store.hget(ARTEFACTS, hash)
     if out is None:
         raise RuntimeError(f"Artefact at {hash} could not be found.")
     return Artefact.unpack(out)
@@ -173,7 +169,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
 
     # store the node
     store.hset(
-        _OPERATIONS,
+        OPERATIONS,
         ophash,
         node.pack(),
     )
@@ -183,7 +179,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
 def get_op(store: Redis, hash: str) -> Operation:
     """Load an operation from Redis store."""
     # store the artefact
-    out = store.hget(_OPERATIONS, hash)
+    out = store.hget(OPERATIONS, hash)
     if out is None:
         raise RuntimeError(f"Operation at {hash} could not be found.")
 

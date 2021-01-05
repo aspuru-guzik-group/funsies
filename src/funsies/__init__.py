@@ -1,11 +1,17 @@
 """Funsies is a transparently-memoized worfklow engine."""
-# from .ui import file, pyfunc, shell
+from ._funsies import Funsie, FunsieHow
+from .run import run_op, RUNNERS
+from .ui import shell
 
 __all__ = [
+    # funsie
+    "Funsie",
+    "FunsieHow",
     # ui
-    # "file",
-    # "shell",
-    # "pyfunc",
+    "shell",
+    # run
+    "run_op",
+    "RUNNERS",
 ]
 
 # versioning information
