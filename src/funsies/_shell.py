@@ -11,68 +11,12 @@ from msgpack import packb, unpackb
 
 # module
 from ._funsies import Funsie, FunsieHow
-from ._graph import Operation
-from .constants import hash_t
 
 # Special namespaced "files"
 SPECIAL = "__special__"
 STDOUT = f"{SPECIAL}/stdout"
 STDERR = f"{SPECIAL}/stderr"
 RETURNCODE = f"{SPECIAL}/returncode"
-
-
-class ShellOutput:
-    """A convenience wrapper for a shell operation."""
-
-    def __init__(self: "ShellOutput", op: Operation) -> None:
-        """Generate a ShellOutput wrapper around a shell operation."""
-        # stuff that is the same
-        self.op = op
-        self.hash = op.hash
-
-        self.out = {}
-        self.n = 0
-        for key, val in op.out.items():
-            if SPECIAL in key:
-                if RETURNCODE in key:
-                    self.n += 1  # count the number of commands
-            else:
-                self.out[key] = val
-
-            self.out = op.out
-        self.inp = op.inp
-
-        self.stdouts = []
-        self.stderrs = []
-        self.returncodes = []
-        for i in range(self.n):
-            self.stdouts += [op.out[f"{STDOUT}{i}"]]
-            self.stderrs += [op.out[f"{STDERR}{i}"]]
-            self.returncodes += [op.out[f"{RETURNCODE}{i}"]]
-
-    def __check_len(self: "ShellOutput") -> None:
-        if self.n > 1:
-            raise AttributeError(
-                "More than one shell command are included in this run."
-            )
-
-    @property
-    def returncode(self: "ShellOutput") -> hash_t:
-        """Return code of a shell command."""
-        self.__check_len()
-        return self.returncodes[0]
-
-    @property
-    def stdout(self: "ShellOutput") -> hash_t:
-        """Stdout of a shell command."""
-        self.__check_len()
-        return self.stdouts[0]
-
-    @property
-    def stderr(self: "ShellOutput") -> hash_t:
-        """Stderr of a shell command."""
-        self.__check_len()
-        return self.stderr[0]
 
 
 def shell_funsie(

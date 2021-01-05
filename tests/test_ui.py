@@ -23,3 +23,14 @@ def test_store_cache() -> None:
     s2 = ui.store(db, b"bla bla")
     assert s == s2
     assert ui.grab(db, s) == b"bla bla"
+
+
+def test_morph() -> None:
+    """Test store for caching."""
+    db = Redis()
+    dat = ui.store(db, "bla bla")
+    morph = ui.morph(db, dat, lambda x: x.decode().upper().encode())
+    print(morph)
+
+
+test_morph()

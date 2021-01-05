@@ -2,12 +2,12 @@
 # std
 import os
 from typing import (
+    Callable,
     Dict,
     Iterable,
     List,
     Mapping,
     Optional,
-    TypeVar,
     Union,
 )
 
@@ -15,8 +15,17 @@ from typing import (
 from redis import Redis
 
 # module
-from ._graph import Artefact, get_artefact, get_data, make_op, store_explicit_artefact
-from ._shell import shell_funsie, ShellOutput
+from ._graph import (
+    Artefact,
+    get_artefact,
+    get_data,
+    make_op,
+    Operation,
+    store_explicit_artefact,
+)
+from ._pyfunc import python_funsie
+from ._shell import shell_funsie
+from .constants import hash_t
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -24,7 +33,69 @@ _INP_FILES = Optional[
     Union[Mapping[_AnyPath, Union[Artefact, str, bytes]], Iterable[_AnyPath]]
 ]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
-T = TypeVar("T")
+
+
+# --------------------------------------------------------------------------------
+# Shell and Shell outputs
+class ShellOutput:
+    """A convenience wrapper for a shell operation."""
+
+    op: Operation
+    hash: hash_t
+    out: Dict[str, Artefact]
+
+    def __init__(self: "ShellOutput", op: Operation) -> None:
+        """Generate a ShellOutput wrapper around a shell operation."""
+        # import the constants
+        from ._shell import SPECIAL, RETURNCODE, STDOUT, STDERR
+
+        # stuff that is the same
+        self.op = op
+        self.hash = op.hash
+
+        self.out = {}
+        self.n = 0
+        for key, val in op.out.items():
+            if SPECIAL in key:
+                if RETURNCODE in key:
+                    self.n += 1  # count the number of commands
+            else:
+                self.out[key] = val
+
+            self.out = op.out
+        self.inp = op.inp
+
+        self.stdouts = []
+        self.stderrs = []
+        self.returncodes = []
+        for i in range(self.n):
+            self.stdouts += [op.out[f"{STDOUT}{i}"]]
+            self.stderrs += [op.out[f"{STDERR}{i}"]]
+            self.returncodes += [op.out[f"{RETURNCODE}{i}"]]
+
+    def __check_len(self: "ShellOutput") -> None:
+        if self.n > 1:
+            raise AttributeError(
+                "More than one shell command are included in this run."
+            )
+
+    @property
+    def returncode(self: "ShellOutput") -> hash_t:
+        """Return code of a shell command."""
+        self.__check_len()
+        return self.returncodes[0]
+
+    @property
+    def stdout(self: "ShellOutput") -> hash_t:
+        """Stdout of a shell command."""
+        self.__check_len()
+        return self.stdouts[0]
+
+    @property
+    def stderr(self: "ShellOutput") -> hash_t:
+        """Stderr of a shell command."""
+        self.__check_len()
+        return self.stderr[0]
 
 
 def shell(  # noqa:C901
@@ -34,7 +105,7 @@ def shell(  # noqa:C901
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
 ) -> ShellOutput:
-    """Make a shell command.
+    """Add one or multiple shell commands to the call graph.
 
     Make a shell operationfor running with run(). This is a more user-friendly
     interface than the direct constructor in ._shell, and it is much more
@@ -96,6 +167,30 @@ def shell(  # noqa:C901
     funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env)
     operation = make_op(db, funsie, inputs)
     return ShellOutput(operation)
+
+
+# --------------------------------------------------------------------------------
+# Various data transformers
+def morph(
+    db: Redis,
+    inp: Artefact,
+    fun: Callable[[bytes], bytes],
+    name: Optional[str] = None,
+) -> Artefact:
+    """Add to call graph a function that transforms a single artefact."""
+    # Make a closure with the right parameters
+    def morpher(inp: Dict[str, bytes]) -> Dict[str, bytes]:
+        return dict(out=fun(inp["in"]))
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f"morph:{fun.__qualname__}"
+
+    funsie = python_funsie(morpher, ["in"], ["out"], name=morpher_name)
+    inputs = {"in": inp}
+    operation = make_op(db, funsie, inputs)
+    return operation.out["out"]
 
 
 def store(
