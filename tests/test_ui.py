@@ -11,8 +11,8 @@ def test_shell_run() -> None:
     db = Redis()
     s = ui.shell(db, "cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
     run_op(db, s.hash)
-    assert _graph.get_data(db, _graph.get_artefact(db, s.op.inp["file1"])) == b"wawa"
-    assert _graph.get_data(db, _graph.get_artefact(db, s.stdout)) == b""
+    assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
+    assert _graph.get_data(db, s.stdout) == b""
     assert ui.grab(db, s.out["file2"]) == b"wawa"
 
 

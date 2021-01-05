@@ -43,8 +43,9 @@ class ShellOutput:
     op: Operation
     hash: hash_t
     out: Dict[str, Artefact]
+    inp: Dict[str, Artefact]
 
-    def __init__(self: "ShellOutput", op: Operation) -> None:
+    def __init__(self: "ShellOutput", store: Redis, op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
         # import the constants
         from ._shell import SPECIAL, RETURNCODE, STDOUT, STDERR
@@ -60,18 +61,19 @@ class ShellOutput:
                 if RETURNCODE in key:
                     self.n += 1  # count the number of commands
             else:
-                self.out[key] = val
+                self.out[key] = get_artefact(store, val)
 
-            self.out = op.out
-        self.inp = op.inp
+        self.inp = {}
+        for key, val in op.inp.items():
+            self.inp[key] = get_artefact(store, val)
 
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
         for i in range(self.n):
-            self.stdouts += [op.out[f"{STDOUT}{i}"]]
-            self.stderrs += [op.out[f"{STDERR}{i}"]]
-            self.returncodes += [op.out[f"{RETURNCODE}{i}"]]
+            self.stdouts += [get_artefact(store, op.out[f"{STDOUT}{i}"])]
+            self.stderrs += [get_artefact(store, op.out[f"{STDERR}{i}"])]
+            self.returncodes += [get_artefact(store, op.out[f"{RETURNCODE}{i}"])]
 
     def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:
@@ -80,22 +82,22 @@ class ShellOutput:
             )
 
     @property
-    def returncode(self: "ShellOutput") -> hash_t:
+    def returncode(self: "ShellOutput") -> Artefact:
         """Return code of a shell command."""
         self.__check_len()
         return self.returncodes[0]
 
     @property
-    def stdout(self: "ShellOutput") -> hash_t:
+    def stdout(self: "ShellOutput") -> Artefact:
         """Stdout of a shell command."""
         self.__check_len()
         return self.stdouts[0]
 
     @property
-    def stderr(self: "ShellOutput") -> hash_t:
+    def stderr(self: "ShellOutput") -> Artefact:
         """Stderr of a shell command."""
         self.__check_len()
-        return self.stderr[0]
+        return self.stderrs[0]
 
 
 def shell(  # noqa:C901
@@ -166,7 +168,7 @@ def shell(  # noqa:C901
 
     funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env)
     operation = make_op(db, funsie, inputs)
-    return ShellOutput(operation)
+    return ShellOutput(db, operation)
 
 
 # --------------------------------------------------------------------------------
@@ -190,7 +192,7 @@ def morph(
     funsie = python_funsie(morpher, ["in"], ["out"], name=morpher_name)
     inputs = {"in": inp}
     operation = make_op(db, funsie, inputs)
-    return operation.out["out"]
+    return get_artefact(db, operation.out["out"])
 
 
 def store(

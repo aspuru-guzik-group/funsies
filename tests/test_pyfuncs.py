@@ -1,6 +1,6 @@
 """Test of Funsies shell capabilities."""
 # std
-from typing import Dict, Optional
+from typing import Dict
 
 # module
 from funsies import _pyfunc as p

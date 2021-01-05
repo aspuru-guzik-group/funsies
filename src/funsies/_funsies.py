@@ -2,10 +2,15 @@
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
+import hashlib
 from typing import List, Optional, Type
 
 # external
 from msgpack import packb, unpackb
+from redis import Redis
+
+# module
+from .constants import FUNSIES, hash_t
 
 
 # --------------------------------------------------------------------------------
@@ -53,7 +58,30 @@ class Funsie:
         """Pack a Funsie to a bytestring."""
         return packb(asdict(self))
 
+    @property
+    def hash(self: "Funsie") -> hash_t:
+        """Hash of a funsie."""
+        m = hashlib.sha256()
+        # header
+        m.update(b"funsie")
+        # funsie
+        m.update(str(self).encode())
+        return m.hexdigest()
+
     @classmethod
     def unpack(cls: Type["Funsie"], data: bytes) -> "Funsie":
         """Unpack a Funsie from a byte string."""
         return Funsie(**unpackb(data))
+
+
+def store_funsie(store: Redis, funsie: Funsie) -> None:
+    """Store a funsie in Redis store."""
+    _ = store.hset(FUNSIES, funsie.hash, funsie.pack())
+
+
+def get_funsie(store: Redis, hash: str) -> Funsie:
+    """Pull a funsie from the Redis store."""
+    out = store.hget(FUNSIES, hash)
+    if out is None:
+        raise RuntimeError(f"Funsie at {hash} could not be found.")
+    return Funsie.unpack(out)

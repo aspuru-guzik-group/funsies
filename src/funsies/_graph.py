@@ -10,10 +10,12 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from ._funsies import Funsie
+from ._funsies import Funsie, store_funsie
 from .constants import ARTEFACTS, hash_t, OPERATIONS, STORE
 
 
+# --------------------------------------------------------------------------------
+# Artefacts
 @dataclass(frozen=True)
 class Artefact:
     """An instantiated artefact."""
@@ -31,35 +33,6 @@ class Artefact:
         return Artefact(**unpackb(data))
 
 
-@dataclass(frozen=True)
-class Operation:
-    """An instantiated Funsie."""
-
-    hash: hash_t
-    funsie: Funsie
-    inp: Dict[str, hash_t]
-    out: Dict[str, hash_t]
-
-    def pack(self: "Operation") -> bytes:
-        """Pack an Operation to a bytestring."""
-        return packb(
-            dict(hash=self.hash, funsie=self.funsie.pack(), inp=self.inp, out=self.out)
-        )
-
-    @classmethod
-    def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
-        """Unpack an Operation from a byte string."""
-        out = unpackb(data)
-        return Operation(
-            hash=out["hash"],
-            funsie=Funsie.unpack(out["funsie"]),
-            inp=out["inp"],
-            out=out["out"],
-        )
-
-
-# --------------------------------------------------------------------------------
-# Artefacts
 def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
     """Retrieve data corresponding to an artefact."""
     valb = store.hget(STORE, artefact.hash)
@@ -138,6 +111,27 @@ def get_artefact(store: Redis, hash: str) -> Artefact:
     return Artefact.unpack(out)
 
 
+# --------------------------------------------------------------------------------
+# Operations
+@dataclass(frozen=True)
+class Operation:
+    """An instantiated Funsie."""
+
+    hash: hash_t
+    funsie: hash_t
+    inp: Dict[str, hash_t]
+    out: Dict[str, hash_t]
+
+    def pack(self: "Operation") -> bytes:
+        """Pack an Operation to a bytestring."""
+        return packb(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
+        """Unpack an Operation from a byte string."""
+        return Operation(**unpackb(data))
+
+
 def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
@@ -148,12 +142,15 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
         else:
             inp_art[key] = inp[key].hash
 
+    # save funsie
+    store_funsie(store, funsie)
+
     # Compute the operation's hash
     m = hashlib.sha256()
     # header
     m.update(b"op")
     # funsie
-    m.update(str(funsie).encode())
+    m.update(funsie.hash.encode())
     # input hashes
     for key, val in sorted(inp.items(), key=lambda x: x[0]):
         m.update(f"file={key}, hash={val}".encode())
@@ -165,7 +162,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
         out_art[key] = store_generated_artefact(store, ophash, key).hash
 
     # Make the node
-    node = Operation(ophash, funsie, inp_art, out_art)
+    node = Operation(ophash, funsie.hash, inp_art, out_art)
 
     # store the node
     store.hset(

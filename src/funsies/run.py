@@ -6,7 +6,7 @@ import logging
 from redis import Redis
 
 # module
-from ._funsies import FunsieHow
+from ._funsies import FunsieHow, get_funsie
 from ._graph import get_artefact, get_data, get_op, set_data
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
@@ -17,10 +17,12 @@ RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsi
 
 
 def run_op(db: Redis, address: hash_t) -> bool:
-    """Run a data operation from it's address."""
+    """Run an Operation from its hash address."""
     # load the operation
     op = get_op(db, address)
-    runner = RUNNERS[op.funsie.how]
+    # load the funsie
+    funsie = get_funsie(db, op.funsie)
+    runner = RUNNERS[funsie.how]
 
     # load input files
     input_data = {}
@@ -28,7 +30,7 @@ def run_op(db: Redis, address: hash_t) -> bool:
         artefact = get_artefact(db, val)
         input_data[key] = get_data(db, artefact)
 
-    out_data = runner(op.funsie, input_data)
+    out_data = runner(funsie, input_data)
 
     for key, val in out_data.items():
         if val is None:
