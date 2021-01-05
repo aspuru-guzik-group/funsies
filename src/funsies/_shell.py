@@ -15,6 +15,45 @@ from ._funsies import ART_TYPES, _ART_TYPES, Funsie, FunsieHow
 from ._graph import Artefact, update_artefact, get_data
 
 
+class ShellOutput:
+    """A convenience wrapper for a shell operation."""
+
+    def __init__(self, op, ncommands):
+        self.op = op
+        self.hash = op.hash
+        self.out = op.out
+        self.inp = op.inp
+        self.n = ncommands
+        self.stdouts = []
+        self.stderrs = []
+        self.returncodes = []
+        for i in range(ncommands):
+            self.stdouts += [op.out[f"stdout:{i}"]]
+            self.stderrs += [op.out[f"stderr:{i}"]]
+            self.returncodes += [op.out[f"returncode:{i}"]]
+
+    def __warn_len(self):
+        if self.n > 1:
+            raise AttributeError(
+                "More than one shell command are included in this run."
+            )
+
+    @property
+    def returncode(self):
+        self.__warn_len()
+        return self.returncodes[0]
+
+    @property
+    def stdout(self):
+        self.__warn_len()
+        return self.stdouts[0]
+
+    @property
+    def stderr(self):
+        self.__warn_len()
+        return self.stderr[0]
+
+
 def shell_funsie(
     cmds: Sequence[str],
     input_files: Sequence[str],

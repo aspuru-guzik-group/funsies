@@ -16,8 +16,9 @@ from typing import (
 from redis import Redis
 
 # module
-from ._graph import Artefact, make_op, store_explicit_artefact
-from ._shell import shell_funsie
+from ._funsies import ART_TYPES
+from ._graph import Artefact, get_artefact, get_data, make_op, store_explicit_artefact
+from ._shell import shell_funsie, ShellOutput
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -75,22 +76,17 @@ def shell(  # noqa:C901
     elif isinstance(inp, Mapping):
         for key, val in inp.items():
             skey = str(key)
-            if isinstance(val, str):
-                inputs[skey] = store_explicit_artefact(db, val.encode())
-            elif isinstance(val, bytes):
-                inputs[skey] = store_explicit_artefact(db, val)
-            elif isinstance(val, Artefact):
+            if isinstance(val, Artefact):
                 inputs[skey] = val
             else:
-                raise TypeError(
-                    f"{val} of key {skey} is of an invalid type to be a file."
-                )
+                inputs[skey] = store(db, val)
+
     # multiple input files as a list of paths
     elif isinstance(inp, Iterable):
         for el in inp:
             with open(el, "rb") as f:
                 skey = str(os.path.basename(el))
-                inputs[skey] = store_explicit_artefact(db, f.read())
+                inputs[skey] = store(db, f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -101,7 +97,36 @@ def shell(  # noqa:C901
 
     funsie = shell_funsie(cmds, inputs.keys(), outputs, env)
     operation = make_op(db, funsie, inputs)
-    return operation
+    return ShellOutput(operation, len(cmds))
+
+
+def store(
+    db: Redis,
+    value: Union[bytes, str],
+) -> Artefact:
+    """Make and register a FilePtr."""
+    if isinstance(value, str):
+        return store_explicit_artefact(db, value.encode())
+    elif isinstance(value, bytes):
+        return store_explicit_artefact(db, value)
+    else:
+        raise TypeError("value of {name_or_path} not bytes or string")
+
+
+def grab(
+    db: Redis,
+    where: Union[Artefact, str],
+) -> Optional[ART_TYPES]:
+    """Make and register a FilePtr."""
+    if isinstance(where, Artefact):
+        obj = where
+    else:
+        obj = get_artefact(db, where)
+        if obj is None:
+            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
+
+    dat = get_data(db, obj)
+    return dat
 
 
 # def pyfunc(
