@@ -7,9 +7,7 @@
 # environemnt loading etc
 module load NiaEnv
 module load conda3
-source activate madness-spectra
-export PATH=$HOME/xtb/bin:$PATH # xtb on path
-export PATH=$HOME/madness-spectra/shell:$PATH # xtb on path
+source activate something
 
 # number of workers
 let "worker_num=(${SLURM_NTASKS})"
@@ -21,9 +19,8 @@ export server_node
 
 # run redis server (here we are *not* using a dedicated node, so memory could
 # be an issue. If that's the case, use --exclude and srun.)
-redis-server --protected-mode no &
+redis-server redis.conf &       # redis.conf should contain 'protected-mode no'
 sleep 3
-# TODO: unprotected mode is kind of risky
 
 # run the funsies script
 python3 SCRIPT_NAME.py ${server_node}

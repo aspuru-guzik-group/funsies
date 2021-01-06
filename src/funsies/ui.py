@@ -221,12 +221,12 @@ def reduce(
 
 
 # --------------------------------------------------------------------------------
-# Data loading
+# Data loading and saving
 def put(
     db: Redis,
     value: Union[bytes, str],
 ) -> Artefact:
-    """Make and register a FilePtr."""
+    """Put an artefact in the database."""
     if isinstance(value, str):
         return store_explicit_artefact(db, value.encode())
     elif isinstance(value, bytes):
@@ -239,7 +239,7 @@ def take(
     db: Redis,
     where: Union[Artefact, str],
 ) -> Optional[bytes]:
-    """Make and register a FilePtr."""
+    """Take an artefact from the database."""
     if isinstance(where, Artefact):
         obj = where
     else:
@@ -249,3 +249,21 @@ def take(
 
     dat = get_data(db, obj)
     return dat
+
+
+def takeout(
+    db: Redis,
+    where: Union[Artefact, str],
+    filename: _AnyPath,
+) -> None:
+    """Take an artefact and save it to a file."""
+    if isinstance(where, Artefact):
+        obj = where
+    else:
+        obj = get_artefact(db, where)
+        if obj is None:
+            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
+
+    dat = get_data(db, obj)
+    with open(filename, "wb") as f:
+        f.write(dat)

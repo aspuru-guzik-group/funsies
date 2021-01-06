@@ -17,8 +17,6 @@ from funsies import execute, put, take, shell, morph, reduce
 # this will ensure that the database is fully persistent
 # between runs.
 db = redis.Redis()
-db.config_set("appendonly", "yes")  # type:ignore
-
 
 # Start of computational workflow
 # -------------------------------
