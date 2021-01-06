@@ -16,6 +16,7 @@ setuptools.setup(
         "redis",
         "msgpack",
         "cloudpickle",
+        "rq>=1.7",
         'importlib-metadata ~= 1.0 ; python_version < "3.8"',
     ]
     # TODO
