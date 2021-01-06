@@ -69,23 +69,17 @@ def run_shell_funsie(  # noqa:C901
         out: Dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
-            try:
-                proc = subprocess.run(
-                    c,
-                    cwd=dir,
-                    capture_output=True,
-                    env=env,
-                    shell=True,
-                )
-            except Exception as e:
-                logging.exception(f"run_command failed with exception {e}")
-                out[f"{STDOUT}{k}"] = None
-                out[f"{STDERR}{k}"] = None
-                out[f"{RETURNCODE}{k}"] = None
-            else:
-                out[f"{STDOUT}{k}"] = proc.stdout
-                out[f"{STDERR}{k}"] = proc.stderr
-                out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+            proc = subprocess.run(
+                c,
+                cwd=dir,
+                capture_output=True,
+                env=env,
+                shell=True,
+            )
+
+            out[f"{STDOUT}{k}"] = proc.stdout
+            out[f"{STDERR}{k}"] = proc.stderr
+            out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
 
         # Output files
         for file in funsie.out:

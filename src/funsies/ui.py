@@ -30,9 +30,7 @@ from .constants import hash_t
 
 # Types
 _AnyPath = Union[str, os.PathLike]
-_INP_FILES = Optional[
-    Union[Mapping[_AnyPath, Union[Artefact, str, bytes]], Iterable[_AnyPath]]
-]
+_INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 
 
@@ -152,13 +150,6 @@ def shell(  # noqa:C901
                 inputs[skey] = val
             else:
                 inputs[skey] = put(db, val)
-
-    # multiple input files as a list of paths
-    elif isinstance(inp, Iterable):
-        for el in inp:
-            with open(el, "rb") as f:
-                skey = str(os.path.basename(el))
-                inputs[skey] = put(db, f.read())
     else:
         raise TypeError(f"{inp} not a valid file input")
 
