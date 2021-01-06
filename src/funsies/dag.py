@@ -12,6 +12,7 @@ from rq.queue import Queue
 from ._graph import Artefact, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
 from .run import run_op, RunStatus
+from .ui import ShellOutput
 
 
 def __set_as_str(db: Redis, key: str) -> Set[str]:
@@ -118,7 +119,7 @@ def rq_eval(dag_of: hash_t, current: hash_t, job_args, queue_args) -> RunStatus:
 def execute(
     db: Redis,
     queue: Queue,
-    output: Union[hash_t, Operation, Artefact],
+    output: Union[hash_t, Operation, Artefact, ShellOutput],
     job_args=None,
     queue_args=None,
 ) -> None:
@@ -128,7 +129,11 @@ def execute(
     if queue_args is None:
         queue_args = RQ_QUEUE_DEFAULTS
 
-    if isinstance(output, Operation) or isinstance(output, Artefact):
+    if (
+        isinstance(output, Operation)
+        or isinstance(output, Artefact)
+        or isinstance(output, ShellOutput)
+    ):
         dag_of = output.hash
     else:
         dag_of = output
