@@ -1,6 +1,7 @@
 """Functions for describing redis-backed DAGs."""
 # std
 from dataclasses import asdict, dataclass
+from enum import IntEnum
 import hashlib
 import logging
 from typing import Dict, Optional, Type
@@ -11,11 +12,32 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, store_funsie
-from .constants import ARTEFACTS, hash_t, OPERATIONS, STORE
+from .constants import ARTEFACTS, hash_t, OPERATIONS, STATUS, STORE
 
 
 # --------------------------------------------------------------------------------
 # Artefacts
+class Status(IntEnum):
+    """Status of data associated with an artefact."""
+
+    absent = 0
+    done = 1
+
+
+def get_status(db: Redis, address: hash_t) -> Status:
+    """Get the status of a given operation or artefact."""
+    val = db.hget(STATUS, address)
+    if val is None:
+        return Status.absent
+    else:
+        return Status(int(val))
+
+
+def set_status(db: Redis, address: hash_t, stat: Status) -> None:
+    """Set the status of a given operation or artefact."""
+    _ = db.hset(STATUS, address, int(stat))
+
+
 @dataclass(frozen=True)
 class Artefact:
     """An instantiated artefact."""
@@ -50,6 +72,7 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
         artefact.hash,
         value,
     )
+    set_status(store, artefact.hash, Status.done)
 
 
 def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:

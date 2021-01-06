@@ -9,4 +9,5 @@ pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
-STORE = "funsies.data_store"
+STORE = "funsies.store"
+STATUS = "funsies.status"
