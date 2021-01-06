@@ -104,7 +104,7 @@ def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     )
 
     if val != 1:
-        logging.warning(f'Artefact with value "{value!r}" already exists.')
+        logging.debug(f'Artefact with value "{value!r}" already exists.')
 
     # store the artefact
     set_data(store, node, value)
@@ -130,7 +130,7 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
     )
 
     if val != 1:
-        logging.warning(
+        logging.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
 

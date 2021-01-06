@@ -1,5 +1,6 @@
 """User-friendly interfaces to funsies functionality."""
 # std
+import inspect
 import os
 from typing import (
     Callable,
@@ -175,8 +176,8 @@ def shell(  # noqa:C901
 # Data transformers
 def morph(
     db: Redis,
-    inp: Artefact,
     fun: Callable[[bytes], bytes],
+    inp: Artefact,
     name: Optional[str] = None,
 ) -> Artefact:
     """Add to call graph a function that transforms a single artefact."""
@@ -191,6 +192,30 @@ def morph(
 
     funsie = python_funsie(morpher, ["in"], ["out"], name=morpher_name)
     inputs = {"in": inp}
+    operation = make_op(db, funsie, inputs)
+    return get_artefact(db, operation.out["out"])
+
+
+def reduce(
+    db: Redis,
+    fun: Callable[..., bytes],
+    *inp: Artefact,
+    name: Optional[str] = None,
+) -> Artefact:
+    """Add to call graph a function that reduce multiple artefacts."""
+    arg_names = [f"in{k}" for k in range(len(inp))]
+
+    def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+        args = [inpd[k] for k in arg_names]
+        return dict(out=fun(*args))
+
+    if name is not None:
+        red_name = name
+    else:
+        red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
+
+    funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
+    inputs = dict([(f"in{k}", val) for k, val in enumerate(inp)])
     operation = make_op(db, funsie, inputs)
     return get_artefact(db, operation.out["out"])
 

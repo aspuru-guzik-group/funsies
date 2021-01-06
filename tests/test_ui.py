@@ -29,6 +29,22 @@ def test_morph() -> None:
     """Test store for caching."""
     db = Redis()
     dat = ui.put(db, "bla bla")
-    morph = ui.morph(db, dat, lambda x: x.decode().upper().encode())
+    morph = ui.morph(db, lambda x: x.decode().upper().encode(), dat)
     run_op(db, morph.parent)
     assert ui.take(db, morph) == b"BLA BLA"
+
+
+def test_reduce() -> None:
+    """Test store for caching."""
+    db = Redis()
+    dat = ui.put(db, "bla bla")
+    morph = ui.morph(db, lambda x: x.decode().upper().encode(), dat)
+
+    def join(x: bytes, y: bytes) -> bytes:
+        return x + y
+
+    red = ui.reduce(db, join, morph, dat)
+
+    run_op(db, morph.parent)
+    run_op(db, red.parent)
+    assert ui.take(db, red) == b"BLA BLAbla bla"

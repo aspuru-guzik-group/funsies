@@ -15,7 +15,7 @@ def test_dag_build() -> None:
     """Test simple DAG build."""
     db = Redis()
     dat = put(db, "bla bla")
-    step1 = morph(db, dat, lambda x: x.decode().upper().encode())
+    step1 = morph(db, lambda x: x.decode().upper().encode(), dat)
     step2 = shell(db, "cat file1 file2", inp=dict(file1=step1, file2=dat))
     output = step2.stdout
 
@@ -37,7 +37,7 @@ def test_dag_execute() -> None:
     """Test execution of a dag."""
     db = Redis()
     dat = put(db, "bla bla")
-    step1 = morph(db, dat, lambda x: x.decode().upper().encode())
+    step1 = morph(db, lambda x: x.decode().upper().encode(), dat)
     step2 = shell(db, "cat file1 file2", inp=dict(file1=step1, file2=dat))
     output = step2.stdout
 
