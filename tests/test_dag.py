@@ -1,13 +1,14 @@
 """Test of Funsies shell capabilities."""
+# std
+import time
+
 # external
 from fakeredis import FakeStrictRedis as Redis
-import rq
 from rq import Queue
-import time
 
 # module
 from funsies import dag
-from funsies import take, morph, put, shell
+from funsies import morph, put, shell, take
 
 
 def test_dag_build() -> None:
@@ -19,6 +20,7 @@ def test_dag_build() -> None:
     output = step2.stdout
 
     dag_of = dag.build_dag(db, output.hash)
+    assert dag_of is not None
     assert len(db.smembers(dag_of + ".root")) == 2
 
     # test deletion
@@ -27,6 +29,7 @@ def test_dag_build() -> None:
 
     # test new dag
     dag_of = dag.build_dag(db, step1.hash)
+    assert dag_of is not None
     assert len(db.smembers(dag_of + ".root")) == 1
 
 

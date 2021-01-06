@@ -8,7 +8,7 @@ from redis import Redis
 
 # module
 from ._funsies import FunsieHow, get_funsie
-from ._graph import get_artefact, get_data, get_op, set_data, get_status, ArtefactStatus
+from ._graph import ArtefactStatus, get_artefact, get_data, get_op, get_status, set_data
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t, SREADY, SRUNNING

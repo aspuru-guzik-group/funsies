@@ -14,6 +14,19 @@ from .constants import DAG_STORE, hash_t
 from .run import run_op, RunStatus
 
 
+def __set_as_str(db: Redis, key: str) -> Set[str]:
+    mem = db.smembers(key)
+    out = set()
+    for k in mem:
+        if isinstance(k, bytes):
+            out.add(k.decode())
+        elif isinstance(k, str):
+            out.add(k)
+        else:
+            out.add(str(k))
+    return out
+
+
 def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> None:
     """Append to a DAG."""
     key = DAG_STORE + dag_of + "." + op_from
@@ -21,17 +34,17 @@ def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> N
     db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
 
 
-def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[bytes]:
+def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[str]:
     """Get dependents of an op."""
     key = DAG_STORE + dag_of + "." + op_from
-    return db.smembers(key)
+    return __set_as_str(db, key)
 
 
 def delete_dag(db: Redis, dag_of: hash_t) -> None:
     """Delete DAG corresponding to a given output hash."""
-    which = db.smembers(DAG_STORE + dag_of + ".keys")  # type:ignore
+    which = __set_as_str(db, DAG_STORE + dag_of + ".keys")
     for key in which:
-        _ = db.delete(key.decode())
+        _ = db.delete(key)
 
 
 def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
@@ -95,7 +108,7 @@ def rq_eval(dag_of: hash_t, current: hash_t) -> RunStatus:
     if stat > 0:
         # Success! Let's enqueue dependents.
         for element in __dag_dependents(db, dag_of, current):
-            queue.enqueue_call(rq_eval, args=(dag_of, element.decode()))
+            queue.enqueue_call(rq_eval, args=(dag_of, element))
 
     return stat
 
@@ -114,4 +127,4 @@ def execute(
 
     # enqueue everything starting from root
     for element in __dag_dependents(db, dag_of, "root"):
-        queue.enqueue_call(rq_eval, args=(dag_of, element.decode()))
+        queue.enqueue_call(rq_eval, args=(dag_of, element))
