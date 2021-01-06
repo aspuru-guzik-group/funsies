@@ -43,7 +43,7 @@ def test_dag_execute() -> None:
 
     # make queue
     queue = Queue(connection=db, is_async=False)
-    dag.execute(db, queue, output)
+    dag.execute(db, queue, output, queue_args=dict(is_async=False))
     out = take(db, output)
     time.sleep(0.1)
     assert out == b"BLA BLAbla bla"

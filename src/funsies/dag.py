@@ -10,7 +10,7 @@ from rq.queue import Queue
 
 # module
 from ._graph import Artefact, get_artefact, get_op, Operation
-from .constants import DAG_STORE, hash_t
+from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
 from .run import run_op, RunStatus
 
 
@@ -92,7 +92,7 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     return DAG_STORE + address
 
 
-def rq_eval(dag_of: hash_t, current: hash_t) -> RunStatus:
+def rq_eval(dag_of: hash_t, current: hash_t, job_args, queue_args) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
     # load database
     logging.debug(f"executing {current} on worker.")
@@ -100,7 +100,7 @@ def rq_eval(dag_of: hash_t, current: hash_t) -> RunStatus:
     db: Redis = job.connection
 
     # load current queue
-    queue = Queue(name=job.origin, connection=job.connection)
+    queue = Queue(name=job.origin, connection=job.connection, **queue_args)
 
     # Now we run the job
     stat = run_op(db, current)
@@ -108,15 +108,26 @@ def rq_eval(dag_of: hash_t, current: hash_t) -> RunStatus:
     if stat > 0:
         # Success! Let's enqueue dependents.
         for element in __dag_dependents(db, dag_of, current):
-            queue.enqueue_call(rq_eval, args=(dag_of, element))
+            queue.enqueue_call(
+                rq_eval, args=(dag_of, element, job_args, queue_args), **job_args
+            )
 
     return stat
 
 
 def execute(
-    db: Redis, queue: Queue, output: Union[hash_t, Operation, Artefact]
+    db: Redis,
+    queue: Queue,
+    output: Union[hash_t, Operation, Artefact],
+    job_args=None,
+    queue_args=None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
+    if job_args is None:
+        job_args = RQ_JOB_DEFAULTS
+    if queue_args is None:
+        queue_args = RQ_QUEUE_DEFAULTS
+
     if isinstance(output, Operation) or isinstance(output, Artefact):
         dag_of = output.hash
     else:
@@ -127,4 +138,6 @@ def execute(
 
     # enqueue everything starting from root
     for element in __dag_dependents(db, dag_of, "root"):
-        queue.enqueue_call(rq_eval, args=(dag_of, element))
+        queue.enqueue_call(
+            rq_eval, args=(dag_of, element, job_args, queue_args), **job_args
+        )
