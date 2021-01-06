@@ -12,30 +12,38 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, store_funsie
-from .constants import ARTEFACTS, hash_t, OPERATIONS, STATUS, STORE
+from .constants import (
+    ARTEFACTS,
+    DATA_STATUS,
+    hash_t,
+    OPERATIONS,
+    SREADY,
+    SRUNNING,
+    STORE,
+)
 
 
 # --------------------------------------------------------------------------------
 # Artefacts
-class Status(IntEnum):
+class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
     absent = 0
     done = 1
 
 
-def get_status(db: Redis, address: hash_t) -> Status:
+def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
     """Get the status of a given operation or artefact."""
-    val = db.hget(STATUS, address)
+    val = db.hget(DATA_STATUS, address)
     if val is None:
-        return Status.absent
+        return ArtefactStatus.absent
     else:
-        return Status(int(val))
+        return ArtefactStatus(int(val))
 
 
-def set_status(db: Redis, address: hash_t, stat: Status) -> None:
+def set_status(db: Redis, address: hash_t, stat: ArtefactStatus) -> None:
     """Set the status of a given operation or artefact."""
-    _ = db.hset(STATUS, address, int(stat))
+    _ = db.hset(DATA_STATUS, address, int(stat))
 
 
 @dataclass(frozen=True)
@@ -43,7 +51,7 @@ class Artefact:
     """An instantiated artefact."""
 
     hash: hash_t
-    parent: Optional[str] = None
+    parent: str
 
     def pack(self: "Artefact") -> bytes:
         """Pack an Artefact to a bytestring."""
@@ -65,14 +73,18 @@ def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
         return valb
 
 
-def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
+def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
     """Update an artefact with a value."""
-    _ = store.hset(
-        STORE,
-        artefact.hash,
-        value,
-    )
-    set_status(store, artefact.hash, Status.done)
+    if value is not None:
+        _ = store.hset(
+            STORE,
+            artefact.hash,
+            value,
+        )
+
+    # value of None means that the data was not obtained but is actually
+    # "ready" so to speak.
+    set_status(store, artefact.hash, ArtefactStatus.done)
 
 
 def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
@@ -82,7 +94,7 @@ def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     m.update(b"explicit\n")
     m.update(value)
     h = m.hexdigest()
-    node = Artefact(hash=h)
+    node = Artefact(hash=h, parent="root")
 
     # store the artefact
     val = store.hset(
@@ -159,11 +171,13 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
+    dependencies = set()
     for key in funsie.inp:
         if key not in inp:
             raise AttributeError(f"Missing {key} from inputs required by funsie.")
         else:
             inp_art[key] = inp[key].hash
+            dependencies.add(inp[key].parent)
 
     # save funsie
     store_funsie(store, funsie)
@@ -193,6 +207,11 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
         ophash,
         node.pack(),
     )
+
+    # Add to the ready list and remove from the running list if it was
+    # previously aborted.
+    store.srem(SRUNNING, ophash)
+    store.sadd(SREADY, ophash)  # type:ignore
     return node
 
 

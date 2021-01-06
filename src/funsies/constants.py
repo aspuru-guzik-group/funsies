@@ -10,4 +10,11 @@ ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
 STORE = "funsies.store"
-STATUS = "funsies.status"
+
+# job status repos
+DATA_STATUS = "funsies.data.status"
+SREADY = "funsies.jobs.ready"
+SRUNNING = "funsies.jobs.running"
+
+# job descendants
+DAG_STORE = "funsies.dags."

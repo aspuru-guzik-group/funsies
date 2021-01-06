@@ -1,7 +1,7 @@
 """Funsies is a transparently-memoized worfklow engine."""
 from ._funsies import Funsie, FunsieHow
 from .constants import hash_t, pyfunc_t
-from .run import run_op, RUNNERS
+from .run import run_op, RUNNERS, RunStatus
 from .ui import morph, put, shell, take
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     # run
     "run_op",
     "RUNNERS",
+    "RunStatus",
     # types
     "pyfunc_t",
     "hash_t",
