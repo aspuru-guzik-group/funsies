@@ -1,23 +1,29 @@
-"""Funsies is a functional wrapper for terminal commands."""
-from .cached import pull_file, put_file
-from .core import run, run_rq, runall
-from .types import pull
-from .ui import file, pyfunc, shell
+"""Funsies is a transparently-memoized worfklow engine."""
+from ._funsies import Funsie, FunsieHow
+from .constants import hash_t, pyfunc_t
+from .dag import execute
+from .run import run_op, RUNNERS, RunStatus
+from .ui import morph, put, reduce, shell, take
 
 __all__ = [
-    # core
-    "run",
-    "run_rq",
-    "runall",
-    # cached
-    "pull_file",
-    "put_file",
-    # types
-    "pull",
+    # funsie
+    "Funsie",
+    "FunsieHow",
     # ui
-    "file",
     "shell",
-    "pyfunc",
+    "morph",
+    "reduce",
+    "put",
+    "take",
+    # run
+    "run_op",
+    "RUNNERS",
+    "RunStatus",
+    # types
+    "pyfunc_t",
+    "hash_t",
+    # dag
+    "execute",
 ]
 
 # versioning information

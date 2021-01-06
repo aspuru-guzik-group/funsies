@@ -3,4 +3,3 @@ cloudpickle
 redis
 rq>=1.7
 fakeredis
-msgpack-types

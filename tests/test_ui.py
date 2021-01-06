@@ -1,72 +1,50 @@
-"""Tests of user-friendly routines."""
-# std
-import os
-import tempfile
-
+"""Test of Funsies shell capabilities."""
 # external
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-import funsies
-
-db = Redis()
+from funsies import _graph, run_op, ui
 
 
-def test_simple_arg_parsing() -> None:
-    """Test simple argument parsing."""
-    task = funsies.shell(db, "echo 123")
-    assert len(task.commands) == 1
-    assert task.commands[0].command == "echo 123"
-
-    task = funsies.shell(db, "echo", "echo")
-    assert len(task.commands) == 2
-    assert task.commands[0].command == "echo"
-    assert task.commands[1].command == "echo"
+def test_shell_run() -> None:
+    """Test shell command."""
+    db = Redis()
+    s = ui.shell(db, "cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
+    run_op(db, s.hash)
+    assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
+    assert _graph.get_data(db, s.stdout) == b""
+    assert ui.take(db, s.out["file2"]) == b"wawa"
 
 
-def test_arg_errors() -> None:
-    """Test for wrong args for task maker."""
-    try:
-        _ = funsies.shell(db, 3)  # type:ignore
-    except Exception as e:
-        assert isinstance(e, TypeError)
-
-    try:
-        _ = funsies.shell(db, "echo", inp=3)  # type:ignore
-    except Exception as e:
-        assert isinstance(e, TypeError)
-
-    try:
-        _ = funsies.shell(db, "echo", out=3)  # type:ignore
-    except Exception as e:
-        assert isinstance(e, TypeError)
+def test_store_cache() -> None:
+    """Test store for caching."""
+    db = Redis()
+    s = ui.put(db, "bla bla")
+    s2 = ui.put(db, b"bla bla")
+    assert s == s2
+    assert ui.take(db, s) == b"bla bla"
 
 
-def test_files_parsing() -> None:
-    """Test input files parsing."""
-    with tempfile.NamedTemporaryFile("wb") as f:
-        f.write(b"bla bla")
-        f.flush()
-        task2 = funsies.shell(db, "cat file", inp=[f.name])
-        tmp = funsies.pull_file(db, task2.inp[os.path.basename(f.name)])
-        assert tmp is not None
-        assert tmp == b"bla bla"
+def test_morph() -> None:
+    """Test store for caching."""
+    db = Redis()
+    dat = ui.put(db, "bla bla")
+    morph = ui.morph(db, lambda x: x.decode().upper().encode(), dat)
+    run_op(db, morph.parent)
+    assert ui.take(db, morph) == b"BLA BLA"
 
 
-def test_outfiles_parsing() -> None:
-    """Test input files parsing."""
-    task1 = funsies.shell(db, "cp file1 file2", inp={"file1": "bla"}, out=["file2"])
-    assert tuple(task1.out) == ("file2",)
+def test_reduce() -> None:
+    """Test store for caching."""
+    db = Redis()
+    dat = ui.put(db, "bla bla")
+    morph = ui.morph(db, lambda x: x.decode().upper().encode(), dat)
 
+    def join(x: bytes, y: bytes) -> bytes:
+        return x + y
 
-# def test_concat() -> None:
-#     """Test 'concat' functionality."""
-#     db = Redis()
-#     q = Queue(connection=db, is_async=False, default_timeout=-1)
-#     t1 = funsies.task(db, ["cat", "i am a file"], inp={"i am a file": b"bla bla\n"})
-#     t2 = funsies.task(db, ["echo", "lololol"])
-#     t3 = funsies.concat(
-#         db, [t1.commands[0].stdout, t2.commands[0].stdout, t1.inp["i am a file"]]
-#     )
+    red = ui.reduce(db, join, morph, dat)
 
-#     funsies.runall(q, t3)
+    run_op(db, morph.parent)
+    run_op(db, red.parent)
+    assert ui.take(db, red) == b"BLA BLAbla bla"

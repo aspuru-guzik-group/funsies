@@ -1,14 +1,13 @@
 """A quantum chemistry example."""
 # std
 import sys
-from typing import Optional
 
 # external
 import redis
 from rq import Queue
 
 # module
-from funsies import pull_file, pyfunc, runall, shell
+from funsies import execute, put, take, shell, morph, reduce
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
@@ -84,25 +83,23 @@ for _, smi in enumerate(smiles):
 
     # Now the HOMO-LUMO gap is in the xtb std output. To get it, we will use a
     # python IO transform on the xtb stdout,
-    xtb_out = t2.commands[0].stdout
+    xtb_out = t2.stdout
 
     # We use get_gap defined above to do the transformation. We also add the
     # SMILES string so that we can keep track of molecules.
-    tr = pyfunc(db, get_gap, inp=[t1.inp["in.smi"], xtb_out])
-    outputs += [tr.out[0]]
+    outputs += [reduce(db, get_gap, t1.inp["in.smi"], xtb_out)]
 
 
 # Final transformer that joins all the outputs.
-def join(*args: Optional[bytes]) -> bytes:
+def join(*args: bytes) -> bytes:
     """Join multiple files together."""
     out = b""
     for a in args:
-        if a is not None:
-            out += a
+        out += a
     return out
 
 
-tr = pyfunc(db, join, inp=outputs)
+tr = reduce(db, join, *outputs)
 
 if sys.argv[-1] != "read":
     # Setup the RQ job queue and run
@@ -114,15 +111,14 @@ if sys.argv[-1] != "read":
     # long, we don't want jobs to be cancelled just because it's taking a while to
     # find a worker.
     queue = Queue(connection=db)
-    job_defaults = dict(
+    job_args = dict(
         timeout="3h",  # how long each job has
         ttl="10d",  # how long jobs are kept on queue
         result_ttl="10d",  # how long job result objects are kept
     )
     # run everything by using the fact that the last transformer depends on all
     # the outputs
-    runall(queue, tr.task_id, job_params=job_defaults)
-
+    execute(db, queue, tr, job_args=job_args)
 else:
     # Analyze / compile results
     # -------------------------
@@ -131,16 +127,8 @@ else:
     # Here, we use the fact that all simulations were recorded to simply
     # re-run everything in sync mode (meaning without separate worker
     # threads), playing back all the operations using the memoized data.
-    queue = Queue(connection=db, is_async=False)
 
-    # tip: set the read_only flag to ensure you are not doing any operations
-    # that would crash your weak local data analysis machine!
-    runall(queue, tr.task_id, no_exec=True)
-
-    # Because it's not async, we know that the outputs of the transformer are
-    # fully populated here already, so we can just print them.
-    out = pull_file(db, tr.out[0])
-
+    out = take(db, tr)
     # Voila! Results to stdout using simply python chem.py read
     assert out is not None
     print(out.decode().rstrip() + "\n")

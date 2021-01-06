@@ -1,16 +1,24 @@
-"""Some general constants."""
-from os import PathLike
-from typing import Callable, Tuple, Union
+"""Names of stuff in the key value store."""
+from typing import Callable, Dict
 
+# Some types
+hash_t = str
+pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
 
-# Redis tables
-__OBJECTS = "funsies.objects"
-__FILES = "funsies.files"
-__DONE = "funsies.done_jobs"
+# Some locations
+ARTEFACTS = "funsies.artefacts"
+FUNSIES = "funsies.funsies"
+OPERATIONS = "funsies.ops"
+STORE = "funsies.store"
 
+# job status repos
+DATA_STATUS = "funsies.data.status"
+SREADY = "funsies.jobs.ready"
+SRUNNING = "funsies.jobs.running"
 
-# Type for paths
-_AnyPath = Union[str, PathLike]
+# job descendants
+DAG_STORE = "funsies.dags."
 
-# TODO
-_TransformerFun = Callable[..., Union[Tuple[bytes, ...], bytes]]
+# RQ defaults
+RQ_JOB_DEFAULTS = dict()
+RQ_QUEUE_DEFAULTS = dict()

@@ -1,94 +1,49 @@
-"""Tests for task dependencies."""
-# stdlib
+"""Test of Funsies shell capabilities."""
+# std
 import time
-from typing import Optional, Union
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 from rq import Queue
-from rq.job import Job
 
 # module
-from funsies import pull, pull_file, pyfunc, runall, shell
-from funsies.core import get_dependencies
-from funsies.types import FilePtr, RTask, RTransformer
+from funsies import dag
+from funsies import morph, put, shell, take
 
 
-# utils
-def assert_file(db: Redis, fid: Optional[FilePtr], equals: bytes) -> None:
-    """Assert that a file exists and is equal to something."""
-    assert fid is not None
-    out = pull_file(db, fid)
-    assert out is not None
-    assert out == equals
-
-
-def wait_for(job: Job) -> Union[RTask, RTransformer]:
-    """Busily wait for a job to finish."""
-    while True:
-        if job.result is not None:
-            t = pull(job.connection, job.args[0])
-            assert t is not None
-            assert isinstance(t, RTask) or isinstance(t, RTransformer)
-            return t
-        time.sleep(0.02)
-
-
-def test_dependents() -> None:
-    """Test that a task can find dependents properly."""
+def test_dag_build() -> None:
+    """Test simple DAG build."""
     db = Redis()
-    t = shell(db, "cat file", inp={"file": "blabla"})
+    dat = put(db, "bla bla")
+    step1 = morph(db, lambda x: x.decode().upper().encode(), dat)
+    step2 = shell(db, "cat file1 file2", inp=dict(file1=step1, file2=dat))
+    output = step2.stdout
 
-    # depends on file
-    depends = get_dependencies(db, t.task_id)
-    assert len(depends) == 1
+    dag_of = dag.build_dag(db, output.hash)
+    assert dag_of is not None
+    assert len(db.smembers(dag_of + ".root")) == 2
 
-    # no dependencies
-    depends = get_dependencies(db, depends[0])
-    assert depends == []
+    # test deletion
+    dag.delete_dag(db, output.hash)
+    assert len(db.smembers(dag_of + ".root")) == 0
+
+    # test new dag
+    dag_of = dag.build_dag(db, step1.hash)
+    assert dag_of is not None
+    assert len(db.smembers(dag_of + ".root")) == 1
 
 
-def test_dependents_complex() -> None:
-    """Test that a task can find dependents properly."""
-
-    def do_something(x: bytes) -> bytes:
-        return x
-
+def test_dag_execute() -> None:
+    """Test execution of a dag."""
     db = Redis()
-    t = shell(db, "cat file", inp={"file": "blabla"}, out=["lol"])
-    t2 = pyfunc(db, do_something, inp={t.commands[0].stdout})
-    t3 = shell(
-        db,
-        "cat file",
-        inp={
-            "bla": b"whatsup",
-            "file": t2.out[0],
-            "something else": t.out["lol"],
-        },
-    )
+    dat = put(db, "bla bla")
+    step1 = morph(db, lambda x: x.decode().upper().encode(), dat)
+    step2 = shell(db, "cat file1 file2", inp=dict(file1=step1, file2=dat))
+    output = step2.stdout
 
-    # depends on file
-    depends = get_dependencies(db, t3.task_id)
-    print(depends)
-
-
-def test_dag_execution() -> None:
-    """Test that a simple DAG runs."""
-    db = Redis()
-    q = Queue(connection=db, default_timeout=-1, is_async=False)
-    t = shell(db, "cat file", inp={"file": b"1bla bla\n"})
-
-    def tfun(x: bytes) -> bytes:
-        return x.decode().upper().encode()
-
-    def cat(x: bytes, y: bytes) -> bytes:
-        return x + y
-
-    tr = pyfunc(db, tfun, inp=[t.commands[0].stdout])
-    tr2 = pyfunc(db, cat, inp=[t.commands[0].stdout, tr.out[0]])
-    job = runall(q, tr2.task_id)
-
-    # read
-    result = wait_for(job)
-    assert isinstance(result, RTransformer)
-    assert_file(db, result.out[0], b"1bla bla\n1BLA BLA\n")
+    # make queue
+    queue = Queue(connection=db, is_async=False)
+    dag.execute(db, queue, output, queue_args=dict(is_async=False))
+    out = take(db, output)
+    time.sleep(0.1)
+    assert out == b"BLA BLAbla bla"
