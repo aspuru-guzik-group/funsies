@@ -108,6 +108,20 @@ from t1, we could add this at the end,
 #+END_SRC
 No expensive computations are performed in either case.
 
+** Dashboard
+Currently running jobs can be inspected using [[https://github.com/Parallels/rq-dashboard][rq-dashboard]]. For HPC, this most
+readily done using a ssh tunnel. On a specific node with access to the Redis
+server (~${cluster_node}~ below), run the dashboard using
+#+BEGIN_SRC shell
+  rq-dashboard -u redis://${redis_server_url}:$port
+#+END_SRC
+On the local machine, run
+#+BEGIN_SRC shell
+  ssh -N -f -L 9181:${cluster_node}:9181 ${cluster_address}
+#+END_SRC
+to tunnel to the dashboard. If everything worked, the dashboard should be
+accessible using a browser pointed at address http://localhost:9181
+
 * Why not /x/ ?
 (where /x/ ∈ S, [[https://github.com/pditommaso/awesome-pipeline][awesome pipelining]] ∪ [[https://github.com/meirwah/awesome-workflow-engines][workflow codes]] ⊂ S)
 
@@ -137,7 +151,7 @@ course).
   extensive design of database schema is too unwieldy, even if it is by far
   the better solution. Funsies target instead the "file-driven databases" used
   by academics that rapidly become unreadable, non-backed up messes (~expt_2020/jun/ParameterSearch3/alpha=0point3.csv~)
- 
+
 * Architecture
 ** Hash-based graph
 Funsies stores all shell commands and python functions as values in redis
@@ -180,6 +194,8 @@ the user.
 
 By completely abstracting away the filesystem, we ensure that every generated
 result is fully specified within the calculation workflow.
+
+
 
 
 * Future work

@@ -1,6 +1,6 @@
 """User-friendly interfaces to funsies functionality."""
 # std
-import inspect
+import logging
 import os
 from typing import (
     Callable,
@@ -265,5 +265,9 @@ def takeout(
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
     dat = get_data(db, obj)
+
     with open(filename, "wb") as f:
-        f.write(dat)
+        if dat is None:
+            logging.warning(f"No data available for artefact {where}")
+        else:
+            f.write(dat)

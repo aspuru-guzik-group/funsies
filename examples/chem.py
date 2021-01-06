@@ -7,7 +7,7 @@ import redis
 from rq import Queue
 
 # module
-from funsies import execute, put, take, shell, morph, reduce
+from funsies import execute, reduce, shell, take
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.

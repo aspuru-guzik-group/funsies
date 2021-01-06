@@ -1,6 +1,6 @@
 [flake8]
 select = ANN,C,E,F,W,I,BLK,B,B9,D,DAR
-ignore = 
+ignore = W503
 max-line-length = 90
 max-complexity = 10
 application-import-names = funsies,tests

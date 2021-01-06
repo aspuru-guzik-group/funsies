@@ -1,7 +1,7 @@
 """DAG related utilities."""
 # std
 import logging
-from typing import Optional, Set, Union
+from typing import Any, Dict, Optional, Set, Union
 
 # external
 from redis import Redis
@@ -93,7 +93,12 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     return DAG_STORE + address
 
 
-def rq_eval(dag_of: hash_t, current: hash_t, job_args, queue_args) -> RunStatus:
+def rq_eval(
+    dag_of: hash_t,
+    current: hash_t,
+    job_args: Dict[str, Any],
+    queue_args: Dict[str, Any],
+) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
     # load database
     logging.debug(f"executing {current} on worker.")
@@ -120,8 +125,8 @@ def execute(
     db: Redis,
     queue: Queue,
     output: Union[hash_t, Operation, Artefact, ShellOutput],
-    job_args=None,
-    queue_args=None,
+    job_args: Optional[Dict[str, Any]] = None,
+    queue_args: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
     if job_args is None:

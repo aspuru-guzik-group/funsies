@@ -1,5 +1,5 @@
 """Names of stuff in the key value store."""
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 # Some types
 hash_t = str
@@ -20,5 +20,5 @@ SRUNNING = "funsies.jobs.running"
 DAG_STORE = "funsies.dags."
 
 # RQ defaults
-RQ_JOB_DEFAULTS = dict()
-RQ_QUEUE_DEFAULTS = dict()
+RQ_JOB_DEFAULTS: Dict[str, Any] = dict()
+RQ_QUEUE_DEFAULTS: Dict[str, Any] = dict()
