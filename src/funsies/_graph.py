@@ -89,11 +89,18 @@ def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
 
 def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
+    # ==============================================================
+    #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+    # --------------------------------------------------------------
+    # When hashes change, previous databases become deprecated. This
+    # (will) require a change in version number!
     m = hashlib.sha256()
     m.update(b"artefact\n")
     m.update(b"explicit\n")
     m.update(value)
     h = m.hexdigest()
+    # ==============================================================
+
     node = Artefact(hash=h, parent="root")
 
     # store the artefact
@@ -114,12 +121,18 @@ def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
 
 def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
     """Store an artefact with a generated value."""
+    # ==============================================================
+    #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+    # --------------------------------------------------------------
+    # When hashes change, previous databases become deprecated. This
+    # (will) require a change in version number!
     m = hashlib.sha256()
     m.update(b"artefact\n")
     m.update(b"generated\n")
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
     h = m.hexdigest()
+    # ==============================================================
     node = Artefact(hash=h, parent=parent_hash)
 
     # store the artefact
@@ -182,16 +195,18 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     # save funsie
     store_funsie(store, funsie)
 
-    # Compute the operation's hash
+    # ==============================================================
+    #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+    # --------------------------------------------------------------
+    # When hashes change, previous databases become deprecated. This
+    # (will) require a change in version number!
     m = hashlib.sha256()
-    # header
     m.update(b"op")
-    # funsie
     m.update(funsie.hash.encode())
-    # input hashes
     for key, val in sorted(inp.items(), key=lambda x: x[0]):
         m.update(f"file={key}, hash={val}".encode())
     ophash = m.hexdigest()
+    # ==============================================================
 
     # Setup the output artefacts.
     out_art = {}

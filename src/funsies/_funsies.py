@@ -61,12 +61,18 @@ class Funsie:
     @property
     def hash(self: "Funsie") -> hash_t:
         """Hash of a funsie."""
+        # ==============================================================
+        #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+        # --------------------------------------------------------------
+        # When hashes change, previous databases become deprecated. This
+        # (will) require a change in version number!
         m = hashlib.sha256()
         # header
         m.update(b"funsie")
         # funsie
         m.update(str(self).encode())
         return m.hexdigest()
+        # ==============================================================
 
     @classmethod
     def unpack(cls: Type["Funsie"], data: bytes) -> "Funsie":
