@@ -1,7 +1,7 @@
 """DAG related utilities."""
 # std
 import logging
-from typing import Optional
+from typing import Optional, Set, Union
 
 # external
 from redis import Redis
@@ -9,9 +9,9 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import get_artefact, get_op, get_status, ArtefactStatus
+from ._graph import Artefact, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t
-from .run import run_op
+from .run import run_op, RunStatus
 
 
 def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> None:
@@ -21,11 +21,17 @@ def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> N
     db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
 
 
+def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[bytes]:
+    """Get dependents of an op."""
+    key = DAG_STORE + dag_of + "." + op_from
+    return db.smembers(key)
+
+
 def delete_dag(db: Redis, dag_of: hash_t) -> None:
     """Delete DAG corresponding to a given output hash."""
     which = db.smembers(DAG_STORE + dag_of + ".keys")  # type:ignore
     for key in which:
-        val = db.delete(key.decode())
+        _ = db.delete(key.decode())
 
 
 def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
@@ -73,48 +79,39 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     return DAG_STORE + address
 
 
-# def rq_sub(current, network: nx.DiGraph):
-#     job = rq.get_current_job()
-#     q = Queue(name=job.origin, connection=job.connection)
-#     for element in network.successors(current):
-#         q.enqueue_call(rq_eval, args=(element, network))
+def rq_eval(dag_of: hash_t, current: hash_t) -> RunStatus:
+    """Worker evaluation of a given step in a DAG."""
+    # load database
+    logging.debug(f"executing {current} on worker.")
+    job = rq.get_current_job()
+    db: Redis = job.connection
+
+    # load current queue
+    queue = Queue(name=job.origin, connection=job.connection)
+
+    # Now we run the job
+    stat = run_op(db, current)
+
+    if stat > 0:
+        # Success! Let's enqueue dependents.
+        for element in __dag_dependents(db, dag_of, current):
+            queue.enqueue_call(rq_eval, args=(dag_of, element.decode()))
+
+    return stat
 
 
-# def rq_eval(current, network):
-#     # load database
-#     print(current)
-#     job = rq.get_current_job()
-#     db: Redis = job.connection
+def execute(
+    db: Redis, queue: Queue, output: Union[hash_t, Operation, Artefact]
+) -> None:
+    """Execute a DAG to obtain a given output using an RQ queue."""
+    if isinstance(output, Operation) or isinstance(output, Artefact):
+        dag_of = output.hash
+    else:
+        dag_of = output
 
-#     # pull op
-#     node = get_op(db, current)
+    # make dag
+    build_dag(db, dag_of)
 
-#     # Check if the current job is already done
-
-#     # We do this by checking whether all of it's outputs are already saved.
-#     # This ensures that there is no mismatch between artefact statuses and the
-#     # status of generating functions.
-#     for val in node.out.values():
-#         stat = get_status(db, val)
-#         if stat is not ArtefactStatus.done:
-#             break
-#     else:
-#         # All outputs are ok. We exit this run.
-#         logging.info(f"{node.hash} all outputs are already processed, skipping ")
-#         rq_sub(current, network)
-#         return True
-
-#     # Then we check if all the inputs are ready to be processed.
-#     for val in node.inp.values():
-#         stat = get_status(db, val)
-#         if stat is not ArtefactStatus.done:
-#             # One of the inputs is not processed yet, we return.
-#             logging.info(f"{node.hash} not all inputs are ready, skipping")
-#             return True
-
-#     # Now we run the job
-#     logging.info(f"{node.hash} -> running")
-#     stat = run_op(db, current)
-#     # We push dependents on the queue
-#     rq_sub(current, network)
-#     return stat
+    # enqueue everything starting from root
+    for element in __dag_dependents(db, dag_of, "root"):
+        queue.enqueue_call(rq_eval, args=(dag_of, element.decode()))
