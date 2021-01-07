@@ -28,6 +28,8 @@ from .constants import (
 class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
+    # > 0 -> ready
+
     absent = 0
     done = 1
 

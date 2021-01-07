@@ -165,36 +165,21 @@ def shell(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Data transformers
-def morph(
-    db: Redis,
-    fun: Callable[[bytes], bytes],
-    inp: Artefact,
-    name: Optional[str] = None,
-) -> Artefact:
-    """Add to call graph a function that transforms a single artefact."""
-    # Make a closure with the right parameters
-    def morpher(inp: Dict[str, bytes]) -> Dict[str, bytes]:
-        return dict(out=fun(inp["in"]))
-
-    if name is not None:
-        morpher_name = name
-    else:
-        morpher_name = f"morph:{fun.__qualname__}"
-
-    funsie = python_funsie(morpher, ["in"], ["out"], name=morpher_name)
-    inputs = {"in": inp}
-    operation = make_op(db, funsie, inputs)
-    return get_artefact(db, operation.out["out"])
-
-
 def reduce(
     db: Redis,
     fun: Callable[..., bytes],
-    *inp: Artefact,
+    *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
-    arg_names = [f"in{k}" for k in range(len(inp))]
+    arg_names = []
+    inputs = {}
+    for k, arg in enumerate(inp):
+        arg_names += [f"in{k}"]
+        if isinstance(arg, Artefact):
+            inputs[arg_names[-1]] = arg
+        else:
+            inputs[arg_names[-1]] = put(db, arg)
 
     def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
         args = [inpd[k] for k in arg_names]
@@ -206,9 +191,24 @@ def reduce(
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
 
     funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
-    inputs = dict([(f"in{k}", val) for k, val in enumerate(inp)])
     operation = make_op(db, funsie, inputs)
     return get_artefact(db, operation.out["out"])
+
+
+def morph(
+    db: Redis,
+    fun: Callable[[bytes], bytes],
+    inp: Union[Artefact, str, bytes],
+    name: Optional[str] = None,
+) -> Artefact:
+    """Add to call graph a function that transforms a single artefact."""
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f"morph:{fun.__qualname__}"
+
+    # It's really just another name for a 1-input reduction
+    return reduce(db, fun, inp, name=morpher_name)
 
 
 # --------------------------------------------------------------------------------
@@ -262,3 +262,25 @@ def takeout(
             logging.warning(f"No data available for artefact {where}")
         else:
             f.write(dat)
+
+
+# # todo remove
+# from funsies._graph import ArtefactStatus, get_status, Artefact
+# import time
+
+
+# def wait_for(db, artefact, timeout=120.0):
+#     if isinstance(artefact, Artefact):
+#         h = artefact.hash
+#     else:
+#         h = artefact
+
+#     t0 = time.time()
+#     while True:
+#         t1 = time.time()
+#         if t1 - t0 > timeout:
+#             raise RuntimeError("timed out.")
+
+#         stat = get_status(db, h)
+#         if stat == ArtefactStatus.done:
+#             return

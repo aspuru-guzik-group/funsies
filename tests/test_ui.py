@@ -72,7 +72,6 @@ def test_reduce() -> None:
     assert ui.take(db, red) == b"BLA BLAbla bla"
 
 
-# 85.65
 def test_store_takeout() -> None:
     """Test store for caching."""
     db = Redis()
