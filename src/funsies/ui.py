@@ -171,10 +171,9 @@ def shell(  # noqa:C901
 # TODO:add overload for strict / better Result()
 def reduce(  # noqa:C901
     db: Redis,
-    fun: Callable[..., Optional[bytes]],
+    fun: Callable[..., bytes],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
-    strict: bool = True,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
     arg_names = []
@@ -192,24 +191,9 @@ def reduce(  # noqa:C901
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
 
     def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
-        args: List[Optional[bytes]] = []
-        for key in arg_names:
-            try:
-                args += [inpd[key]]
-            except KeyError:
-                if strict:
-                    raise KeyError(f"Missing input {key} to {red_name}")
-                else:
-                    args += [None]
-
-        val = fun(*args)
-        if val is None:
-            if strict:
-                raise RuntimeError(f"Missing output from {red_name}")
-            else:
-                return dict()
-        else:
-            return dict(out=val)
+        """Perform a reduction."""
+        args = [inpd[key] for key in arg_names]
+        return dict(out=fun(*args))
 
     funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
     operation = make_op(db, funsie, inputs)
