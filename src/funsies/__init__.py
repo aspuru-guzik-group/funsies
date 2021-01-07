@@ -3,7 +3,7 @@ from ._funsies import Funsie, FunsieHow
 from .constants import hash_t, pyfunc_t
 from .dag import execute
 from .run import run_op, RUNNERS, RunStatus
-from .ui import morph, put, reduce, shell, take, takeout
+from .ui import morph, put, reduce, shell, take, takeout, wait_for
 
 __all__ = [
     # funsie
@@ -16,6 +16,7 @@ __all__ = [
     "put",
     "take",
     "takeout",
+    "wait_for",
     # run
     "run_op",
     "RUNNERS",

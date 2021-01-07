@@ -2,6 +2,7 @@
 # std
 import logging
 import os
+import time
 from typing import (
     Callable,
     Dict,
@@ -18,8 +19,10 @@ from redis import Redis
 # module
 from ._graph import (
     Artefact,
+    ArtefactStatus,
     get_artefact,
     get_data,
+    get_status,
     make_op,
     Operation,
     store_explicit_artefact,
@@ -199,6 +202,7 @@ def morph(
     db: Redis,
     fun: Callable[[bytes], bytes],
     inp: Union[Artefact, str, bytes],
+    *,
     name: Optional[str] = None,
 ) -> Artefact:
     """Add to call graph a function that transforms a single artefact."""
@@ -244,7 +248,7 @@ def take(
 
 def takeout(
     db: Redis,
-    where: Union[Artefact, str],
+    where: Union[Artefact, hash_t],
     filename: _AnyPath,
 ) -> None:
     """Take an artefact and save it to a file."""
@@ -264,23 +268,23 @@ def takeout(
             f.write(dat)
 
 
-# # todo remove
-# from funsies._graph import ArtefactStatus, get_status, Artefact
-# import time
+def wait_for(
+    db: Redis, artefact: Union[Artefact, hash_t], timeout: float = 120.0
+) -> None:
+    """Block until an artefact is computed."""
+    if isinstance(artefact, Artefact):
+        h = artefact.hash
+    else:
+        h = artefact
 
+    t0 = time.time()
+    while True:
+        t1 = time.time()
+        if t1 - t0 > timeout:
+            raise RuntimeError("timed out.")
 
-# def wait_for(db, artefact, timeout=120.0):
-#     if isinstance(artefact, Artefact):
-#         h = artefact.hash
-#     else:
-#         h = artefact
+        stat = get_status(db, h)
+        if stat == ArtefactStatus.done:
+            return
 
-#     t0 = time.time()
-#     while True:
-#         t1 = time.time()
-#         if t1 - t0 > timeout:
-#             raise RuntimeError("timed out.")
-
-#         stat = get_status(db, h)
-#         if stat == ArtefactStatus.done:
-#             return
+        time.sleep(0.3)
