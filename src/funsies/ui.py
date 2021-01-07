@@ -168,11 +168,13 @@ def shell(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Data transformers
-def reduce(
+# TODO:add overload for strict / better Result()
+def reduce(  # noqa:C901
     db: Redis,
-    fun: Callable[..., bytes],
+    fun: Callable[..., Optional[bytes]],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
+    strict: bool = True,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
     arg_names = []
@@ -184,14 +186,30 @@ def reduce(
         else:
             inputs[arg_names[-1]] = put(db, arg)
 
-    def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
-        args = [inpd[k] for k in arg_names]
-        return dict(out=fun(*args))
-
     if name is not None:
         red_name = name
     else:
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
+
+    def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+        args: List[Optional[bytes]] = []
+        for key in arg_names:
+            try:
+                args += [inpd[key]]
+            except KeyError:
+                if strict:
+                    raise KeyError(f"Missing input {key} to {red_name}")
+                else:
+                    args += [None]
+
+        val = fun(*args)
+        if val is None:
+            if strict:
+                raise RuntimeError(f"Missing output from {red_name}")
+            else:
+                return dict()
+        else:
+            return dict(out=val)
 
     funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
     operation = make_op(db, funsie, inputs)
@@ -232,7 +250,7 @@ def put(
 
 def take(
     db: Redis,
-    where: Union[Artefact, str],
+    where: Union[Artefact, hash_t],
 ) -> Optional[bytes]:
     """Take an artefact from the database."""
     if isinstance(where, Artefact):
