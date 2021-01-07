@@ -31,7 +31,7 @@ def test_shell_run() -> None:
     """Test run on a shell command."""
     db = Redis()
     cmd = s.shell_funsie(["cat file1"], ["file1"], [])
-    inp = {"file1": _graph.store_explicit_artefact(db, b"bla bla")}
+    inp = {"file1": _graph.store_const(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp)
     status = run_op(db, operation.hash)
 
@@ -50,7 +50,7 @@ def test_pyfunc_run() -> None:
     """Test run on a python function."""
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
-    inp = {"inp": _graph.store_explicit_artefact(db, b"bla bla")}
+    inp = {"inp": _graph.store_const(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp)
     status = run_op(db, operation.hash)
 
@@ -69,7 +69,7 @@ def test_cached_run() -> None:
     """Test cached result."""
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
-    inp = {"inp": _graph.store_explicit_artefact(db, b"bla bla")}
+    inp = {"inp": _graph.store_const(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp)
     status = run_op(db, operation.hash)
 
@@ -84,9 +84,7 @@ def test_dependencies() -> None:
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"])
     cmd2 = p.python_funsie(uncapitalize, ["inp"], ["inp"])
-    operation = _graph.make_op(
-        db, cmd, inp={"inp": _graph.store_explicit_artefact(db, b"bla bla")}
-    )
+    operation = _graph.make_op(db, cmd, inp={"inp": _graph.store_const(db, b"bla bla")})
     operation2 = _graph.make_op(
         db, cmd2, inp={"inp": _graph.get_artefact(db, operation.out["inp"])}
     )

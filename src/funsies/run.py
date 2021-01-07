@@ -2,13 +2,14 @@
 # std
 from enum import IntEnum
 import logging
+from typing import Dict
 
 # external
 from redis import Redis
 
 # module
 from ._funsies import FunsieHow, get_funsie
-from ._graph import ArtefactStatus, get_artefact, get_data, get_op, get_status, set_data
+from ._graph import Artefact, get_artefact, get_data, get_op, update_generated_data
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t, SREADY, SRUNNING
@@ -38,6 +39,13 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
+def __populate_artefacts(db: Redis, addr: Dict[str, hash_t]) -> Dict[str, Artefact]:
+    out = {}
+    for key, val in addr.items():
+        out[key] = get_artefact(db, val)
+    return out
+
+
 def run_op(db: Redis, address: hash_t) -> RunStatus:
     """Run an Operation from its hash address."""
     # Check if job is ready for execution
@@ -54,15 +62,16 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
 
     # load the operation
     op = get_op(db, address)
+    outputs = __populate_artefacts(db, op.out)
+    inputs = __populate_artefacts(db, op.inp)
 
     # Check if the current job needs to be done at all
     # ------------------------------------------------
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
     # status of generating functions.
-    for val in op.out.values():
-        stat = get_status(db, val)
-        if stat is not ArtefactStatus.done:
+    for val in outputs.values():
+        if val.status <= 0:
             break
     else:
         # All outputs are ok. We exit this run.
@@ -71,9 +80,8 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
         return RunStatus.using_cached
 
     # # Then we check if all the inputs are ready to be processed.
-    for val in op.inp.values():
-        stat = get_status(db, val)
-        if stat is not ArtefactStatus.done:
+    for val in inputs.values():
+        if val.status <= 0:
             # One of the inputs is not processed yet, we return.
             logging.info(f"op skipped: {address} has unmet dependencies.")
             __make_ready(db, address)
@@ -97,7 +105,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
             logging.warning(f"{address} -> missing output data for {key}")
 
         artefact = get_artefact(db, op.out[key])
-        set_data(db, artefact, val)
+        artefact = update_generated_data(db, artefact, val)
 
     __make_ready(db, address)
     return RunStatus.executed

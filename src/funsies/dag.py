@@ -9,7 +9,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import Artefact, get_artefact, get_op, Operation
+from ._graph import Artefact, ArtefactStatus, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
 from .run import run_op, RunStatus
 from .ui import ShellOutput
@@ -68,7 +68,7 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
             )
 
     if art is not None:
-        if art.parent == root:
+        if art.parent == root or art.status == ArtefactStatus.constant:
             # We have basically just a single artefact as the network...
             return DAG_STORE + address
         else:
@@ -82,11 +82,11 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
         for el in curr.inp.values():
             art = get_artefact(db, el)
 
-            if art.parent != root:
+            if art.parent == root or art.status == ArtefactStatus.constant:
+                __dag_append(db, address, "root", curr.hash)
+            else:
                 queue.append(get_op(db, art.parent))
                 __dag_append(db, address, art.parent, curr.hash)
-            else:
-                __dag_append(db, address, "root", curr.hash)
 
         if len(queue) == 0:
             break
