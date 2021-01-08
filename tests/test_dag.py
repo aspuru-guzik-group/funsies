@@ -47,3 +47,22 @@ def test_dag_execute() -> None:
     out = take(db, output)
     time.sleep(0.1)
     assert out == b"BLA BLAbla bla"
+
+
+def test_dag_execute2() -> None:
+    """Test execution of a dag."""
+    db = Redis()
+    dat = put(db, "bla bla")
+    step1 = morph(db, lambda x: x.decode().upper().encode(), dat)
+    step2 = shell(db, "cat file1 file2", inp=dict(file1=step1, file2=dat))
+    step11 = shell(db, "echo 'bla'")
+    final = shell(
+        db, "cat file1 file2", inp={"file1": step11.stdout, "file2": step2.stdout}
+    )
+    output = final.stdout
+
+    # make queue
+    queue = Queue(connection=db, is_async=False)
+    dag.execute(db, queue, output, queue_args=dict(is_async=False))
+    out = take(db, output)
+    assert out == b"bla\nBLA BLAbla bla"

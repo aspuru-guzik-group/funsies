@@ -79,6 +79,11 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     queue = [node]
     while True:
         curr = queue.pop()
+
+        # no dependency -> add as root
+        if len(curr.inp) == 0:
+            __dag_append(db, address, "root", curr.hash)
+
         for el in curr.inp.values():
             art = get_artefact(db, el)
 
