@@ -20,12 +20,12 @@ from redis import Redis
 from ._graph import (
     Artefact,
     ArtefactStatus,
+    constant_artefact,
     get_artefact,
     get_data,
     get_status,
     make_op,
     Operation,
-    store_explicit_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
@@ -225,9 +225,9 @@ def put(
 ) -> Artefact:
     """Put an artefact in the database."""
     if isinstance(value, str):
-        return store_explicit_artefact(db, value.encode())
+        return constant_artefact(db, value.encode())
     elif isinstance(value, bytes):
-        return store_explicit_artefact(db, value)
+        return constant_artefact(db, value)
     else:
         raise TypeError("value of {name_or_path} not bytes or string")
 

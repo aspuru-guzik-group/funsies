@@ -62,7 +62,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
     # status of generating functions.
     for val in op.out.values():
         stat = get_status(db, val)
-        if stat is not ArtefactStatus.done:
+        if stat <= ArtefactStatus.absent:
             break
     else:
         # All outputs are ok. We exit this run.
@@ -73,7 +73,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
     # # Then we check if all the inputs are ready to be processed.
     for val in op.inp.values():
         stat = get_status(db, val)
-        if stat is not ArtefactStatus.done:
+        if stat <= ArtefactStatus.absent:
             # One of the inputs is not processed yet, we return.
             logging.info(f"op skipped: {address} has unmet dependencies.")
             __make_ready(db, address)

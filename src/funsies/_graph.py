@@ -32,6 +32,7 @@ class ArtefactStatus(IntEnum):
 
     absent = 0
     done = 1
+    const = 2
 
 
 def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
@@ -43,9 +44,13 @@ def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
         return ArtefactStatus(int(val))
 
 
-def set_status(db: Redis, address: hash_t, stat: ArtefactStatus) -> None:
+def mark_done(db: Redis, address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
-    _ = db.hset(DATA_STATUS, address, int(stat))
+    old = get_status(db, address)
+    if old == 2:
+        logging.warning("attempted to mark done a const artefact.")
+    elif old == 0:
+        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
 
 
 @dataclass(frozen=True)
@@ -77,6 +82,10 @@ def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
 
 def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
     """Update an artefact with a value."""
+    stat = get_status(store, artefact.hash)
+    if stat == ArtefactStatus.const:
+        raise TypeError("Attempted to set data to a const artefact.")
+
     if value is not None:
         _ = store.hset(
             STORE,
@@ -86,10 +95,10 @@ def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
 
     # value of None means that the data was not obtained but is actually
     # "ready" so to speak.
-    set_status(store, artefact.hash, ArtefactStatus.done)
+    mark_done(store, artefact.hash)
 
 
-def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
+def constant_artefact(store: Redis, value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -104,24 +113,26 @@ def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     # ==============================================================
 
     node = Artefact(hash=h, parent="root")
-
     # store the artefact
     val = store.hset(
         ARTEFACTS,
         h,
         node.pack(),
     )
-
     if val != 1:
-        logging.debug(f'Artefact with value "{value!r}" already exists.')
-
-    # store the artefact
-    set_data(store, node, value)
-
+        logging.debug(f"Const artefact at {h} already exists.")
+    # store the artefact data
+    _ = store.hset(
+        STORE,
+        h,
+        value,
+    )
+    # mark the artefact as const
+    _ = store.hset(DATA_STATUS, h, int(ArtefactStatus.const))
     return node
 
 
-def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
+def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
     """Store an artefact with a generated value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -148,7 +159,6 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
         logging.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
-
     return node
 
 
@@ -213,7 +223,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     # Setup the output artefacts.
     out_art = {}
     for key in funsie.out:
-        out_art[key] = store_generated_artefact(store, ophash, key).hash
+        out_art[key] = variable_artefact(store, ophash, key).hash
 
     # Make the node
     node = Operation(ophash, funsie.hash, inp_art, out_art)
