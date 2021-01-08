@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
 import logging
-from typing import Dict, List, Mapping, Optional, Type
+from typing import Dict, List, Mapping, Optional, Tuple, Type
 
 # external
 from msgpack import packb, unpackb
@@ -12,7 +12,7 @@ from redis import Redis
 
 # module
 from .constants import FUNSIES, hash_t
-from .errors import Error, Option
+from .errors import Error, ErrorKind, Option
 
 
 # --------------------------------------------------------------------------------
@@ -72,26 +72,34 @@ class Funsie:
 
     def check_inputs(
         self: "Funsie", actual: Mapping[str, Option[bytes]]
-    ) -> Dict[str, bytes]:
+    ) -> Tuple[Dict[str, bytes], Dict[str, Error]]:
         """Match actual inputs of funsie with expected inputs."""
         output = {}
+        errors = {}
         for key in self.inp:
             if key in actual:
                 val = actual[key]
                 if isinstance(val, Error):
                     if self.options_ok:
+                        logging.warning(f"errored {key} ignored.")
+                        errors[key] = val
+                    else:
                         logging.error(f"{key} is in error.")
                         raise RuntimeError()
-                    else:
-                        logging.warning(f"errored {key} ignored.")
                 else:
                     # all good: value exists, and is not Error
                     output[key] = val
             else:
+                logging.error(f"{key} not found.")
                 if self.options_ok:
-                    logging.error(f"{key} not found.")
+                    errors[key] = Error(
+                        kind=ErrorKind.MissingInput,
+                        source=self.hash,
+                        details="missing input in funsie.",
+                    )
+                else:
                     raise RuntimeError()
-        return output
+        return output, errors
 
     @property
     def hash(self: "Funsie") -> hash_t:

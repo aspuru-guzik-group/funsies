@@ -1,7 +1,8 @@
 """Funsies is a transparently-memoized worfklow engine."""
 from ._funsies import Funsie, FunsieHow
-from .constants import hash_t, pyfunc_t
+from .constants import hash_t
 from .dag import execute
+from .errors import Error, ErrorKind, Option, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
 from .ui import morph, put, reduce, shell, take, takeout, wait_for
 
@@ -22,10 +23,15 @@ __all__ = [
     "RUNNERS",
     "RunStatus",
     # types
-    "pyfunc_t",
     "hash_t",
     # dag
     "execute",
+    # error
+    "UnwrapError",
+    "unwrap",
+    "Option",
+    "Error",
+    "ErrorKind",
 ]
 
 # versioning information

@@ -12,12 +12,19 @@ from redis import Redis
 from .constants import ERRORS, hash_t
 
 
+class UnwrapError(Exception):
+    """Exception thrown when unwrapping an error."""
+
+    pass
+
+
 class ErrorKind(str, Enum):
     """Kinds of errors."""
 
     NotFound = "NotFound"
     Mismatch = "Mismatch"
-    MissingOutput = "RunError"
+    MissingOutput = "MissingOutput"
+    MissingInput = "MissingInput"
     ExceptionRaised = "ExceptionRaised"
 
 
@@ -28,11 +35,6 @@ class Error:
     kind: ErrorKind
     source: Optional[hash_t] = None
     details: Optional[str] = None
-
-
-# An Option type
-T = TypeVar("T")
-Option = Union[Error, T]
 
 
 def set_error(db: Redis, address: hash_t, error: Error) -> None:
@@ -48,13 +50,18 @@ def get_error(db: Redis, address: hash_t) -> Error:
     return Error(**out)
 
 
+# A simple mypy Option type
+T = TypeVar("T")
+Option = Union[Error, T]
+
+
 def unwrap(dat: Option[T]) -> T:
     """Unwrap an option type."""
     if isinstance(dat, Error):
-        raise RuntimeError(
-            "data is errored: kind={dat.ErrorKind}"
-            + "\ndetails={dat.details}"
-            + "\nsource={dat.source}"
+        raise UnwrapError(
+            f"data is errored: kind={dat.kind}"
+            + f"\ndetails={dat.details}"
+            + f"\nsource={dat.source}"
         )
     else:
         return dat

@@ -47,3 +47,70 @@ def test_not_generated() -> None:
     s = funsies.shell(store, "cp file1 file2", inp=dict(file1="bla"), out=["file3"])
     funsies.run_op(store, s.op.hash)
     assert funsies.take(store, s.returncode) == b"0"
+    with pytest.raises(funsies.UnwrapError):
+        funsies.take(store, s.out["file3"])
+
+
+def test_error_propagation() -> None:
+    """Test propagation of errors."""
+    store = Redis()
+    s1 = funsies.shell(store, "cp file1 file3", inp=dict(file1="bla"), out=["file2"])
+    s2 = funsies.shell(
+        store, "cat file1 file2", inp=dict(file1="a file", file2=s1.out["file2"])
+    )
+    funsies.run_op(store, s1.op.hash)
+    funsies.run_op(store, s2.op.hash)
+    out = funsies.take(store, s2.stdout, strict=False)
+    assert isinstance(out, funsies.Error)
+    assert out.source == s1.op.hash
+
+
+def test_error_propagation_morph() -> None:
+    """Test propagation of errors."""
+    store = Redis()
+    s1 = funsies.shell(store, "cp file1 file3", inp=dict(file1="bla"), out=["file2"])
+
+    def fun_strict(inp: bytes) -> bytes:
+        return inp
+
+    def fun_lax(inp: funsies.Option[bytes]) -> bytes:
+        return b"bla bla"
+
+    s2 = funsies.morph(store, fun_strict, s1.out["file2"])
+    s3 = funsies.morph(store, fun_lax, s1.out["file2"])
+    s4 = funsies.morph(store, fun_lax, s1.out["file2"], strict=False)
+
+    funsies.run_op(store, s1.op.hash)
+
+    funsies.run_op(store, s2.parent)
+    out = funsies.take(store, s2, strict=False)
+    assert isinstance(out, funsies.Error)
+    assert out.source == s1.op.hash
+
+    funsies.run_op(store, s3.parent)
+    out = funsies.take(store, s3, strict=False)
+    assert isinstance(out, funsies.Error)
+    assert out.source == s1.op.hash
+
+    funsies.run_op(store, s4.parent)
+    out = funsies.take(store, s4)
+    assert out == b"bla bla"
+
+
+def test_error_propagation_shell() -> None:
+    """Test propagation of errors."""
+    store = Redis()
+    s1 = funsies.shell(store, "cp file1 file3", inp=dict(file1="bla"), out=["file2"])
+    s2 = funsies.shell(store, "cat file2", inp=dict(file2=s1.out["file2"]))
+    s3 = funsies.shell(
+        store, "cat file2", inp=dict(file2=s1.out["file2"]), strict=False
+    )
+
+    funsies.run_op(store, s1.op.hash)
+    funsies.run_op(store, s2.op.hash)
+    with pytest.raises(funsies.UnwrapError):
+        funsies.take(store, s2.stderr)
+
+    funsies.run_op(store, s3.op.hash)
+    assert funsies.take(store, s3.stderr) != b""
+    assert funsies.take(store, s3.returncode) != b"0"

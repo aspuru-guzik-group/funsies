@@ -1,32 +1,51 @@
 """Run shell commands using funsies."""
 # std
 import logging
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Callable, Dict, Literal, Mapping, Optional, overload, Sequence, Union
 
 # external
 import cloudpickle
 
 # module
 from ._funsies import Funsie, FunsieHow
-from .constants import pyfunc_t
 from .errors import Option
+
+# types
+pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
+pyfunc_opt_t = Callable[[Dict[str, Option[bytes]]], Dict[str, bytes]]
+
+
+# strict overload
+# fmt:off
+@overload
+def python_funsie(fun: Union[pyfunc_opt_t, pyfunc_t], inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[False] = False) -> Funsie:  # noqa
+    ...
+
+
+@overload
+def python_funsie(fun: pyfunc_t, inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[True] = True) -> Funsie:  # noqa
+    ...
+# fmt:on
 
 
 def python_funsie(
-    fun: pyfunc_t,
+    fun: Union[pyfunc_t, pyfunc_opt_t],
     inputs: Sequence[str],
     outputs: Sequence[str],
     name: Optional[str] = None,
+    strict: bool = True,
 ) -> Funsie:
     """Wrap a python function.
 
     The callable should have the following signature:
 
-        f(Dict[str, Optional[bytes]]) -> Dict[str, Optional[bytes]]
+        f(Dict[str, bytes or Option]) -> Dict[str, bytes]
 
     This is done like this because there is no way to ensure that a python
     function will return a specific number of arguments at runtime. This
     structure is both the most robust and most general.
+
+    The input type can be made to accept Options by setting strict = False.
 
     Args:
         fun: a Python callable f(inp)->out.
@@ -34,6 +53,7 @@ def python_funsie(
         outputs: Keys in the output dictionary out.
         name: (optional) name of callable. If not given, the qualified name of
             the callable is used instead.
+        strict: (optional) whether the function accepts Option.
 
     Returns:
         A Funsie instance.
@@ -47,6 +67,7 @@ def python_funsie(
         inp=list(inputs),
         out=list(outputs),
         aux=cloudpickle.dumps(fun),
+        options_ok=not strict,
     )
 
 
@@ -57,7 +78,8 @@ def run_python_funsie(
     """Execute a python function."""
     fun: pyfunc_t = cloudpickle.loads(funsie.aux)
     name = funsie.what.decode()
-    inps = funsie.check_inputs(input_values)
+    inps, errs = funsie.check_inputs(input_values)
+    inps.update(errs)  # type:ignore
 
     outfun = fun(inps)
     out: Dict[str, Optional[bytes]] = {}

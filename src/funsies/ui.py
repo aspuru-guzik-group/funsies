@@ -7,8 +7,10 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
+    overload,
     Union,
 )
 
@@ -18,7 +20,6 @@ from redis import Redis
 # module
 from ._graph import (
     Artefact,
-    ArtefactStatus,
     constant_artefact,
     get_artefact,
     get_data,
@@ -29,7 +30,7 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
-from .errors import unwrap
+from .errors import Option, unwrap
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -108,12 +109,16 @@ def shell(  # noqa:C901
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
+    strict: bool = True,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
 
-    Make a shell operationfor running with run(). This is a more user-friendly
-    interface than the direct constructor in ._shell, and it is much more
-    lenient on types.
+    Make a shell operation. This is a more user-friendly interface than the
+    direct constructor, and it is much more lenient on types.
+
+    The strict= flag determines how to interpret errors in input files. When
+    set to False, input files with errors will simply (and silently) not be
+    passed to the shell script.
 
     Arguments:
         db: Redis instance.
@@ -121,6 +126,7 @@ def shell(  # noqa:C901
         inp: Input files for task.
         out: Output files for task.
         env: Environment variables to be set.
+        strict: Error propagation flag.
 
     Returns:
         A Task object.
@@ -161,19 +167,19 @@ def shell(  # noqa:C901
     else:
         outputs = [str(o) for o in out]
 
-    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env)
+    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env, strict=strict)
     operation = make_op(db, funsie, inputs)
     return ShellOutput(db, operation)
 
 
 # --------------------------------------------------------------------------------
 # Data transformers
-# TODO:add overload for strict / better Result()
 def reduce(  # noqa:C901
     db: Redis,
     fun: Callable[..., bytes],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
+    strict: bool = True,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
     arg_names = []
@@ -190,22 +196,49 @@ def reduce(  # noqa:C901
     else:
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
 
-    def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
-        """Perform a reduction."""
-        args = [inpd[key] for key in arg_names]
-        return dict(out=fun(*args))
+    # This copy paste is a MyPy exclusive! :S
+    if strict:
 
-    funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
+        def sreducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+            """Perform a reduction."""
+            args = [inpd[key] for key in arg_names]
+            return dict(out=fun(*args))
+
+        funsie = python_funsie(sreducer, arg_names, ["out"], name=red_name, strict=True)
+    else:
+
+        def reducer(inpd: Dict[str, Option[bytes]]) -> Dict[str, bytes]:
+            """Perform a reduction."""
+            args = [inpd[key] for key in arg_names]
+            return dict(out=fun(*args))
+
+        funsie = python_funsie(reducer, arg_names, ["out"], name=red_name, strict=False)
+
     operation = make_op(db, funsie, inputs)
     return get_artefact(db, operation.out["out"])
 
 
+__lax_morph = Callable[[Option[bytes]], bytes]
+__strict_morph = Callable[[bytes], bytes]
+
+
+# fmt:off
+@overload
+def morph(db: Redis, fun: Union[__strict_morph, __lax_morph], inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[True] = True) -> Artefact: ...  # noqa
+
+
+@overload
+def morph(db: Redis, fun: __lax_morph, inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[False] = False) -> Artefact: ...  # noqa
+# fmt:on
+
+
 def morph(
     db: Redis,
-    fun: Callable[[bytes], bytes],
+    fun: Union[__lax_morph, __strict_morph],
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
+    strict: bool = True,
 ) -> Artefact:
     """Add to call graph a function that transforms a single artefact."""
     if name is not None:
@@ -214,7 +247,7 @@ def morph(
         morpher_name = f"morph:{fun.__qualname__}"
 
     # It's really just another name for a 1-input reduction
-    return reduce(db, fun, inp, name=morpher_name)
+    return reduce(db, fun, inp, name=morpher_name, strict=strict)
 
 
 # --------------------------------------------------------------------------------
@@ -232,11 +265,23 @@ def put(
         raise TypeError("value of {name_or_path} not bytes or string")
 
 
+# fmt:off
+@overload
+def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[True] = True) -> bytes:  # noqa
+    ...
+
+
+@overload
+def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[False] = False) -> Option[bytes]:  # noqa
+    ...
+# fmt:on
+
+
 def take(
     db: Redis,
     where: Union[Artefact, hash_t],
     strict: bool = True,
-) -> bytes:
+) -> Option[bytes]:
     """Take an artefact from the database."""
     if isinstance(where, Artefact):
         obj = where
@@ -245,8 +290,11 @@ def take(
         if obj is None:
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
-    dat = unwrap(get_data(db, obj))
-    return dat
+    dat = get_data(db, obj)
+    if strict:
+        return unwrap(dat)
+    else:
+        return dat
 
 
 def takeout(
@@ -284,7 +332,7 @@ def wait_for(
             raise RuntimeError("timed out.")
 
         stat = get_status(db, h)
-        if stat == ArtefactStatus.done:
+        if stat > 0:
             return
 
         time.sleep(0.3)

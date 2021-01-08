@@ -25,6 +25,7 @@ def shell_funsie(
     input_files: Sequence[str],
     output_files: Sequence[str],
     env: Optional[Dict[str, str]] = None,
+    strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
     out = list(output_files)
@@ -36,6 +37,7 @@ def shell_funsie(
         what=packb({"cmds": cmds, "env": env}),
         inp=list(input_files),
         out=out,
+        options_ok=not strict,
     )
 
 
@@ -48,7 +50,8 @@ def run_shell_funsie(  # noqa:C901
     # TODO setable tempdir
     with tempfile.TemporaryDirectory(dir=None) as dir:
         # Put in dir the input files
-        for fn, val in funsie.check_inputs(input_values).items():
+        incoming_files, _ = funsie.check_inputs(input_values)
+        for fn, val in incoming_files.items():
             with open(os.path.join(dir, fn), "wb") as f:
                 f.write(val)
 

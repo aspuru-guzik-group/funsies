@@ -1,9 +1,8 @@
 """Names of stuff in the key value store."""
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 
 # Some types
 hash_t = str
-pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
 
 # Some locations
 ARTEFACTS = "funsies.artefacts"
