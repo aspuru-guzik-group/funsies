@@ -21,7 +21,7 @@ from ._graph import (
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t, SREADY, SRUNNING
-from .errors import Error, ErrorKind, Option
+from .errors import Error, ErrorKind, Result
 
 # Dictionary of runners
 RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
@@ -48,7 +48,9 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
-def run_op(db: Redis, address: hash_t, check_only=False) -> RunStatus:  # noqa:C901
+def run_op(  # noqa:C901
+    db: Redis, address: hash_t, check_only: bool = False
+) -> RunStatus:
     """Run an Operation from its hash address."""
     # Check if job is ready for execution
     # -----------------------------------
@@ -97,7 +99,7 @@ def run_op(db: Redis, address: hash_t, check_only=False) -> RunStatus:  # noqa:C
     runner = RUNNERS[funsie.how]
 
     # load input files
-    input_data: Dict[str, Option[bytes]] = {}
+    input_data: Dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
         dat = get_data(db, artefact, source=address)

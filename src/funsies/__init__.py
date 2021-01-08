@@ -2,7 +2,7 @@
 from ._funsies import Funsie, FunsieHow
 from .constants import hash_t
 from .dag import execute
-from .errors import Error, ErrorKind, Option, unwrap, UnwrapError
+from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
 from .ui import morph, put, reduce, shell, take, takeout, wait_for
 
@@ -29,7 +29,7 @@ __all__ = [
     # error
     "UnwrapError",
     "unwrap",
-    "Option",
+    "Result",
     "Error",
     "ErrorKind",
 ]

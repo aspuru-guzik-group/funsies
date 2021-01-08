@@ -11,7 +11,7 @@ from msgpack import packb, unpackb
 
 # module
 from ._funsies import Funsie, FunsieHow
-from .errors import Option
+from .errors import Result
 
 # Special namespaced "files"
 SPECIAL = "__special__"
@@ -43,7 +43,7 @@ def shell_funsie(
 
 def run_shell_funsie(  # noqa:C901
     funsie: Funsie,
-    input_values: Mapping[str, Option[bytes]],
+    input_values: Mapping[str, Result[bytes]],
 ) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
     # TODO expandvar, expandusr for tempdir

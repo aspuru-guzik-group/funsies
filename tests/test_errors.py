@@ -73,7 +73,7 @@ def test_error_propagation_morph() -> None:
     def fun_strict(inp: bytes) -> bytes:
         return inp
 
-    def fun_lax(inp: funsies.Option[bytes]) -> bytes:
+    def fun_lax(inp: funsies.Result[bytes]) -> bytes:
         return b"bla bla"
 
     s2 = funsies.morph(store, fun_strict, s1.out["file2"])

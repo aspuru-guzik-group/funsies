@@ -8,11 +8,11 @@ import cloudpickle
 
 # module
 from ._funsies import Funsie, FunsieHow
-from .errors import Option
+from .errors import Result
 
 # types
 pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
-pyfunc_opt_t = Callable[[Dict[str, Option[bytes]]], Dict[str, bytes]]
+pyfunc_opt_t = Callable[[Dict[str, Result[bytes]]], Dict[str, bytes]]
 
 
 # strict overload
@@ -73,7 +73,7 @@ def python_funsie(
 
 def run_python_funsie(
     funsie: Funsie,
-    input_values: Mapping[str, Option[bytes]],
+    input_values: Mapping[str, Result[bytes]],
 ) -> Dict[str, Optional[bytes]]:
     """Execute a python function."""
     fun: pyfunc_t = cloudpickle.loads(funsie.aux)

@@ -12,7 +12,7 @@ from redis import Redis
 
 # module
 from .constants import FUNSIES, hash_t
-from .errors import Error, ErrorKind, Option
+from .errors import Error, ErrorKind, Result
 
 
 # --------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ class Funsie:
         return packb(asdict(self))
 
     def check_inputs(
-        self: "Funsie", actual: Mapping[str, Option[bytes]]
+        self: "Funsie", actual: Mapping[str, Result[bytes]]
     ) -> Tuple[Dict[str, bytes], Dict[str, Error]]:
         """Match actual inputs of funsie with expected inputs."""
         output = {}

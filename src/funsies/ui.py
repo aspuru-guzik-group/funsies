@@ -30,7 +30,7 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
-from .errors import Option, unwrap
+from .errors import Result, unwrap
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -207,7 +207,7 @@ def reduce(  # noqa:C901
         funsie = python_funsie(sreducer, arg_names, ["out"], name=red_name, strict=True)
     else:
 
-        def reducer(inpd: Dict[str, Option[bytes]]) -> Dict[str, bytes]:
+        def reducer(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
             return dict(out=fun(*args))
@@ -218,7 +218,7 @@ def reduce(  # noqa:C901
     return get_artefact(db, operation.out["out"])
 
 
-__lax_morph = Callable[[Option[bytes]], bytes]
+__lax_morph = Callable[[Result[bytes]], bytes]
 __strict_morph = Callable[[bytes], bytes]
 
 
@@ -272,7 +272,7 @@ def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[True] = True
 
 
 @overload
-def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[False] = False) -> Option[bytes]:  # noqa
+def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[False] = False) -> Result[bytes]:  # noqa
     ...
 # fmt:on
 
@@ -281,7 +281,7 @@ def take(
     db: Redis,
     where: Union[Artefact, hash_t],
     strict: bool = True,
-) -> Option[bytes]:
+) -> Result[bytes]:
     """Take an artefact from the database."""
     if isinstance(where, Artefact):
         obj = where

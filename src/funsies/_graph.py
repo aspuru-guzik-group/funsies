@@ -21,7 +21,7 @@ from .constants import (
     SRUNNING,
     STORE,
 )
-from .errors import Error, ErrorKind, get_error, Option, set_error
+from .errors import Error, ErrorKind, get_error, Result, set_error
 
 
 # --------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
 # Save and load artefacts
 def get_data(
     store: Redis, artefact: Artefact, source: Optional[hash_t] = None
-) -> Option[bytes]:
+) -> Result[bytes]:
     """Retrieve data corresponding to an artefact."""
     # First check the status
     stat = get_status(store, artefact.hash)

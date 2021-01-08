@@ -50,12 +50,12 @@ def get_error(db: Redis, address: hash_t) -> Error:
     return Error(**out)
 
 
-# A simple mypy Option type
+# A simple mypy result type
 T = TypeVar("T")
-Option = Union[Error, T]
+Result = Union[Error, T]
 
 
-def unwrap(dat: Option[T]) -> T:
+def unwrap(dat: Result[T]) -> T:
     """Unwrap an option type."""
     if isinstance(dat, Error):
         raise UnwrapError(
