@@ -48,7 +48,7 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
-def run_op(db: Redis, address: hash_t) -> RunStatus:  # noqa:C901
+def run_op(db: Redis, address: hash_t, check_only=False) -> RunStatus:  # noqa:C901
     """Run an Operation from its hash address."""
     # Check if job is ready for execution
     # -----------------------------------
@@ -80,6 +80,9 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:  # noqa:C901
         __make_ready(db, address)
         return RunStatus.using_cached
 
+    if check_only:
+        raise RuntimeError("Attempting to run an operation, but check_only is set.")
+
     # # Then we check if all the inputs are ready to be processed.
     for val in op.inp.values():
         stat = get_status(db, val)
@@ -97,7 +100,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:  # noqa:C901
     input_data: Dict[str, Option[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
-        dat = get_data(db, artefact)
+        dat = get_data(db, artefact, source=address)
         if isinstance(dat, Error):
             if funsie.options_ok:
                 logging.warning(f"input {key} to error-tolerant funsie has errors.")

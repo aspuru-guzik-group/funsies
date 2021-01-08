@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
 import logging
-from typing import Dict, Type
+from typing import Dict, Optional, Type
 
 # external
 from msgpack import packb, unpackb
@@ -85,7 +85,9 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
 
 
 # Save and load artefacts
-def get_data(store: Redis, artefact: Artefact) -> Option[bytes]:
+def get_data(
+    store: Redis, artefact: Artefact, source: Optional[hash_t] = None
+) -> Option[bytes]:
     """Retrieve data corresponding to an artefact."""
     # First check the status
     stat = get_status(store, artefact.hash)
@@ -94,12 +96,18 @@ def get_data(store: Redis, artefact: Artefact) -> Option[bytes]:
         return get_error(store, artefact.hash)
     elif stat <= ArtefactStatus.no_data:
         return Error(
-            kind=ErrorKind.NotFound, details="No data associated with artefact."
+            kind=ErrorKind.NotFound,
+            details="No data associated with artefact.",
+            source=source,
         )
     else:
         valb = store.hget(STORE, artefact.hash)
         if valb is None:
-            return Error(kind=ErrorKind.Mismatch, details="expected data was not found")
+            return Error(
+                kind=ErrorKind.Mismatch,
+                details="expected data was not found",
+                source=source,
+            )
         return valb
 
 
