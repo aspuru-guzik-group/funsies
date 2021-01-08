@@ -188,8 +188,6 @@ def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
         logging.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
-    # mark the artefact as no_data
-    _ = store.hset(DATA_STATUS, h, int(ArtefactStatus.no_data))
     return node
 
 

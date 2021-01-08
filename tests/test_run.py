@@ -79,6 +79,23 @@ def test_cached_run() -> None:
     assert status == RunStatus.using_cached
 
 
+def test_cached_instances() -> None:
+    """Test cached result from running same code twice."""
+    db = Redis()
+    cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
+    inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
+    operation = _graph.make_op(db, cmd, inp)
+    status = run_op(db, operation.hash)
+    # test return values
+    assert status == RunStatus.executed
+
+    cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
+    inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
+    operation = _graph.make_op(db, cmd, inp)
+    status = run_op(db, operation.hash)
+    assert status == RunStatus.using_cached
+
+
 def test_dependencies() -> None:
     """Test cached result."""
     db = Redis()
