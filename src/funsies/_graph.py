@@ -14,6 +14,7 @@ from redis import Redis
 from ._funsies import Funsie, store_funsie
 from .constants import (
     ARTEFACTS,
+    DATA_STATUS,
     hash_t,
     OPERATIONS,
     SREADY,
@@ -29,9 +30,22 @@ class ArtefactStatus(IntEnum):
 
     # > 0 -> ready
 
-    none = 0
-    constant = 1
-    good = 2
+    absent = 0
+    done = 1
+
+
+def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
+    """Get the status of a given operation or artefact."""
+    val = db.hget(DATA_STATUS, address)
+    if val is None:
+        return ArtefactStatus.absent
+    else:
+        return ArtefactStatus(int(val))
+
+
+def set_status(db: Redis, address: hash_t, stat: ArtefactStatus) -> None:
+    """Set the status of a given operation or artefact."""
+    _ = db.hset(DATA_STATUS, address, int(stat))
 
 
 @dataclass(frozen=True)
@@ -40,7 +54,6 @@ class Artefact:
 
     hash: hash_t
     parent: str
-    status: ArtefactStatus
 
     def pack(self: "Artefact") -> bytes:
         """Pack an Artefact to a bytestring."""
@@ -49,9 +62,7 @@ class Artefact:
     @classmethod
     def unpack(cls: Type["Artefact"], data: bytes) -> "Artefact":
         """Unpack an Artefact from a byte string."""
-        args = unpackb(data)
-        # args["status"] = ArtefactStatus(args["status"])
-        return Artefact(**args)
+        return Artefact(**unpackb(data))
 
 
 def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
@@ -64,37 +75,21 @@ def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
         return valb
 
 
-def update_generated_data(
-    store: Redis, artefact: Artefact, value: Optional[bytes]
-) -> Artefact:
+def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
     """Update an artefact with a value."""
-    if artefact.status == ArtefactStatus.constant:
-        raise AttributeError(
-            "Attempted to update a constant artefact."
-            + "\nA new artefact should be generated instead."
-        )
-
     if value is not None:
         _ = store.hset(
             STORE,
             artefact.hash,
             value,
         )
+
     # value of None means that the data was not obtained but is actually
     # "ready" so to speak.
-    new_artefact = Artefact(artefact.hash, artefact.parent, ArtefactStatus.good)
-
-    # overwrite the artefact
-    _ = store.hset(
-        ARTEFACTS,
-        new_artefact.hash,
-        new_artefact.pack(),
-    )
-
-    return new_artefact
+    set_status(store, artefact.hash, ArtefactStatus.done)
 
 
-def store_const(store: Redis, value: bytes) -> Artefact:
+def store_explicit_artefact(store: Redis, value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -108,7 +103,7 @@ def store_const(store: Redis, value: bytes) -> Artefact:
     h = m.hexdigest()
     # ==============================================================
 
-    node = Artefact(hash=h, status=ArtefactStatus.constant, parent="")
+    node = Artefact(hash=h, parent="root")
 
     # store the artefact
     val = store.hset(
@@ -121,11 +116,8 @@ def store_const(store: Redis, value: bytes) -> Artefact:
         logging.debug(f'Artefact with value "{value!r}" already exists.')
 
     # store the artefact
-    _ = store.hset(
-        STORE,
-        node.hash,
-        value,
-    )
+    set_data(store, node, value)
+
     return node
 
 
@@ -143,7 +135,7 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
     m.update(f"name:{name}\n".encode())
     h = m.hexdigest()
     # ==============================================================
-    node = Artefact(hash=h, status=ArtefactStatus.none, parent=parent_hash)
+    node = Artefact(hash=h, parent=parent_hash)
 
     # store the artefact
     val = store.hset(
@@ -151,10 +143,12 @@ def store_generated_artefact(store: Redis, parent_hash: str, name: str) -> Artef
         h,
         node.pack(),
     )
+
     if val != 1:
         logging.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
+
     return node
 
 

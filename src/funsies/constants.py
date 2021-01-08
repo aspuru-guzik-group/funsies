@@ -12,6 +12,7 @@ OPERATIONS = "funsies.ops"
 STORE = "funsies.store"
 
 # job status repos
+DATA_STATUS = "funsies.data.status"
 SREADY = "funsies.jobs.ready"
 SRUNNING = "funsies.jobs.running"
 

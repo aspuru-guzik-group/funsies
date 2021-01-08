@@ -19,11 +19,13 @@ from redis import Redis
 # module
 from ._graph import (
     Artefact,
+    ArtefactStatus,
     get_artefact,
     get_data,
+    get_status,
     make_op,
     Operation,
-    store_const,
+    store_explicit_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
@@ -223,9 +225,9 @@ def put(
 ) -> Artefact:
     """Put an artefact in the database."""
     if isinstance(value, str):
-        return store_const(db, value.encode())
+        return store_explicit_artefact(db, value.encode())
     elif isinstance(value, bytes):
-        return store_const(db, value)
+        return store_explicit_artefact(db, value)
     else:
         raise TypeError("value of {name_or_path} not bytes or string")
 
@@ -270,7 +272,7 @@ def takeout(
 
 def wait_for(
     db: Redis, artefact: Union[Artefact, hash_t], timeout: float = 120.0
-) -> Artefact:
+) -> None:
     """Block until an artefact is computed."""
     if isinstance(artefact, Artefact):
         h = artefact.hash
@@ -283,8 +285,8 @@ def wait_for(
         if t1 - t0 > timeout:
             raise RuntimeError("timed out.")
 
-        updated = get_artefact(db, h)
-        if updated.status > 0:
-            return updated
+        stat = get_status(db, h)
+        if stat == ArtefactStatus.done:
+            return
 
         time.sleep(0.3)
