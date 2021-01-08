@@ -9,6 +9,7 @@ import cloudpickle
 # module
 from ._funsies import Funsie, FunsieHow
 from .constants import pyfunc_t
+from .errors import Option
 
 
 def python_funsie(
@@ -51,25 +52,12 @@ def python_funsie(
 
 def run_python_funsie(
     funsie: Funsie,
-    input_values: Mapping[str, Optional[bytes]],
+    input_values: Mapping[str, Option[bytes]],
 ) -> Dict[str, Optional[bytes]]:
     """Execute a python function."""
     fun: pyfunc_t = cloudpickle.loads(funsie.aux)
     name = funsie.what.decode()
-
-    inps = {}
-    for fn in funsie.inp:
-        if fn not in input_values:
-            logging.error(f"expected input {fn} not passed to function {name}.")
-            val = None
-        else:
-            val = input_values[fn]
-
-        val = input_values[fn]
-        if val is not None:
-            inps[fn] = val
-        else:
-            logging.warning(f"file {fn} not present.")
+    inps = funsie.check_inputs(input_values)
 
     outfun = fun(inps)
     out: Dict[str, Optional[bytes]] = {}

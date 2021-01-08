@@ -1,4 +1,4 @@
-"""Test of Funsies save / restore."""
+"""Test of artefacts save / restore."""
 # std
 
 # external
@@ -7,11 +7,11 @@ import pytest
 
 # module
 from funsies import _funsies as f
-from funsies import _graph
+from funsies import _graph, errors
 
 
 def test_artefact_add() -> None:
-    """Test adding explicit artefacts."""
+    """Test adding const artefacts."""
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.get_artefact(store, a.hash)
@@ -23,29 +23,9 @@ def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     store = Redis()
     art = _graph.variable_artefact(store, "1", "file")
-    assert _graph.get_data(store, art) is None
-
-
-def test_artefact_errors() -> None:
-    """Test adding explicit artefacts."""
-    store = Redis()
-    with pytest.raises(RuntimeError):
-        _ = _graph.get_artefact(store, "bla")
-
-    # TODO check that warnings are logged?
-    _graph.constant_artefact(store, b"bla bla")
-    _graph.constant_artefact(store, b"bla bla")
-
-    _graph.variable_artefact(store, "1", "file")
-    _graph.variable_artefact(store, "1", "file")
-
-
-def test_artefact_update() -> None:
-    """Test adding explicit artefacts."""
-    store = Redis()
-    art = _graph.constant_artefact(store, b"bla bla")
-    with pytest.raises(TypeError):
-        _graph.set_data(store, art, b"b")
+    out = _graph.get_data(store, art)
+    assert isinstance(out, errors.Error)
+    assert out.kind == errors.ErrorKind.NotFound
 
 
 def test_operation_pack() -> None:

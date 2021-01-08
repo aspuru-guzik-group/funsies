@@ -2,16 +2,26 @@
 # std
 from enum import IntEnum
 import logging
+from typing import Dict
 
 # external
 from redis import Redis
 
 # module
 from ._funsies import FunsieHow, get_funsie
-from ._graph import ArtefactStatus, get_artefact, get_data, get_op, get_status, set_data
+from ._graph import (
+    ArtefactStatus,
+    get_artefact,
+    get_data,
+    get_op,
+    get_status,
+    mark_error,
+    set_data,
+)
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t, SREADY, SRUNNING
+from .errors import Error, ErrorKind, Option
 
 # Dictionary of runners
 RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
@@ -38,7 +48,7 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
-def run_op(db: Redis, address: hash_t) -> RunStatus:
+def run_op(db: Redis, address: hash_t) -> RunStatus:  # noqa:C901
     """Run an Operation from its hash address."""
     # Check if job is ready for execution
     # -----------------------------------
@@ -62,7 +72,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
     # status of generating functions.
     for val in op.out.values():
         stat = get_status(db, val)
-        if stat <= ArtefactStatus.absent:
+        if stat <= ArtefactStatus.no_data:
             break
     else:
         # All outputs are ok. We exit this run.
@@ -73,7 +83,7 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
     # # Then we check if all the inputs are ready to be processed.
     for val in op.inp.values():
         stat = get_status(db, val)
-        if stat <= ArtefactStatus.absent:
+        if stat <= ArtefactStatus.no_data:
             # One of the inputs is not processed yet, we return.
             logging.info(f"op skipped: {address} has unmet dependencies.")
             __make_ready(db, address)
@@ -84,20 +94,54 @@ def run_op(db: Redis, address: hash_t) -> RunStatus:
     runner = RUNNERS[funsie.how]
 
     # load input files
-    input_data = {}
+    input_data: Dict[str, Option[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
-        input_data[key] = get_data(db, artefact)
+        dat = get_data(db, artefact)
+        if isinstance(dat, Error):
+            if funsie.options_ok:
+                logging.warning(f"input {key} to error-tolerant funsie has errors.")
+                input_data[key] = dat
+            else:
+                logging.error(f"input {key} to error-fragile funsie has errors.")
+                # forward errors and stop
+                for val in op.out.values():
+                    mark_error(db, val, dat)
+        else:
+            input_data[key] = dat
 
     logging.info(f"op running: {address}")
-    out_data = runner(funsie, input_data)
+    try:
+        out_data = runner(funsie, input_data)
+    except Exception as e:
+        # much trouble
+        for val in op.out.values():
+            mark_error(
+                db,
+                val,
+                error=Error(
+                    kind=ErrorKind.ExceptionRaised, source=address, details=str(e)
+                ),
+            )
+        return RunStatus.executed
 
     for key, val in out_data.items():
+        artefact = get_artefact(db, op.out[key])
         if val is None:
             logging.warning(f"{address} -> missing output data for {key}")
-
-        artefact = get_artefact(db, op.out[key])
-        set_data(db, artefact, val)
+            mark_error(
+                db,
+                artefact.hash,
+                error=Error(
+                    kind=ErrorKind.MissingOutput,
+                    source=address,
+                    details="output not returned by runner",
+                ),
+            )
+            # not that in this case, the other outputs are not necesserarily
+            # invalidated, only this one.
+        else:
+            set_data(db, artefact, val)
 
     __make_ready(db, address)
     return RunStatus.executed

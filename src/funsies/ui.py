@@ -1,6 +1,5 @@
 """User-friendly interfaces to funsies functionality."""
 # std
-import logging
 import os
 import time
 from typing import (
@@ -30,6 +29,7 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
+from .errors import unwrap
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -235,7 +235,8 @@ def put(
 def take(
     db: Redis,
     where: Union[Artefact, hash_t],
-) -> Optional[bytes]:
+    strict: bool = True,
+) -> bytes:
     """Take an artefact from the database."""
     if isinstance(where, Artefact):
         obj = where
@@ -244,7 +245,7 @@ def take(
         if obj is None:
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
-    dat = get_data(db, obj)
+    dat = unwrap(get_data(db, obj))
     return dat
 
 
@@ -261,13 +262,10 @@ def takeout(
         if obj is None:
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
-    dat = get_data(db, obj)
+    dat = unwrap(get_data(db, obj))
 
     with open(filename, "wb") as f:
-        if dat is None:
-            logging.warning(f"No data available for artefact {where}")
-        else:
-            f.write(dat)
+        f.write(dat)
 
 
 def wait_for(

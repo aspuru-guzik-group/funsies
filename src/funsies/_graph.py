@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
 import logging
-from typing import Dict, Optional, Type
+from typing import Dict, Type
 
 # external
 from msgpack import packb, unpackb
@@ -21,38 +21,32 @@ from .constants import (
     SRUNNING,
     STORE,
 )
+from .errors import Error, ErrorKind, get_error, Option, set_error
 
 
 # --------------------------------------------------------------------------------
-# Artefacts
+# Artefact status
 class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
-    # > 0 -> ready
-
-    absent = 0
+    no_data = 0
+    # > absent  =  artefact has been computed
     done = 1
     const = 2
+    error = 3
 
 
 def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
     """Get the status of a given operation or artefact."""
     val = db.hget(DATA_STATUS, address)
     if val is None:
-        return ArtefactStatus.absent
+        return ArtefactStatus.no_data
     else:
         return ArtefactStatus(int(val))
 
 
-def mark_done(db: Redis, address: hash_t) -> None:
-    """Set the status of a given operation or artefact."""
-    old = get_status(db, address)
-    if old == 2:
-        logging.warning("attempted to mark done a const artefact.")
-    elif old == 0:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
-
-
+# --------------------------------------------------------------------------------
+# Artefact
 @dataclass(frozen=True)
 class Artefact:
     """An instantiated artefact."""
@@ -70,29 +64,56 @@ class Artefact:
         return Artefact(**unpackb(data))
 
 
-def get_data(store: Redis, artefact: Artefact) -> Optional[bytes]:
+# Mark artefacts
+def mark_done(db: Redis, address: hash_t) -> None:
+    """Set the status of a given operation or artefact."""
+    old = get_status(db, address)
+    if old == 2:
+        logging.warning("attempted to mark done a const artefact.")
+    elif old == 0:
+        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
+
+
+def mark_error(db: Redis, address: hash_t, error: Error) -> None:
+    """Set the status of a given operation or artefact."""
+    old = get_status(db, address)
+    if old == 2:
+        logging.warning("attempted to mark in error a const artefact.")
+    elif old == 0:
+        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
+        set_error(db, address, error)
+
+
+# Save and load artefacts
+def get_data(store: Redis, artefact: Artefact) -> Option[bytes]:
     """Retrieve data corresponding to an artefact."""
-    valb = store.hget(STORE, artefact.hash)
-    if valb is None:
-        logging.warning("Attempted to retrieve missing data.")
-        return None
+    # First check the status
+    stat = get_status(store, artefact.hash)
+
+    if stat == ArtefactStatus.error:
+        return get_error(store, artefact.hash)
+    elif stat <= ArtefactStatus.no_data:
+        return Error(
+            kind=ErrorKind.NotFound, details="No data associated with artefact."
+        )
     else:
+        valb = store.hget(STORE, artefact.hash)
+        if valb is None:
+            return Error(kind=ErrorKind.Mismatch, details="expected data was not found")
         return valb
 
 
-def set_data(store: Redis, artefact: Artefact, value: Optional[bytes]) -> None:
+def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     """Update an artefact with a value."""
     stat = get_status(store, artefact.hash)
     if stat == ArtefactStatus.const:
         raise TypeError("Attempted to set data to a const artefact.")
 
-    if value is not None:
-        _ = store.hset(
-            STORE,
-            artefact.hash,
-            value,
-        )
-
+    _ = store.hset(
+        STORE,
+        artefact.hash,
+        value,
+    )
     # value of None means that the data was not obtained but is actually
     # "ready" so to speak.
     mark_done(store, artefact.hash)
@@ -159,6 +180,8 @@ def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
         logging.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
+    # mark the artefact as no_data
+    _ = store.hset(DATA_STATUS, h, int(ArtefactStatus.no_data))
     return node
 
 
