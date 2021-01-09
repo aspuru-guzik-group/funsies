@@ -14,8 +14,6 @@ from rq import Queue
 # module
 from funsies import execute, morph, put, reduce, shell, take, wait_for
 
-nworkers = 1
-
 
 def join_bytes(*args: bytes) -> bytes:
     """Join things."""
@@ -30,7 +28,8 @@ ref_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_d
 
 
 @pytest.mark.parametrize("reference", ["0.1"])
-def test_integration(reference: str) -> None:
+@pytest.mark.parametrize("nworkers", [1, 2, 3])
+def test_integration(reference: str, nworkers: int) -> None:
     """Test full integration."""
     # make a temp file and copy reference database
     dir = tempfile.mkdtemp()
@@ -42,7 +41,7 @@ def test_integration(reference: str) -> None:
     # Start redis
     redis_server = subprocess.Popen(["redis-server", "redis.conf"], cwd=dir)
     # wait for server to start
-    time.sleep(1.0)
+    time.sleep(0.1)
     db = Redis()
 
     # setup RQ
