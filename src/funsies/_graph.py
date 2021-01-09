@@ -66,9 +66,15 @@ class Artefact:
         return Artefact(**unpackb(data))
 
 
+def is_artefact(db: Redis, address: hash_t) -> bool:
+    """Check whether a hash corresponds to an artefact."""
+    return db.hexists(ARTEFACTS, address)
+
+
 # Mark artefacts
 def mark_done(db: Redis, address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
+    assert is_artefact(db, address)
     old = get_status(db, address)
     if old == 2:
         logging.warning("attempted to mark done a const artefact.")
@@ -78,6 +84,7 @@ def mark_done(db: Redis, address: hash_t) -> None:
 
 def mark_error(db: Redis, address: hash_t, error: Error) -> None:
     """Set the status of a given operation or artefact."""
+    assert is_artefact(db, address)
     old = get_status(db, address)
     if old == 2:
         logging.warning("attempted to mark in error a const artefact.")
@@ -207,11 +214,6 @@ def get_artefact(store: Redis, hash: hash_t) -> Artefact:
     if out is None:
         raise RuntimeError(f"Artefact at {hash} could not be found.")
     return Artefact.unpack(out)
-
-
-def is_artefact(db: Redis, address: hash_t) -> bool:
-    """Check whether a hash corresponds to an artefact."""
-    return db.hexists(ARTEFACTS, address)
 
 
 # --------------------------------------------------------------------------------
