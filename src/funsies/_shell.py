@@ -11,6 +11,7 @@ from msgpack import packb, unpackb
 
 # module
 from ._funsies import Funsie, FunsieHow
+from .errors import Result
 
 # Special namespaced "files"
 SPECIAL = "__special__"
@@ -24,6 +25,7 @@ def shell_funsie(
     input_files: Sequence[str],
     output_files: Sequence[str],
     env: Optional[Dict[str, str]] = None,
+    strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
     out = list(output_files)
@@ -35,31 +37,23 @@ def shell_funsie(
         what=packb({"cmds": cmds, "env": env}),
         inp=list(input_files),
         out=out,
+        options_ok=not strict,
     )
 
 
 def run_shell_funsie(  # noqa:C901
     funsie: Funsie,
-    input_values: Mapping[str, Optional[bytes]],
+    input_values: Mapping[str, Result[bytes]],
 ) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
     # TODO expandvar, expandusr for tempdir
     # TODO setable tempdir
     with tempfile.TemporaryDirectory(dir=None) as dir:
         # Put in dir the input files
-        for fn in funsie.inp:
-            if fn not in input_values:
-                logging.error(f"Missing data for arg {fn}!")
-                val = None
-            else:
-                val = input_values[fn]
-
-            val = input_values[fn]
-            if val is not None:
-                with open(os.path.join(dir, fn), "wb") as f:
-                    f.write(val)
-            else:
-                logging.warning(f"file {fn} not present.")
+        incoming_files, _ = funsie.check_inputs(input_values)
+        for fn, val in incoming_files.items():
+            with open(os.path.join(dir, fn), "wb") as f:
+                f.write(val)
 
         shell = unpackb(funsie.what)
 

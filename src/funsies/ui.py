@@ -1,6 +1,5 @@
 """User-friendly interfaces to funsies functionality."""
 # std
-import logging
 import os
 import time
 from typing import (
@@ -8,8 +7,10 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
+    overload,
     Union,
 )
 
@@ -19,17 +20,20 @@ from redis import Redis
 # module
 from ._graph import (
     Artefact,
-    ArtefactStatus,
+    constant_artefact,
     get_artefact,
     get_data,
     get_status,
+    is_artefact,
     make_op,
     Operation,
-    store_explicit_artefact,
+    tag_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
+from .context import get_db
+from .errors import Result, unwrap
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -103,24 +107,29 @@ class ShellOutput:
 
 
 def shell(  # noqa:C901
-    db: Redis,
     *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
+    strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
 
-    Make a shell operationfor running with run(). This is a more user-friendly
-    interface than the direct constructor in ._shell, and it is much more
-    lenient on types.
+    Make a shell operation. This is a more user-friendly interface than the
+    direct constructor, and it is much more lenient on types.
+
+    The strict= flag determines how to interpret errors in input files. When
+    set to False, input files with errors will simply (and silently) not be
+    passed to the shell script.
 
     Arguments:
-        db: Redis instance.
         *args: Shell commands.
         inp: Input files for task.
         out: Output files for task.
         env: Environment variables to be set.
+        strict: Error propagation flag.
+        connection: An optional Redis instance.
 
     Returns:
         A Task object.
@@ -129,8 +138,7 @@ def shell(  # noqa:C901
         TypeError: when types of arguments are wrong.
 
     """
-    if not isinstance(db, Redis):
-        raise TypeError("First argument is not a Redis connection.")
+    db = get_db(connection)
 
     # Parse args --------------------------------------------
     cmds: List[str] = []
@@ -152,7 +160,7 @@ def shell(  # noqa:C901
             if isinstance(val, Artefact):
                 inputs[skey] = val
             else:
-                inputs[skey] = put(db, val)
+                inputs[skey] = put(val, connection=db)
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -161,22 +169,22 @@ def shell(  # noqa:C901
     else:
         outputs = [str(o) for o in out]
 
-    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env)
+    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env, strict=strict)
     operation = make_op(db, funsie, inputs)
     return ShellOutput(db, operation)
 
 
 # --------------------------------------------------------------------------------
 # Data transformers
-# TODO:add overload for strict / better Result()
 def reduce(  # noqa:C901
-    db: Redis,
-    fun: Callable[..., Optional[bytes]],
+    fun: Callable[..., bytes],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
     strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
+    db = get_db(connection)
     arg_names = []
     inputs = {}
     for k, arg in enumerate(inp):
@@ -184,44 +192,56 @@ def reduce(  # noqa:C901
         if isinstance(arg, Artefact):
             inputs[arg_names[-1]] = arg
         else:
-            inputs[arg_names[-1]] = put(db, arg)
+            inputs[arg_names[-1]] = put(arg, connection=db)
 
     if name is not None:
         red_name = name
     else:
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
 
-    def reducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
-        args: List[Optional[bytes]] = []
-        for key in arg_names:
-            try:
-                args += [inpd[key]]
-            except KeyError:
-                if strict:
-                    raise KeyError(f"Missing input {key} to {red_name}")
-                else:
-                    args += [None]
+    # This copy paste is a MyPy exclusive! :S
+    if strict:
 
-        val = fun(*args)
-        if val is None:
-            if strict:
-                raise RuntimeError(f"Missing output from {red_name}")
-            else:
-                return dict()
-        else:
-            return dict(out=val)
+        def sreducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+            """Perform a reduction."""
+            args = [inpd[key] for key in arg_names]
+            return dict(out=fun(*args))
 
-    funsie = python_funsie(reducer, arg_names, ["out"], name=red_name)
+        funsie = python_funsie(sreducer, arg_names, ["out"], name=red_name, strict=True)
+    else:
+
+        def reducer(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
+            """Perform a reduction."""
+            args = [inpd[key] for key in arg_names]
+            return dict(out=fun(*args))
+
+        funsie = python_funsie(reducer, arg_names, ["out"], name=red_name, strict=False)
+
     operation = make_op(db, funsie, inputs)
     return get_artefact(db, operation.out["out"])
 
 
+__lax_morph = Callable[[Result[bytes]], bytes]
+__strict_morph = Callable[[bytes], bytes]
+
+
+# fmt:off
+@overload
+def morph(fun: Union[__strict_morph, __lax_morph], inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[True] = True, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
+
+
+@overload
+def morph(fun: __lax_morph, inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[False] = False, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
+# fmt:on
+
+
 def morph(
-    db: Redis,
-    fun: Callable[[bytes], bytes],
+    fun: Union[__lax_morph, __strict_morph],
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
+    strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a function that transforms a single artefact."""
     if name is not None:
@@ -230,29 +250,44 @@ def morph(
         morpher_name = f"morph:{fun.__qualname__}"
 
     # It's really just another name for a 1-input reduction
-    return reduce(db, fun, inp, name=morpher_name)
+    return reduce(fun, inp, name=morpher_name, strict=strict, connection=connection)
 
 
 # --------------------------------------------------------------------------------
 # Data loading and saving
 def put(
-    db: Redis,
     value: Union[bytes, str],
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Put an artefact in the database."""
+    db = get_db(connection)
     if isinstance(value, str):
-        return store_explicit_artefact(db, value.encode())
+        return constant_artefact(db, value.encode())
     elif isinstance(value, bytes):
-        return store_explicit_artefact(db, value)
+        return constant_artefact(db, value)
     else:
-        raise TypeError("value of {name_or_path} not bytes or string")
+        raise TypeError(f"value of type {type(value)} not bytes or string")
+
+
+# fmt:off
+@overload
+def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis]=None) -> bytes:  # noqa
+    ...
+
+
+@overload
+def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis]=None) -> Result[bytes]:  # noqa
+    ...
+# fmt:on
 
 
 def take(
-    db: Redis,
     where: Union[Artefact, hash_t],
-) -> Optional[bytes]:
+    strict: bool = True,
+    connection: Optional[Redis] = None,
+) -> Result[bytes]:
     """Take an artefact from the database."""
+    db = get_db(connection)
     if isinstance(where, Artefact):
         obj = where
     else:
@@ -261,15 +296,19 @@ def take(
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
     dat = get_data(db, obj)
-    return dat
+    if strict:
+        return unwrap(dat)
+    else:
+        return dat
 
 
 def takeout(
-    db: Redis,
     where: Union[Artefact, hash_t],
     filename: _AnyPath,
+    connection: Optional[Redis] = None,
 ) -> None:
     """Take an artefact and save it to a file."""
+    db = get_db(connection)
     if isinstance(where, Artefact):
         obj = where
     else:
@@ -277,23 +316,24 @@ def takeout(
         if obj is None:
             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
 
-    dat = get_data(db, obj)
+    dat = unwrap(get_data(db, obj))
 
     with open(filename, "wb") as f:
-        if dat is None:
-            logging.warning(f"No data available for artefact {where}")
-        else:
-            f.write(dat)
+        f.write(dat)
 
 
 def wait_for(
-    db: Redis, artefact: Union[Artefact, hash_t], timeout: float = 120.0
+    artefact: Union[Artefact, hash_t],
+    timeout: float = 120.0,
+    connection: Optional[Redis] = None,
 ) -> None:
     """Block until an artefact is computed."""
+    db = get_db(connection)
     if isinstance(artefact, Artefact):
         h = artefact.hash
     else:
         h = artefact
+        assert is_artefact(db, h)
 
     t0 = time.time()
     while True:
@@ -302,7 +342,25 @@ def wait_for(
             raise RuntimeError("timed out.")
 
         stat = get_status(db, h)
-        if stat == ArtefactStatus.done:
+        if stat > 0:
             return
 
         time.sleep(0.3)
+
+
+# object tags
+def tag(
+    tag: str,
+    *artefacts: Union[Artefact, hash_t],
+    connection: Optional[Redis] = None,
+) -> None:
+    """Tag artefacts in the database."""
+    db = get_db(connection)
+    for where in artefacts:
+        if isinstance(where, Artefact):
+            h = where.hash
+        else:
+            h = where
+            assert is_artefact(db, h)
+
+        tag_artefact(db, h, tag)

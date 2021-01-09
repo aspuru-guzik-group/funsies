@@ -3,7 +3,8 @@
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
-from typing import List, Optional, Type
+import logging
+from typing import Dict, List, Mapping, Optional, Tuple, Type
 
 # external
 from msgpack import packb, unpackb
@@ -11,6 +12,7 @@ from redis import Redis
 
 # module
 from .constants import FUNSIES, hash_t
+from .errors import Error, ErrorKind, Result
 
 
 # --------------------------------------------------------------------------------
@@ -43,20 +45,61 @@ class Funsie:
     inp: List[str]
     out: List[str]
     aux: Optional[bytes] = None
+    options_ok: bool = False
 
     def __str__(self: "Funsie") -> str:
         """Get the string representation of a funsie."""
+        # ==============================================================
+        #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+        # --------------------------------------------------------------
+        # When hashes change, previous databases become deprecated. This
+        # (will) require a change in version number!
         out = f"Funsie[\n  how={self.how}" + f"\n  what={self.what!r}" + "\n  inputs\n"
         for key in sorted(self.inp):
             out += f"    {key}\n"
         out += "  outputs\n"
         for key in sorted(self.out):
             out += f"    {key}\n"
+
+        if self.options_ok:
+            out += "  ERROR TOLERANT\n"
+        # ==============================================================
         return out + "  ]"
 
     def pack(self: "Funsie") -> bytes:
         """Pack a Funsie to a bytestring."""
         return packb(asdict(self))
+
+    def check_inputs(
+        self: "Funsie", actual: Mapping[str, Result[bytes]]
+    ) -> Tuple[Dict[str, bytes], Dict[str, Error]]:
+        """Match actual inputs of funsie with expected inputs."""
+        output = {}
+        errors = {}
+        for key in self.inp:
+            if key in actual:
+                val = actual[key]
+                if isinstance(val, Error):
+                    if self.options_ok:
+                        logging.warning(f"errored {key} ignored.")
+                        errors[key] = val
+                    else:
+                        logging.error(f"{key} is in error.")
+                        raise RuntimeError()
+                else:
+                    # all good: value exists, and is not Error
+                    output[key] = val
+            else:
+                logging.error(f"{key} not found.")
+                if self.options_ok:
+                    errors[key] = Error(
+                        kind=ErrorKind.MissingInput,
+                        source=self.hash,
+                        details="missing input in funsie.",
+                    )
+                else:
+                    raise RuntimeError()
+        return output, errors
 
     @property
     def hash(self: "Funsie") -> hash_t:
@@ -71,7 +114,7 @@ class Funsie:
         m.update(b"funsie")
         # funsie
         m.update(str(self).encode())
-        return m.hexdigest()
+        return hash_t(m.hexdigest())
         # ==============================================================
 
     @classmethod

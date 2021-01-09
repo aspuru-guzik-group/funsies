@@ -11,6 +11,7 @@ from rq.queue import Queue
 # module
 from ._graph import Artefact, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
+from .context import get_db
 from .run import run_op, RunStatus
 from .ui import ShellOutput
 
@@ -82,7 +83,7 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
 
         # no dependency -> add as root
         if len(curr.inp) == 0:
-            __dag_append(db, address, "root", curr.hash)
+            __dag_append(db, address, hash_t("root"), curr.hash)
 
         for el in curr.inp.values():
             art = get_artefact(db, el)
@@ -91,7 +92,7 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
                 queue.append(get_op(db, art.parent))
                 __dag_append(db, address, art.parent, curr.hash)
             else:
-                __dag_append(db, address, "root", curr.hash)
+                __dag_append(db, address, hash_t("root"), curr.hash)
 
         if len(queue) == 0:
             break
@@ -127,9 +128,8 @@ def rq_eval(
 
 
 def execute(
-    db: Redis,
-    queue: Queue,
     output: Union[hash_t, Operation, Artefact, ShellOutput],
+    connection: Optional[Redis] = None,
     job_args: Optional[Dict[str, Any]] = None,
     queue_args: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -148,11 +148,15 @@ def execute(
     else:
         dag_of = output
 
+    # get redis
+    db = get_db(connection)
+    queue = Queue(**queue_args)
+
     # make dag
     build_dag(db, dag_of)
 
     # enqueue everything starting from root
-    for element in __dag_dependents(db, dag_of, "root"):
+    for element in __dag_dependents(db, dag_of, hash_t("root")):
         queue.enqueue_call(
             rq_eval, args=(dag_of, element, job_args, queue_args), **job_args
         )
