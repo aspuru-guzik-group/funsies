@@ -2,131 +2,117 @@
 # std
 import sys
 
-# external
-import redis
-from rq import Queue
-
 # module
-from funsies import execute, reduce, shell, take
+from funsies import execute, Fun, reduce, shell, take
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
 
-# Setup the Redis server
-# ----------------------
-# this will ensure that the database is fully persistent
-# between runs.
-db = redis.Redis()
+# By default, the Fun context manager connects to a Redis instance on
+# localhost, but a different redis instance can be passed to it.
+with Fun():
+    # Start of computational workflow
+    # -------------------------------
+    # Our task is to take a bunch of molecules, given as SMILES, make conformers
+    # for them, optimize those conformers with xtb and extract their xtb HOMO-LUMO
+    # gap.
 
-# Start of computational workflow
-# -------------------------------
-# Our task is to take a bunch of molecules, given as SMILES, make conformers
-# for them, optimize those conformers with xtb and extract their xtb HOMO-LUMO
-# gap.
+    # Below is a list of random small drug molecules,
+    smiles = [
+        r"CC\C=C/C\C=C/C\C=C/CCCCCCCC(O)=O",
+        r"CCN(CC)CC1=C(O)C=CC(NC2=C3C=CC(Cl)=CC3=NC=C2)=C1",
+        r"NCCCNCCSP(O)(O)=O",
+        r"NC12CC3CC(CC(C3)C1)C2",
+        r"CC(C)NCC(O)COC1=CC=C(CCOCC2CC2)C=C1",
+        r"CCC(C)C1(CC)C(=O)NC(=O)NC1=O",
+        r"CCN1N=C(C(O)=O)C(=O)C2=CC3=C(OCO3)C=C12",
+        r"CN(C)CCCC1(OCC2=C1C=CC(=C2)C#N)C1=CC=C(F)C=C1",
+        r"NC1=CC=NC=C1",
+        r"NC(=N)N1CCC2=CC=CC=C2C1",
+        r"CCN(CC)CCOC(=O)C1(CCCCC1)C1CCCCC1",
+        r"FC(F)OC(F)(F)C(F)Cl",
+        r"CCNC1C2CCC(C2)C1C1=CC=CC=C1",
+        r"FC1=CNC(=O)NC1=O",
+    ]
 
-# Below is a list of random small drug molecules,
-smiles = [
-    r"CC\C=C/C\C=C/C\C=C/CCCCCCCC(O)=O",
-    r"CCN(CC)CC1=C(O)C=CC(NC2=C3C=CC(Cl)=CC3=NC=C2)=C1",
-    r"NCCCNCCSP(O)(O)=O",
-    r"NC12CC3CC(CC(C3)C1)C2",
-    r"CC(C)NCC(O)COC1=CC=C(CCOCC2CC2)C=C1",
-    r"CCC(C)C1(CC)C(=O)NC(=O)NC1=O",
-    r"CCN1N=C(C(O)=O)C(=O)C2=CC3=C(OCO3)C=C12",
-    r"CN(C)CCCC1(OCC2=C1C=CC(=C2)C#N)C1=CC=C(F)C=C1",
-    r"NC1=CC=NC=C1",
-    r"NC(=N)N1CCC2=CC=CC=C2C1",
-    r"CCN(CC)CCOC(=O)C1(CCCCC1)C1CCCCC1",
-    r"FC(F)OC(F)(F)C(F)Cl",
-    r"CCNC1C2CCC(C2)C1C1=CC=CC=C1",
-    r"FC1=CNC(=O)NC1=O",
-]
+    # # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
+    def get_gap(smi: bytes, xtbout: bytes) -> bytes:
+        """Take HOMO-LUMO gap in inp, and output it to out."""
+        for line in xtbout.decode().splitlines():
+            # we are looking for this line
+            # | HOMO-LUMO GAP               1.390012170128 eV   |
+            if "HOMO-LUMO GAP" in line:
+                gap = float(line.strip()[18:-7].strip())
+                break
 
+        # output is a csv row
+        output = f"{smi.decode()},{gap}\n"
+        return output.encode()
 
-# # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
-def get_gap(smi: bytes, xtbout: bytes) -> bytes:
-    """Take HOMO-LUMO gap in inp, and output it to out."""
-    for line in xtbout.decode().splitlines():
-        # we are looking for this line
-        # | HOMO-LUMO GAP               1.390012170128 eV   |
-        if "HOMO-LUMO GAP" in line:
-            gap = float(line.strip()[18:-7].strip())
-            break
+    # We start by running obabel to transform those from SMILES to 3d conformers.
+    outputs = []
+    for _, smi in enumerate(smiles):
+        t1 = shell(
+            "obabel in.smi --addh --gen3d -O init.xyz",
+            inp={"in.smi": smi},
+            out=["init.xyz"],
+        )
+        # t1 outputs can already be used as inputs in other jobs, even if the task
+        # is not yet completed, because they are not actual values: they are
+        # instead pointers to file on the redis server.
 
-    # output is a csv row
-    output = f"{smi.decode()},{gap}\n"
-    return output.encode()
+        # we use the output init.xyz from t1 as the input to xtb.
+        t2 = shell(
+            "xtb init.xyz --opt --parallel 1",
+            inp={"init.xyz": t1.out["init.xyz"]},
+            out=["xtbopt.xyz"],
+        )
 
+        # Now the HOMO-LUMO gap is in the xtb std output. To get it, we will use a
+        # python IO transform on the xtb stdout,
+        xtb_out = t2.stdout
 
-# We start by running obabel to transform those from SMILES to 3d conformers.
-outputs = []
-for _, smi in enumerate(smiles):
-    t1 = shell(
-        db,
-        "obabel in.smi --addh --gen3d -O init.xyz",
-        inp={"in.smi": smi},
-        out=["init.xyz"],
-    )
-    # t1 outputs can already be used as inputs in other jobs, even if the task
-    # is not yet completed, because they are not actual values: they are
-    # instead pointers to file on the redis server.
+        # We use get_gap defined above to do the transformation. We also add the
+        # SMILES string so that we can keep track of molecules.
+        outputs += [reduce(get_gap, t1.inp["in.smi"], xtb_out)]
 
-    # we use the output init.xyz from t1 as the input to xtb.
-    t2 = shell(
-        db,
-        "xtb init.xyz --opt --parallel 1",
-        inp={"init.xyz": t1.out["init.xyz"]},
-        out=["xtbopt.xyz"],
-    )
+    # Final transformer that joins all the outputs.
+    def join(*args: bytes) -> bytes:
+        """Join multiple files together."""
+        out = b""
+        for a in args:
+            out += a
+        return out
 
-    # Now the HOMO-LUMO gap is in the xtb std output. To get it, we will use a
-    # python IO transform on the xtb stdout,
-    xtb_out = t2.stdout
+    tr = reduce(join, *outputs)
 
-    # We use get_gap defined above to do the transformation. We also add the
-    # SMILES string so that we can keep track of molecules.
-    outputs += [reduce(db, get_gap, t1.inp["in.smi"], xtb_out)]
+    if sys.argv[-1] != "read":
+        # Setup the RQ job queue and run
+        # ------------------------------
+        # Set some good defaults for the jobs on queue. In general, it's not worth
+        # setting ttl or result_ttl to other values because when doing chemistry
+        # simulations, we are not going to run 1 million jobs per minute and thus
+        # crash because of out-of-memory errors. However, as all the jobs are really
+        # long, we don't want jobs to be cancelled just because it's taking a while to
+        # find a worker.
+        job_args = dict(
+            timeout="3h",  # how long each job has
+            ttl="10d",  # how long jobs are kept on queue
+            result_ttl="10d",  # how long job result objects are kept
+        )
+        # run everything by using the fact that the last transformer depends on all
+        # the outputs
+        execute(tr, job_args=job_args)
+    else:
+        # Analyze / compile results
+        # -------------------------
+        # Traditionally, we would then use a wait() routine to wait
+        # for all results to come in and then do final DB join/concat operations.
+        # Here, we use the fact that all simulations were recorded to simply
+        # re-run everything in sync mode (meaning without separate worker
+        # threads), playing back all the operations using the memoized data.
 
-
-# Final transformer that joins all the outputs.
-def join(*args: bytes) -> bytes:
-    """Join multiple files together."""
-    out = b""
-    for a in args:
-        out += a
-    return out
-
-
-tr = reduce(db, join, *outputs)
-
-if sys.argv[-1] != "read":
-    # Setup the RQ job queue and run
-    # ------------------------------
-    # Set some good defaults for the jobs on queue. In general, it's not worth
-    # setting ttl or result_ttl to other values because when doing chemistry
-    # simulations, we are not going to run 1 million jobs per minute and thus
-    # crash because of out-of-memory errors. However, as all the jobs are really
-    # long, we don't want jobs to be cancelled just because it's taking a while to
-    # find a worker.
-    queue = Queue(connection=db)
-    job_args = dict(
-        timeout="3h",  # how long each job has
-        ttl="10d",  # how long jobs are kept on queue
-        result_ttl="10d",  # how long job result objects are kept
-    )
-    # run everything by using the fact that the last transformer depends on all
-    # the outputs
-    execute(db, queue, tr, job_args=job_args)
-else:
-    # Analyze / compile results
-    # -------------------------
-    # Traditionally, we would then use a wait() routine to wait
-    # for all results to come in and then do final DB join/concat operations.
-    # Here, we use the fact that all simulations were recorded to simply
-    # re-run everything in sync mode (meaning without separate worker
-    # threads), playing back all the operations using the memoized data.
-
-    out = take(db, tr)
-    # Voila! Results to stdout using simply python chem.py read
-    assert out is not None
-    print(out.decode().rstrip() + "\n")
+        out = take(tr)
+        # Voila! Results to stdout using simply python chem.py read
+        assert out is not None
+        print(out.decode().rstrip() + "\n")

@@ -1,6 +1,7 @@
 """Funsies is a transparently-memoized worfklow engine."""
 from ._funsies import Funsie, FunsieHow
 from .constants import hash_t
+from .context import Fun
 from .dag import execute
 from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
@@ -24,6 +25,8 @@ __all__ = [
     "RunStatus",
     # types
     "hash_t",
+    # context,
+    "Fun",
     # dag
     "execute",
     # error

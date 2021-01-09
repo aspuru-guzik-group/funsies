@@ -30,6 +30,7 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
+from .context import get_db
 from .errors import Result, unwrap
 
 # Types
@@ -104,12 +105,12 @@ class ShellOutput:
 
 
 def shell(  # noqa:C901
-    db: Redis,
     *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
     strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
 
@@ -121,12 +122,12 @@ def shell(  # noqa:C901
     passed to the shell script.
 
     Arguments:
-        db: Redis instance.
         *args: Shell commands.
         inp: Input files for task.
         out: Output files for task.
         env: Environment variables to be set.
         strict: Error propagation flag.
+        connection: An optional Redis instance.
 
     Returns:
         A Task object.
@@ -135,8 +136,7 @@ def shell(  # noqa:C901
         TypeError: when types of arguments are wrong.
 
     """
-    if not isinstance(db, Redis):
-        raise TypeError("First argument is not a Redis connection.")
+    db = get_db(connection)
 
     # Parse args --------------------------------------------
     cmds: List[str] = []
@@ -158,7 +158,7 @@ def shell(  # noqa:C901
             if isinstance(val, Artefact):
                 inputs[skey] = val
             else:
-                inputs[skey] = put(db, val)
+                inputs[skey] = put(val, connection=db)
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -175,13 +175,14 @@ def shell(  # noqa:C901
 # --------------------------------------------------------------------------------
 # Data transformers
 def reduce(  # noqa:C901
-    db: Redis,
     fun: Callable[..., bytes],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
     strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a function that reduce multiple artefacts."""
+    db = get_db(connection)
     arg_names = []
     inputs = {}
     for k, arg in enumerate(inp):
@@ -189,7 +190,7 @@ def reduce(  # noqa:C901
         if isinstance(arg, Artefact):
             inputs[arg_names[-1]] = arg
         else:
-            inputs[arg_names[-1]] = put(db, arg)
+            inputs[arg_names[-1]] = put(arg, connection=db)
 
     if name is not None:
         red_name = name
@@ -224,21 +225,21 @@ __strict_morph = Callable[[bytes], bytes]
 
 # fmt:off
 @overload
-def morph(db: Redis, fun: Union[__strict_morph, __lax_morph], inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[True] = True) -> Artefact: ...  # noqa
+def morph(fun: Union[__strict_morph, __lax_morph], inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[True] = True, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
 
 
 @overload
-def morph(db: Redis, fun: __lax_morph, inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[False] = False) -> Artefact: ...  # noqa
+def morph(fun: __lax_morph, inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[False] = False, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
 # fmt:on
 
 
 def morph(
-    db: Redis,
     fun: Union[__lax_morph, __strict_morph],
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
     strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a function that transforms a single artefact."""
     if name is not None:
@@ -247,42 +248,44 @@ def morph(
         morpher_name = f"morph:{fun.__qualname__}"
 
     # It's really just another name for a 1-input reduction
-    return reduce(db, fun, inp, name=morpher_name, strict=strict)
+    return reduce(fun, inp, name=morpher_name, strict=strict, connection=connection)
 
 
 # --------------------------------------------------------------------------------
 # Data loading and saving
 def put(
-    db: Redis,
     value: Union[bytes, str],
+    connection: Optional[Redis] = None,
 ) -> Artefact:
     """Put an artefact in the database."""
+    db = get_db(connection)
     if isinstance(value, str):
         return constant_artefact(db, value.encode())
     elif isinstance(value, bytes):
         return constant_artefact(db, value)
     else:
-        raise TypeError("value of {name_or_path} not bytes or string")
+        raise TypeError(f"value of type {type(value)} not bytes or string")
 
 
 # fmt:off
 @overload
-def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[True] = True) -> bytes:  # noqa
+def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis]=None) -> bytes:  # noqa
     ...
 
 
 @overload
-def take(db: Redis, where: Union[Artefact, hash_t], strict: Literal[False] = False) -> Result[bytes]:  # noqa
+def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis]=None) -> Result[bytes]:  # noqa
     ...
 # fmt:on
 
 
 def take(
-    db: Redis,
     where: Union[Artefact, hash_t],
     strict: bool = True,
+    connection: Optional[Redis] = None,
 ) -> Result[bytes]:
     """Take an artefact from the database."""
+    db = get_db(connection)
     if isinstance(where, Artefact):
         obj = where
     else:
@@ -298,11 +301,12 @@ def take(
 
 
 def takeout(
-    db: Redis,
     where: Union[Artefact, hash_t],
     filename: _AnyPath,
+    connection: Optional[Redis] = None,
 ) -> None:
     """Take an artefact and save it to a file."""
+    db = get_db(connection)
     if isinstance(where, Artefact):
         obj = where
     else:
@@ -317,9 +321,12 @@ def takeout(
 
 
 def wait_for(
-    db: Redis, artefact: Union[Artefact, hash_t], timeout: float = 120.0
+    artefact: Union[Artefact, hash_t],
+    timeout: float = 120.0,
+    connection: Optional[Redis] = None,
 ) -> None:
     """Block until an artefact is computed."""
+    db = get_db(connection)
     if isinstance(artefact, Artefact):
         h = artefact.hash
     else:

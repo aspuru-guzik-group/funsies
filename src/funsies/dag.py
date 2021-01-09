@@ -11,6 +11,7 @@ from rq.queue import Queue
 # module
 from ._graph import Artefact, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
+from .context import get_db
 from .run import run_op, RunStatus
 from .ui import ShellOutput
 
@@ -127,9 +128,8 @@ def rq_eval(
 
 
 def execute(
-    db: Redis,
-    queue: Queue,
     output: Union[hash_t, Operation, Artefact, ShellOutput],
+    connection: Optional[Redis] = None,
     job_args: Optional[Dict[str, Any]] = None,
     queue_args: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -147,6 +147,10 @@ def execute(
         dag_of = output.hash
     else:
         dag_of = output
+
+    # get redis
+    db = get_db(connection)
+    queue = Queue(**queue_args)
 
     # make dag
     build_dag(db, dag_of)
