@@ -54,7 +54,7 @@ def test_integration(reference: str, nworkers: int) -> None:
             inp=dict(file1=step1, file2=dat),
             out=["file2", "file3"],
         )
-        tag(step2.out["file3"], "a tagged file")
+        tag("a tagged file", step2.out["file3"])
         echo = shell("sleep 1", "date")
         merge = reduce(
             join_bytes,

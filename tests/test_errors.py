@@ -23,7 +23,7 @@ def test_artefact_load_errors() -> None:
     """Test loading artefact errors."""
     store = Redis()
     with pytest.raises(RuntimeError):
-        _ = _graph.get_artefact(store, "bla")
+        _ = _graph.get_artefact(store, "bla")  # type:ignore
 
     # TODO check that warnings are logged?
     _graph.constant_artefact(store, b"bla bla")

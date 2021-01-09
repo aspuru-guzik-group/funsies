@@ -103,9 +103,11 @@ def test_store_takeout() -> None:
 
 def test_tag_artefact() -> None:
     """Test artefact tagging."""
-    with Fun(Redis()):
-        s = ui.put("bla bla")
-        with tempfile.NamedTemporaryFile() as f:
-            ui.takeout(s, f.name)
-            with open(f.name, "rb") as f2:
-                assert f2.read() == b"bla bla"
+    with Fun(Redis()) as db:
+        dat = ui.put("bla bla")
+        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
+        ui.tag("tag", morph)
+        ui.tag("tag", dat)
+        ui.tag("tag2", dat)
+
+        run_op(db, morph.parent)

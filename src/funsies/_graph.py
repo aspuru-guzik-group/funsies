@@ -89,8 +89,8 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
 # Tag artefacts
 def tag_artefact(db: Redis, address: hash_t, tag: str) -> None:
     """Set the status of a given operation or artefact."""
-    _ = db.sadd(TAGS + tag, address)
-    _ = db.sadd(TAGS_SET, tag)
+    _ = db.sadd(TAGS + tag, address)  # type:ignore
+    _ = db.sadd(TAGS_SET, tag)  # type:ignore
 
 
 # Save and load artefacts
@@ -210,6 +210,7 @@ def get_artefact(store: Redis, hash: hash_t) -> Artefact:
 
 
 def is_artefact(db: Redis, address: hash_t) -> bool:
+    """Check whether a hash corresponds to an artefact."""
     return db.hexists(ARTEFACTS, address)
 
 

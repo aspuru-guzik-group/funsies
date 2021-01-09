@@ -333,7 +333,7 @@ def wait_for(
         h = artefact.hash
     else:
         h = artefact
-        assert is_artefact(h)
+        assert is_artefact(db, h)
 
     t0 = time.time()
     while True:
@@ -353,7 +353,7 @@ def tag(
     tag: str,
     *artefacts: Union[Artefact, hash_t],
     connection: Optional[Redis] = None,
-) -> Result[bytes]:
+) -> None:
     """Tag artefacts in the database."""
     db = get_db(connection)
     for where in artefacts:
@@ -361,6 +361,6 @@ def tag(
             h = where.hash
         else:
             h = where
-            assert is_artefact(h)
+            assert is_artefact(db, h)
 
         tag_artefact(db, h, tag)
