@@ -20,6 +20,8 @@ from .constants import (
     SREADY,
     SRUNNING,
     STORE,
+    TAGS,
+    TAGS_SET,
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
 
@@ -52,7 +54,7 @@ class Artefact:
     """An instantiated artefact."""
 
     hash: hash_t
-    parent: str
+    parent: hash_t
 
     def pack(self: "Artefact") -> bytes:
         """Pack an Artefact to a bytestring."""
@@ -82,6 +84,13 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
     elif old == 0:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
         set_error(db, address, error)
+
+
+# Tag artefacts
+def tag_artefact(db: Redis, address: hash_t, tag: str) -> None:
+    """Set the status of a given operation or artefact."""
+    _ = db.sadd(TAGS + tag, address)
+    _ = db.sadd(TAGS_SET, tag)
 
 
 # Save and load artefacts
@@ -138,10 +147,10 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
     m.update(b"artefact\n")
     m.update(b"explicit\n")
     m.update(value)
-    h = m.hexdigest()
+    h = hash_t(m.hexdigest())
     # ==============================================================
 
-    node = Artefact(hash=h, parent="root")
+    node = Artefact(hash=h, parent=hash_t("root"))
     # store the artefact
     val = store.hset(
         ARTEFACTS,
@@ -161,7 +170,7 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
     return node
 
 
-def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
+def variable_artefact(store: Redis, parent_hash: hash_t, name: str) -> Artefact:
     """Store an artefact with a generated value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -173,7 +182,7 @@ def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
     m.update(b"generated\n")
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
-    h = m.hexdigest()
+    h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact(hash=h, parent=parent_hash)
 
@@ -191,13 +200,17 @@ def variable_artefact(store: Redis, parent_hash: str, name: str) -> Artefact:
     return node
 
 
-def get_artefact(store: Redis, hash: str) -> Artefact:
+def get_artefact(store: Redis, hash: hash_t) -> Artefact:
     """Pull an artefact from the Redis store."""
     # store the artefact
     out = store.hget(ARTEFACTS, hash)
     if out is None:
         raise RuntimeError(f"Artefact at {hash} could not be found.")
     return Artefact.unpack(out)
+
+
+def is_artefact(db: Redis, address: hash_t) -> bool:
+    return db.hexists(ARTEFACTS, address)
 
 
 # --------------------------------------------------------------------------------
@@ -246,7 +259,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     m.update(funsie.hash.encode())
     for key, val in sorted(inp.items(), key=lambda x: x[0]):
         m.update(f"file={key}, hash={val}".encode())
-    ophash = m.hexdigest()
+    ophash = hash_t(m.hexdigest())
     # ==============================================================
 
     # Setup the output artefacts.

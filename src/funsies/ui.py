@@ -24,8 +24,10 @@ from ._graph import (
     get_artefact,
     get_data,
     get_status,
+    is_artefact,
     make_op,
     Operation,
+    tag_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
@@ -331,6 +333,7 @@ def wait_for(
         h = artefact.hash
     else:
         h = artefact
+        assert is_artefact(h)
 
     t0 = time.time()
     while True:
@@ -343,3 +346,21 @@ def wait_for(
             return
 
         time.sleep(0.3)
+
+
+# object tags
+def tag(
+    tag: str,
+    *artefacts: Union[Artefact, hash_t],
+    connection: Optional[Redis] = None,
+) -> Result[bytes]:
+    """Tag artefacts in the database."""
+    db = get_db(connection)
+    for where in artefacts:
+        if isinstance(where, Artefact):
+            h = where.hash
+        else:
+            h = where
+            assert is_artefact(h)
+
+        tag_artefact(db, h, tag)

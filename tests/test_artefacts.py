@@ -7,7 +7,7 @@ import pytest
 
 # module
 from funsies import _funsies as f
-from funsies import _graph, errors
+from funsies import _graph, errors, hash_t
 
 
 def test_artefact_add() -> None:
@@ -22,7 +22,7 @@ def test_artefact_add() -> None:
 def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     store = Redis()
-    art = _graph.variable_artefact(store, "1", "file")
+    art = _graph.variable_artefact(store, hash_t("1"), "file")
     out = _graph.get_data(store, art)
     assert isinstance(out, errors.Error)
     assert out.kind == errors.ErrorKind.NotFound

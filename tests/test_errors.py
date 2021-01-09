@@ -7,7 +7,7 @@ import pytest
 
 # module
 import funsies
-from funsies import _graph, Fun
+from funsies import _graph, Fun, hash_t
 
 
 def test_artefact_add() -> None:
@@ -29,8 +29,8 @@ def test_artefact_load_errors() -> None:
     _graph.constant_artefact(store, b"bla bla")
     _graph.constant_artefact(store, b"bla bla")
 
-    _graph.variable_artefact(store, "1", "file")
-    _graph.variable_artefact(store, "1", "file")
+    _graph.variable_artefact(store, hash_t("1"), "file")
+    _graph.variable_artefact(store, hash_t("1"), "file")
 
 
 def test_artefact_update() -> None:

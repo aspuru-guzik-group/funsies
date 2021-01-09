@@ -114,7 +114,7 @@ class Funsie:
         m.update(b"funsie")
         # funsie
         m.update(str(self).encode())
-        return m.hexdigest()
+        return hash_t(m.hexdigest())
         # ==============================================================
 
     @classmethod

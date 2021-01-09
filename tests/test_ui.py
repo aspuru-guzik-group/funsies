@@ -99,3 +99,13 @@ def test_store_takeout() -> None:
             ui.takeout(s, f.name)
             with open(f.name, "rb") as f2:
                 assert f2.read() == b"bla bla"
+
+
+def test_tag_artefact() -> None:
+    """Test artefact tagging."""
+    with Fun(Redis()):
+        s = ui.put("bla bla")
+        with tempfile.NamedTemporaryFile() as f:
+            ui.takeout(s, f.name)
+            with open(f.name, "rb") as f2:
+                assert f2.read() == b"bla bla"

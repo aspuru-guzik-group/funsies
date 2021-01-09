@@ -1,8 +1,8 @@
 """Names of stuff in the key value store."""
-from typing import Any, Dict
+from typing import Any, Dict, NewType
 
 # Some types
-hash_t = str
+hash_t = NewType("hash_t", str)
 
 # Some locations
 ARTEFACTS = "funsies.artefacts"
@@ -10,6 +10,9 @@ FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
 STORE = "funsies.store"
 ERRORS = "funsies.errors"
+
+TAGS = "funsies.tags."
+TAGS_SET = "funsies.tags"
 
 # job status repos
 DATA_STATUS = "funsies.data.status"

@@ -11,7 +11,7 @@ import pytest
 
 # module
 import funsies
-from funsies import execute, Fun, morph, put, reduce, shell, take, wait_for
+from funsies import execute, Fun, morph, put, reduce, shell, tag, take, wait_for
 
 
 def join_bytes(*args: bytes) -> bytes:
@@ -54,6 +54,7 @@ def test_integration(reference: str, nworkers: int) -> None:
             inp=dict(file1=step1, file2=dat),
             out=["file2", "file3"],
         )
+        tag(step2.out["file3"], "a tagged file")
         echo = shell("sleep 1", "date")
         merge = reduce(
             join_bytes,
