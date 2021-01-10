@@ -46,8 +46,13 @@ def get_db(db: Optional[Redis] = None) -> Redis:
             # try context instance
             out: Redis = _connect_stack.top
             return out
-        elif (job := rq.get_current_job()) is not None:
+        elif rq.get_current_job() is not None:
+            job = rq.get_current_job()
             out2: Redis = job.connection
             return out2
+        # not supported in 3.7 ...
+        # elif (job := rq.get_current_job()) is not None:
+        #     out2: Redis = job.connection
+        #     return out2
         else:
             raise RuntimeError("No redis instance available.")
