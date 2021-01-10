@@ -11,7 +11,7 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
     # Dependencies
-    python_requries=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "redis",
         "msgpack",
