@@ -43,14 +43,14 @@ because the "files" are not actual populated values but pointers to (currently
 absent) data on the redis server.
 
 Python can also be used to do computations. Some user-friendly wrappers are
-provided in ~reduce()~ and ~map()~. Here we apply ~a_python_function~
+provided in ~reduce()~ and ~morph()~. Here we apply ~a_python_function~
 directly to the output of grep above,
 #+BEGIN_SRC python
       def uncap(arg: bytes) -> bytes:
           return arg.decode().lower().encode()
 
-      from funsies import map, take
-      t3 = map(uncap, t2.stdout)
+      from funsies import morph, take
+      t3 = morph(uncap, t2.stdout)
 #+END_SRC
 The result in ~t3~ is now in lowercase. Once the workflow has been executed, it
 becomes retrievable using ~take().~
