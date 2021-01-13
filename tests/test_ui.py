@@ -111,3 +111,12 @@ def test_tag_artefact() -> None:
         ui.tag("tag2", dat)
 
         run_op(db, morph.parent)
+
+
+def test_mapping() -> None:
+    """Test the mapping() function."""
+    with Fun(Redis()) as db:
+        dat = ui.put("bla bla")
+        m = ui.mapping(lambda x: x.decode().upper().encode(), dat, noutputs=1)[0]
+        run_op(db, m.parent)
+        assert ui.take(m) == b"BLA BLA"

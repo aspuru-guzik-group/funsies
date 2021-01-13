@@ -93,6 +93,8 @@ def test_integration(reference: str, nworkers: int) -> None:
             with open(os.path.join(ref_dir, reference, "test1"), "rb") as f:
                 data = f.read()
 
+            print(take(merge))
+
             assert take(merge) == data
 
     # stop db

@@ -3,6 +3,7 @@
 import os
 import time
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterable,
@@ -11,6 +12,7 @@ from typing import (
     Mapping,
     Optional,
     overload,
+    Tuple,
     Union,
 )
 
@@ -176,14 +178,19 @@ def shell(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Data transformers
-def reduce(  # noqa:C901
-    fun: Callable[..., bytes],
+# class __LaxMapping(Protocol):
+#     def __call__(
+
+
+def mapping(  # noqa:C901
+    fun: Callable,
     *inp: Union[Artefact, str, bytes],
+    noutputs: int,
     name: Optional[str] = None,
     strict: bool = True,
     connection: Optional[Redis] = None,
-) -> Artefact:
-    """Add to call graph a function that reduce multiple artefacts."""
+) -> Tuple[Artefact, ...]:
+    """Add to the execution graph a general n->m function."""
     db = get_db(connection)
     arg_names = []
     inputs = {}
@@ -194,63 +201,82 @@ def reduce(  # noqa:C901
         else:
             inputs[arg_names[-1]] = put(arg, connection=db)
 
-    if name is not None:
-        red_name = name
+    # output slots
+    if noutputs == 1:
+        outputs = ["out"]  # for legacy reasons
     else:
-        red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
+        outputs = [f"out{k}" for k in range(noutputs)]
+
+    if name is not None:
+        fun_name = name
+    else:
+        fun_name = f"mapping_{len(inp)}:{fun.__qualname__}"
 
     # This copy paste is a MyPy exclusive! :S
     if strict:
 
-        def sreducer(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+        def strict_map(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
-            return dict(out=fun(*args))
+            out = fun(*args)
+            if noutputs == 1:
+                out = (out,)
+            return dict(zip(outputs, out))
 
-        funsie = python_funsie(sreducer, arg_names, ["out"], name=red_name, strict=True)
+        funsie = python_funsie(
+            strict_map, arg_names, outputs, name=fun_name, strict=True
+        )
     else:
 
-        def reducer(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
+        def lax_map(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
-            return dict(out=fun(*args))
+            out = fun(*args)
+            if noutputs == 1:
+                out = (out,)
+            return dict(zip(outputs, out))
 
-        funsie = python_funsie(reducer, arg_names, ["out"], name=red_name, strict=False)
+        funsie = python_funsie(lax_map, arg_names, outputs, name=fun_name, strict=False)
 
     operation = make_op(db, funsie, inputs)
-    return get_artefact(db, operation.out["out"])
-
-
-__lax_morph = Callable[[Result[bytes]], bytes]
-__strict_morph = Callable[[bytes], bytes]
-
-
-# fmt:off
-@overload
-def morph(fun: Union[__strict_morph, __lax_morph], inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[True] = True, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
-
-
-@overload
-def morph(fun: __lax_morph, inp: Union[Artefact, str, bytes], *, name: Optional[str] = None, strict: Literal[False] = False, connection: Optional[Redis]=None) -> Artefact: ...  # noqa
-# fmt:on
+    return tuple([get_artefact(db, operation.out[o]) for o in outputs])
 
 
 def morph(
-    fun: Union[__lax_morph, __strict_morph],
+    fun: Callable,
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
     strict: bool = True,
     connection: Optional[Redis] = None,
 ) -> Artefact:
-    """Add to call graph a function that transforms a single artefact."""
+    """Add to call graph a one-to-one python function."""
     if name is not None:
         morpher_name = name
     else:
         morpher_name = f"morph:{fun.__qualname__}"
 
-    # It's really just another name for a 1-input reduction
-    return reduce(fun, inp, name=morpher_name, strict=strict, connection=connection)
+    # It's really just another name for a 1-input mapping
+    return mapping(
+        fun, inp, noutputs=1, name=morpher_name, strict=strict, connection=connection
+    )[0]
+
+
+def reduce(
+    fun: Callable,
+    *inp: Union[Artefact, str, bytes],
+    name: Optional[str] = None,
+    strict: bool = True,
+    connection: Optional[Redis] = None,
+) -> Artefact:
+    """Add to call graph a many-to-one python function."""
+    if name is not None:
+        red_name = name
+    else:
+        red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
+    return mapping(
+        fun, *inp, noutputs=1, name=red_name, strict=strict, connection=connection
+    )[0]
 
 
 # --------------------------------------------------------------------------------
