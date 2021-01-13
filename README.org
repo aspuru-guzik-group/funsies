@@ -15,26 +15,24 @@ can be locally installed in anaconda,
 Then, the workflow can be built and registered in the Redis database entirely
 in python,
 #+BEGIN_SRC python
-  from funsies import shell
-  from redis import Redis
-
-  db = Redis()
+  from funsies import shell, Fun
 
   # load some parameters
   with open('params.in','rb') as f:
-      parameters = f.read
+      parameters = f.read()
 
-  # make the first job
-  t1 = shell(db, "qchem params.in",
-            inp={"file.in": parameters}, out=["params.out"])
+  with Fun():
+      t1 = shell("qchem params.in",
+                 inp={"file.in": parameters}, out=["params.out"])
+
 #+END_SRC
 ~shell()~ make simple shell commands with explicit input and output files. All
-input and output files are automatically saved in Redis.
+input and output files are automatically saved in Redis. The ~Fun(connection)~
+context sets up the connection to Redis (by default, on localhost).
 
 Chaining shell commands is simple,
 #+BEGIN_SRC python
   t2 = shell(
-      db,
       ['grep "HOMO-LUMO ENERGY" myfile'],
       inp={"myfile": t1.out["params.out"]},
   )
@@ -45,14 +43,14 @@ because the "files" are not actual populated values but pointers to (currently
 absent) data on the redis server.
 
 Python can also be used to do computations. Some user-friendly wrappers are
-provided in ~morph()~, ~reduce()~ and ~map()~. Here we apply ~a_python_function~
+provided in ~reduce()~ and ~morph()~. Here we apply ~a_python_function~
 directly to the output of grep above,
 #+BEGIN_SRC python
-  def uncap(arg: bytes) -> bytes:
-      return arg.decode().lower().encode()
+      def uncap(arg: bytes) -> bytes:
+          return arg.decode().lower().encode()
 
-  from funsies import morph, take
-  t3 = morph(db, uncap, t2.stdout)
+      from funsies import morph, take
+      t3 = morph(uncap, t2.stdout)
 #+END_SRC
 The result in ~t3~ is now in lowercase. Once the workflow has been executed, it
 becomes retrievable using ~take().~
@@ -72,13 +70,13 @@ Once a workflow is setup in python, the ~execute~ function applied to any of the
 workflow's object (from ~shell()~ etc.) will enqueue the entire DAG required to
 compute the object. It's as simple as doing,
 #+BEGIN_SRC python
-  import rq
-  queue = rq.Queue(connection=db)
-  execute(db, queue, t3)
+      # still in the same context.
+      execute(t3)
 #+END_SRC
-Note that no dependency that has already been computed is ever recomputed.
-Thus, ~execute()~ can be used to re-run only data analysis routines (that change
-often) without re-running any simulations.
+This will enqueue all the required jobs in the Redis Queue. Note that no
+dependency that has already been computed is ever recomputed. Thus, ~execute()~
+can be used to re-run only data analysis routines (that change often) without
+re-running any simulations.
 
 ** Results, memoization and persistence
 The major advantage of using funsies is that it automatically and
@@ -99,28 +97,15 @@ database ~dump.db~ file to a local machine, start redis, and re-run the entire
 script with only this line added,
 #+BEGIN_SRC python
   from funsies import take
-  print(take(db, t3))
+  with Fun():
+      print(take(t3))
 #+END_SRC
 to print the result from ~t3~. If we additionally wanted to inspect the stdout
 from t1, we could add this at the end,
 #+BEGIN_SRC python
-  print(pull_file(db, t1.stdout))
+      print(take(t1.stdout))
 #+END_SRC
 No expensive computations are performed in either case.
-
-** Dashboard
-Currently running jobs can be inspected using [[https://github.com/Parallels/rq-dashboard][rq-dashboard]]. For HPC, this most
-readily done using a ssh tunnel. On a specific node with access to the Redis
-server (~${cluster_node}~ below), run the dashboard using
-#+BEGIN_SRC shell
-  rq-dashboard -u redis://${redis_server_url}:$port
-#+END_SRC
-On the local machine, run
-#+BEGIN_SRC shell
-  ssh -N -f -L 9181:${cluster_node}:9181 ${cluster_address}
-#+END_SRC
-to tunnel to the dashboard. If everything worked, the dashboard should be
-accessible using a browser pointed at address http://localhost:9181
 
 * Why not /x/ ?
 (where /x/ ∈ S, [[https://github.com/pditommaso/awesome-pipeline][awesome pipelining]] ∪ [[https://github.com/meirwah/awesome-workflow-engines][workflow codes]] ⊂ S)
@@ -130,9 +115,9 @@ typed, deployable on HPC resources (not dependent on docker, AWS, etc.) and
 (most importantly) with *reproducible, persistent memoization*.
 
 Funsies is specifically built for the kind of workflows common in
-computational chemistry. It is most similar to [[https://github.com/grailbio/reflow][reflow]], albeit in python
-instead of Go, and significantly simpler (and less robust / featureful of
-course).
+computational chemistry. It is most similar to [[https://github.com/grailbio/reflow][reflow]] and [[https://snakemake.readthedocs.io/en/stable/][snakemake]], albeit in
+python instead of Go, and significantly simpler (and less robust / featureful
+of course).
 - *Single source of truth*: In funsies, the script that generates the data also
   describes the data. While keeping code and data tightly coupled is often
   frowned upon, it ensures that there is no documentation that will go out of
@@ -150,7 +135,8 @@ course).
   obviously more robust, it is also much too cumbersome to setup. Similarly,
   extensive design of database schema is too unwieldy, even if it is by far
   the better solution. Funsies target instead the "file-driven databases" used
-  by academics that rapidly become unreadable, non-backed up messes (~expt_2020/jun/ParameterSearch3/alpha=0point3.csv~)
+  by academics that rapidly become unreadable, non-backed up messes
+  (~expt_2020/jun/ParameterSearch3/alpha=0point3.csv~)
 
 * Architecture
 ** Hash-based graph
@@ -195,13 +181,23 @@ the user.
 By completely abstracting away the filesystem, we ensure that every generated
 result is fully specified within the calculation workflow.
 
+** "Stateless" python code
+All computation state is stored in the Redis instance. This is critical in
+that it enables fully automatic checkpointing and remove the need for
+communication between nodes.
 
 
-
-* Future work
-This code works but it's not entirely production ready. This is a list of some
-action items that still need to be implemented: 
-- Include higher-order operations on "files" (joins / concats)
-- Build a CLI interface to look at files and graphs.
-- Add an elegant way to make dynamic workflow.
-- Make directories processable.
+* Extras
+** Dashboard
+Currently running jobs can be inspected using [[https://github.com/Parallels/rq-dashboard][rq-dashboard]]. For HPC, this most
+readily done using a ssh tunnel. On a specific node with access to the Redis
+server (~${cluster_node}~ below), run the dashboard using
+#+BEGIN_SRC shell
+  rq-dashboard -u redis://${redis_server_url}:$port
+#+END_SRC
+On the local machine, run
+#+BEGIN_SRC shell
+  ssh -N -f -L 9181:${cluster_node}:9181 ${cluster_address}
+#+END_SRC
+to tunnel to the dashboard. If everything worked, the dashboard should be
+accessible using a browser pointed at address http://localhost:9181

@@ -1,17 +1,19 @@
 """Install funsies."""
 import setuptools
 
-# TODO: FINISH
 setuptools.setup(
     name="funsies",
     version="0.1.0",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
-    description="TODO",
+    description="Funsies is an opinionated typed python library to build"
+    + " reproducible, composable and data-persistent computational workflows "
+    + "that are described entirely in Python.",
+    url="https://github.com/aspuru-guzik-group/funsies",
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
     # Dependencies
-    python_requries=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "redis",
         "msgpack",
@@ -20,7 +22,5 @@ setuptools.setup(
         'importlib-metadata ~= 1.0 ; python_version < "3.8"',
     ]
     # TODO
-    # long_description=long_description,
-    # long_description_content_type="text/markdown",
     # url="https://github.com/pypa/sampleproject",
 )
