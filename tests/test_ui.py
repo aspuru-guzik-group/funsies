@@ -1,6 +1,7 @@
 """Test of Funsies shell capabilities."""
 # std
 import tempfile
+from typing import Tuple
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -120,3 +121,12 @@ def test_mapping() -> None:
         m = ui.mapping(lambda x: x.decode().upper().encode(), dat, noutputs=1)[0]
         run_op(db, m.parent)
         assert ui.take(m) == b"BLA BLA"
+
+        def switch(x: bytes, y: bytes, z: bytes) -> Tuple[bytes, bytes]:
+            return z + y, z + x
+
+        m1, m2 = ui.mapping(switch, dat, m, "k", noutputs=2)
+        run_op(db, m1.parent)
+
+        assert ui.take(m1) == b"kBLA BLA"
+        assert ui.take(m2) == b"kbla bla"

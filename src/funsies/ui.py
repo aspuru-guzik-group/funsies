@@ -3,7 +3,6 @@
 import os
 import time
 from typing import (
-    Any,
     Callable,
     Dict,
     Iterable,
@@ -183,7 +182,7 @@ def shell(  # noqa:C901
 
 
 def mapping(  # noqa:C901
-    fun: Callable,
+    fun: Callable,  # type:ignore
     *inp: Union[Artefact, str, bytes],
     noutputs: int,
     name: Optional[str] = None,
@@ -243,7 +242,7 @@ def mapping(  # noqa:C901
 
 
 def morph(
-    fun: Callable,
+    fun: Callable,  # type:ignore
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
@@ -263,7 +262,7 @@ def morph(
 
 
 def reduce(
-    fun: Callable,
+    fun: Callable,  # type:ignore
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
     strict: bool = True,
