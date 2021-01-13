@@ -11,7 +11,18 @@ import pytest
 
 # module
 import funsies
-from funsies import execute, Fun, morph, put, reduce, shell, tag, take, wait_for
+from funsies import (
+    execute,
+    Fun,
+    mapping,
+    morph,
+    put,
+    reduce,
+    shell,
+    tag,
+    take,
+    wait_for,
+)
 
 
 def join_bytes(*args: bytes) -> bytes:
@@ -62,9 +73,11 @@ def test_integration(reference: str, nworkers: int) -> None:
             echo.stdouts[1],
             name="merger",
         )
+        estdout, merge = mapping(
+            lambda x, y: (y, x), merge, echo.stdouts[1], noutputs=2
+        )
 
-        execute(echo)
-        execute(merge)
+        execute(estdout)
         wait_for(merge, timeout=10.0)
 
         # stop workers
