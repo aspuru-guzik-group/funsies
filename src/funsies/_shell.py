@@ -1,6 +1,5 @@
 """Run shell commands using funsies."""
 # std
-import logging
 import os
 import subprocess
 import tempfile
@@ -12,6 +11,7 @@ from msgpack import packb, unpackb
 # module
 from ._funsies import Funsie, FunsieHow
 from .errors import Result
+from .logging import logger
 
 # Special namespaced "files"
 SPECIAL = "__special__"
@@ -84,6 +84,6 @@ def run_shell_funsie(  # noqa:C901
                     with open(os.path.join(dir, file), "rb") as f:
                         out[file] = f.read()
                 except FileNotFoundError:
-                    logging.warning(f"expected file {file}, but didn't find it")
+                    logger.warning(f"expected file {file}, but didn't find it")
                     out[file] = None
     return out

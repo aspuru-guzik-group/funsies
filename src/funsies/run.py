@@ -1,7 +1,6 @@
 """Functions for describing redis-backed DAGs."""
 # std
 from enum import IntEnum
-import logging
 from typing import Dict
 
 # external
@@ -22,6 +21,7 @@ from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
 from .constants import hash_t, SREADY, SRUNNING
 from .errors import Error, ErrorKind, Result
+from .logging import logger
 
 # Dictionary of runners
 RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
@@ -61,7 +61,7 @@ def run_op(  # noqa:C901
     val: int = db.smove(SREADY, SRUNNING, address)  # type:ignore
     if val == 0:
         # job is NOT ready. return.
-        logging.info(f"op skipped: {address} is being processed elsewhere")
+        logger.info(f"op skipped: {address} is being processed elsewhere")
         return RunStatus.not_ready
 
     # load the operation
@@ -78,7 +78,7 @@ def run_op(  # noqa:C901
             break
     else:
         # All outputs are ok. We exit this run.
-        logging.info(f"op skipped: {address} has cached results")
+        logger.info(f"op skipped: {address} has cached results")
         __make_ready(db, address)
         return RunStatus.using_cached
 
@@ -90,7 +90,7 @@ def run_op(  # noqa:C901
         stat = get_status(db, val)
         if stat <= ArtefactStatus.no_data:
             # One of the inputs is not processed yet, we return.
-            logging.info(f"op skipped: {address} has unmet dependencies.")
+            logger.info(f"op skipped: {address} has unmet dependencies.")
             __make_ready(db, address)
             return RunStatus.unmet_dependencies
 
@@ -105,17 +105,17 @@ def run_op(  # noqa:C901
         dat = get_data(db, artefact, source=address)
         if isinstance(dat, Error):
             if funsie.options_ok:
-                logging.warning(f"input {key} to error-tolerant funsie has errors.")
+                logger.warning(f"input {key} to error-tolerant funsie has errors.")
                 input_data[key] = dat
             else:
-                logging.error(f"input {key} to error-fragile funsie has errors.")
+                logger.error(f"input {key} to error-fragile funsie has errors.")
                 # forward errors and stop
                 for val in op.out.values():
                     mark_error(db, val, dat)
         else:
             input_data[key] = dat
 
-    logging.info(f"op running: {address}")
+    logger.info(f"op running: {address}")
     try:
         out_data = runner(funsie, input_data)
     except Exception as e:
@@ -133,7 +133,7 @@ def run_op(  # noqa:C901
     for key, val in out_data.items():
         artefact = get_artefact(db, op.out[key])
         if val is None:
-            logging.warning(f"{address} -> missing output data for {key}")
+            logger.warning(f"{address} -> missing output data for {key}")
             mark_error(
                 db,
                 artefact.hash,

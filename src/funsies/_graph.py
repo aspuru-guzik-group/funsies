@@ -3,7 +3,6 @@
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
-import logging
 from typing import Dict, Optional, Type
 
 # external
@@ -24,6 +23,7 @@ from .constants import (
     TAGS_SET,
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
+from .logging import logger
 
 
 # --------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ def mark_done(db: Redis, address: hash_t) -> None:
     assert is_artefact(db, address)
     old = get_status(db, address)
     if old == 2:
-        logging.warning("attempted to mark done a const artefact.")
+        logger.warning("attempted to mark done a const artefact.")
     elif old == 0:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
 
@@ -87,7 +87,7 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
     assert is_artefact(db, address)
     old = get_status(db, address)
     if old == 2:
-        logging.warning("attempted to mark in error a const artefact.")
+        logger.warning("attempted to mark in error a const artefact.")
     elif old == 0:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
         set_error(db, address, error)
@@ -165,7 +165,7 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
         node.pack(),
     )
     if val != 1:
-        logging.debug(f"Const artefact at {h} already exists.")
+        logger.debug(f"Const artefact at {h} already exists.")
     # store the artefact data
     _ = store.hset(
         STORE,
@@ -201,7 +201,7 @@ def variable_artefact(store: Redis, parent_hash: hash_t, name: str) -> Artefact:
     )
 
     if val != 1:
-        logging.debug(
+        logger.debug(
             f'Artefact with parent {parent_hash} and name "{name}" already exists.'
         )
     return node
