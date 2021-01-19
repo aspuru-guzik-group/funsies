@@ -1,4 +1,4 @@
-"""Test of Funsies shell capabilities."""
+"""Test of Funsies python functions capabilities."""
 # std
 from typing import Dict
 
@@ -27,20 +27,3 @@ def test_fun_run() -> None:
     out = p.run_python_funsie(cmd, inp)
     assert out["in"] == b"BLA BLA BLA"
     assert out["out"] is None
-
-
-# def test_shell_run() -> None:
-#     """Test the instantiation of a Funsie class."""
-#     cmd = s.shell_funsie(["cat file1"], ["file1"], [])
-#     inp = {"file1": b"bla bla"}
-#     out = s.run_shell_funsie(cmd, inp)
-#     assert out[f"{s.STDOUT}0"] == b"bla bla"
-
-
-# def test_shell_cp() -> None:
-#     """Test the instantiation of a Funsie class."""
-#     cmd = s.shell_funsie(["cp file1 file2"], ["file1"], ["file2"])
-#     inp = {"file1": b"bla bla"}
-#     out = s.run_shell_funsie(cmd, inp)
-#     assert out[f"{s.STDOUT}0"] == b""
-#     assert out["file2"] == b"bla bla"

@@ -1,4 +1,4 @@
-"""Test of Funsies shell capabilities."""
+"""Test of Funsies user routines."""
 # std
 import tempfile
 from typing import Tuple
