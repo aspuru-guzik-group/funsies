@@ -14,9 +14,10 @@ from .context import get_db
 from .errors import UnwrapError
 from .ui import _AnyPath, ShellOutput, take, takeout
 
+
 # ----------------------------------------------------------------------
 # Debugging functions
-def debug_shell(
+def debug_shell(  # noqa:C901
     shell_output: ShellOutput, directory: _AnyPath, connection: Optional[Redis] = None
 ) -> None:
     """Extract all the files and outputs of a shell function to a directory."""

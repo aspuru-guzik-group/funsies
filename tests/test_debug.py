@@ -1,6 +1,6 @@
 """Test debugging functions."""
-import tempfile
 import os.path
+import tempfile
 
 # external
 from fakeredis import FakeStrictRedis as Redis
