@@ -1,6 +1,5 @@
 """Run shell commands using funsies."""
 # std
-import logging
 from typing import Callable, Dict, Literal, Mapping, Optional, overload, Sequence, Union
 
 # external
@@ -9,6 +8,7 @@ import cloudpickle
 # module
 from ._funsies import Funsie, FunsieHow
 from .errors import Result
+from .logging import logger
 
 # types
 pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
@@ -87,7 +87,7 @@ def run_python_funsie(
         if output in outfun:
             out[output] = outfun[output]
         else:
-            logging.error(f"expected output {output} not returned by function {name}.")
+            logger.error(f"expected output {output} not returned by function {name}.")
             out[output] = None
 
     return out

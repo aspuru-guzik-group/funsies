@@ -3,7 +3,6 @@
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
-import logging
 from typing import Dict, List, Mapping, Optional, Tuple, Type
 
 # external
@@ -13,6 +12,7 @@ from redis import Redis
 # module
 from .constants import FUNSIES, hash_t
 from .errors import Error, ErrorKind, Result
+from .logging import logger
 
 
 # --------------------------------------------------------------------------------
@@ -81,16 +81,16 @@ class Funsie:
                 val = actual[key]
                 if isinstance(val, Error):
                     if self.options_ok:
-                        logging.warning(f"errored {key} ignored.")
+                        logger.warning(f"errored {key} ignored.")
                         errors[key] = val
                     else:
-                        logging.error(f"{key} is in error.")
+                        logger.error(f"{key} is in error.")
                         raise RuntimeError()
                 else:
                     # all good: value exists, and is not Error
                     output[key] = val
             else:
-                logging.error(f"{key} not found.")
+                logger.error(f"{key} not found.")
                 if self.options_ok:
                     errors[key] = Error(
                         kind=ErrorKind.MissingInput,

@@ -1,6 +1,5 @@
 """DAG related utilities."""
 # std
-import logging
 from typing import Any, Dict, Optional, Set, Union
 
 # external
@@ -12,6 +11,7 @@ from rq.queue import Queue
 from ._graph import Artefact, get_artefact, get_op, Operation
 from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
 from .context import get_db
+from .logging import logger
 from .run import run_op, RunStatus
 from .ui import ShellOutput
 
@@ -107,7 +107,7 @@ def rq_eval(
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
     # load database
-    logging.debug(f"executing {current} on worker.")
+    logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()
     db: Redis = job.connection
 

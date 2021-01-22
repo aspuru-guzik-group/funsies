@@ -61,6 +61,7 @@ def test_error_propagation() -> None:
         funsies.run_op(db, s1.op.hash)
         funsies.run_op(db, s2.op.hash)
         out = funsies.take(s2.stdout, strict=False)
+        print(out)
         assert isinstance(out, funsies.Error)
         assert out.source == s1.op.hash
 
