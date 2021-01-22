@@ -6,7 +6,7 @@ import time
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import dag, Fun, morph, put, shell, take
+from funsies import dag, Fun, morph, put, rm, shell, take
 
 
 def test_dag_build() -> None:
@@ -62,3 +62,38 @@ def test_dag_execute2() -> None:
         dag.execute(output, queue_args=dict(is_async=False))
         out = take(output)
         assert out == b"bla\nBLA BLAbla bla"
+
+
+def test_dag_rm() -> None:
+    """Test re-execution of a dag when data is deleted."""
+
+    # specifically, this checks for the expected behaviour: only the rm-ed
+    # data is re-executed but none of its dependencies. This is weird, but
+    # it's the only way to keep DAGs side effect free.
+    from random import random, seed
+
+    def __r(dat: bytes) -> bytes:
+        seed()
+        return dat + f"{random()}".encode()
+
+    with Fun(Redis()):
+        dat = put("bla bla")
+        step1 = morph(__r, dat)
+        step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
+        output = step2.stdout
+        dag.execute(output, queue_args=dict(is_async=False))
+
+        out1 = take(output)
+        rnd1 = take(step1)
+
+        dag.execute(output, queue_args=dict(is_async=False))
+        out2 = take(output)
+        assert out1 == out2
+
+        rm(step1)
+        dag.execute(output, queue_args=dict(is_async=False))
+        rnd2 = take(step1)
+
+        out2 = take(output)
+        assert out1 == out2
+        assert rnd1 != rnd2
