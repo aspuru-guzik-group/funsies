@@ -36,6 +36,7 @@ class RunStatus(IntEnum):
     # > 0 -> executed, can run dependents.
     executed = 1
     using_cached = 2
+    input_error = 4
 
 
 def __make_ready(db: Redis, address: hash_t) -> None:
@@ -112,6 +113,7 @@ def run_op(  # noqa:C901
                 # forward errors and stop
                 for val in op.out.values():
                     mark_error(db, val, dat)
+                return RunStatus.input_error
         else:
             input_data[key] = dat
 

@@ -31,6 +31,7 @@ from .logging import logger
 class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
+    deleted = -10
     no_data = 0
     # > absent  =  artefact has been computed
     done = 1
@@ -76,19 +77,29 @@ def mark_done(db: Redis, address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
     old = get_status(db, address)
-    if old == 2:
-        logger.warning("attempted to mark done a const artefact.")
-    elif old == 0:
+    if old == ArtefactStatus.const:
+        logger.error("attempted to mark done a const artefact.")
+    else:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
+
+
+def mark_deleted(db: Redis, address: hash_t) -> None:
+    """Set the status of a given operation or artefact."""
+    assert is_artefact(db, address)
+    old = get_status(db, address)
+    if old == ArtefactStatus.const:
+        logger.error("attempted to mark deleted a const artefact.")
+    else:
+        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
 
 
 def mark_error(db: Redis, address: hash_t, error: Error) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
     old = get_status(db, address)
-    if old == 2:
-        logger.warning("attempted to mark in error a const artefact.")
-    elif old == 0:
+    if old == ArtefactStatus.const:
+        logger.error("attempted to mark in error a const artefact.")
+    else:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
         set_error(db, address, error)
 
@@ -113,7 +124,7 @@ def get_data(
     elif stat <= ArtefactStatus.no_data:
         return Error(
             kind=ErrorKind.NotFound,
-            details="No data associated with artefact.",
+            details=f"No data associated with artefact: {stat}.",
             source=source,
         )
     else:
@@ -127,6 +138,19 @@ def get_data(
         return valb
 
 
+def rm_data(store: Redis, artefact: Artefact) -> None:
+    """Delete data associated with an artefact."""
+    stat = get_status(store, artefact.hash)
+    if stat == ArtefactStatus.const:
+        raise TypeError("Attempted to remove data of a const artefact.")
+
+    _ = store.hdel(
+        STORE,
+        artefact.hash,
+    )
+    mark_deleted(store, artefact.hash)
+
+
 def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     """Update an artefact with a value."""
     stat = get_status(store, artefact.hash)
@@ -138,8 +162,6 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
         artefact.hash,
         value,
     )
-    # value of None means that the data was not obtained but is actually
-    # "ready" so to speak.
     mark_done(store, artefact.hash)
 
 
