@@ -1,7 +1,7 @@
 """Some useful functions for workflows."""
 # std
-from typing import Callable, List, Optional, Sequence, TypeVar, Union
 import pickle
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
@@ -52,8 +52,10 @@ def concat(
     return reduce(concatenation, join, *inp, strict=strict, connection=connection)
 
 
-def pickled(fun):
-    def fun2(*inp):
+def pickled(fun: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap a function so that args and return values are automatically pickled."""
+
+    def pickled_fun(*inp: bytes) -> Any:
         unpickled = []
         for i in inp:
             try:
@@ -67,5 +69,5 @@ def pickled(fun):
         else:
             return pickle.dumps(out)
 
-    fun2.__qualname__ = fun.__qualname__ + "_pickled"
-    return fun2
+    pickled_fun.__qualname__ = fun.__qualname__ + "_pickled"
+    return pickled_fun

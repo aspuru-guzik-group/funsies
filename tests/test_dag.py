@@ -66,7 +66,6 @@ def test_dag_execute2() -> None:
 
 def test_dag_rm() -> None:
     """Test re-execution of a dag when data is deleted."""
-
     # specifically, this checks for the expected behaviour: only the rm-ed
     # data is re-executed but none of its dependencies. This is weird, but
     # it's the only way to keep DAGs side effect free.
