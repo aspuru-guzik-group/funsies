@@ -1,13 +1,13 @@
 """Test of Funsies utility functions."""
 # std
 import pickle
-from typing import List, Union
+from typing import List, Tuple, Union
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import errors, Fun, morph, put, mapping, run_op, take, utils
+from funsies import errors, Fun, mapping, morph, put, run_op, take, utils
 
 
 def test_concat() -> None:
@@ -54,7 +54,7 @@ def test_pickled() -> None:
         run_op(db, out.parent)
         assert pickle.loads(take(out)) == "BLAbla"
 
-        def sum_integers(*integers: Union[int, bytes]) -> int:
+        def sum_integers(*integers: Union[int, bytes]) -> Tuple[int, int]:
             out1 = [i for i in integers if isinstance(i, int)]
             out2 = [int(b.decode()) for b in integers if isinstance(b, bytes)]
             return sum(out1), sum(out2)
