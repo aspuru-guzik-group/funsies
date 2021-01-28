@@ -10,6 +10,7 @@ from rq.local import LocalStack
 
 # module
 from .logging import logger
+from .options import Options
 
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()
@@ -42,10 +43,10 @@ def Fun(connection: Optional[Redis] = None) -> Iterator[Redis]:
 
 def get_db(db: Optional[Redis] = None) -> Redis:
     """Get Redis instance."""
-    if db is not None:
+    if isinstance(db, Redis):
         # explicit redis instance
         return db
-    else:
+    elif db is None:
         if _connect_stack.top is not None:
             # try context instance
             out: Redis = _connect_stack.top
@@ -55,3 +56,13 @@ def get_db(db: Optional[Redis] = None) -> Redis:
             return out2
         else:
             raise RuntimeError("No redis instance available.")
+    else:
+        raise TypeError(f"object {db} not of type Optional[Redis]")
+
+
+def get_options(opt: Optional[Options] = None) -> Options:
+    """Get Options instance."""
+    if opt is not None:
+        return opt
+    else:
+        return Options()

@@ -34,8 +34,9 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
 from .constants import hash_t
-from .context import get_db
+from .context import get_db, get_options
 from .errors import Result, unwrap
+from .options import Options
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -114,6 +115,7 @@ def shell(  # noqa:C901
     out: _OUT_FILES = None,
     env: Optional[Dict[str, str]] = None,
     strict: bool = True,
+    opt: Optional[Options] = None,
     connection: Optional[Redis] = None,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
@@ -130,8 +132,8 @@ def shell(  # noqa:C901
         inp: Input files for task.
         out: Output files for task.
         env: Environment variables to be set.
-        strict: Error propagation flag.
-        connection: An optional Redis instance.
+        strict: Whether this command should still run even if inputs are errored.
+        opt: An Options instance.
 
     Returns:
         A Task object.
@@ -140,6 +142,7 @@ def shell(  # noqa:C901
         TypeError: when types of arguments are wrong.
 
     """
+    opt = get_options(opt)
     db = get_db(connection)
 
     # Parse args --------------------------------------------
@@ -188,9 +191,11 @@ def mapping(  # noqa:C901
     noutputs: int,
     name: Optional[str] = None,
     strict: bool = True,
+    opt: Optional[Options] = None,
     connection: Optional[Redis] = None,
 ) -> Tuple[Artefact, ...]:
     """Add to the execution graph a general n->m function."""
+    opt = get_options(opt)
     db = get_db(connection)
     arg_names = []
     inputs = {}
@@ -243,11 +248,12 @@ def mapping(  # noqa:C901
 
 
 def morph(
-    fun: Callable,  # type:ignore
+    fun: Callable[[bytes], bytes],
     inp: Union[Artefact, str, bytes],
     *,
     name: Optional[str] = None,
     strict: bool = True,
+    opt: Optional[Options] = None,
     connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a one-to-one python function."""
@@ -257,16 +263,15 @@ def morph(
         morpher_name = f"morph:{fun.__qualname__}"
 
     # It's really just another name for a 1-input mapping
-    return mapping(
-        fun, inp, noutputs=1, name=morpher_name, strict=strict, connection=connection
-    )[0]
+    return mapping(fun, inp, noutputs=1, name=morpher_name, strict=strict, opt=opt)[0]
 
 
 def reduce(
-    fun: Callable,  # type:ignore
+    fun: Callable[..., bytes],
     *inp: Union[Artefact, str, bytes],
     name: Optional[str] = None,
     strict: bool = True,
+    opt: Optional[Options] = None,
     connection: Optional[Redis] = None,
 ) -> Artefact:
     """Add to call graph a many-to-one python function."""
@@ -274,9 +279,7 @@ def reduce(
         red_name = name
     else:
         red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
-    return mapping(
-        fun, *inp, noutputs=1, name=red_name, strict=strict, connection=connection
-    )[0]
+    return mapping(fun, *inp, noutputs=1, name=red_name, strict=strict, opt=opt)[0]
 
 
 # --------------------------------------------------------------------------------
