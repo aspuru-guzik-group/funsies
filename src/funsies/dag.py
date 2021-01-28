@@ -8,7 +8,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import Artefact, get_artefact, get_op, Operation
+from ._graph import Artefact, get_artefact, get_op, get_op_options, Operation
 from .constants import DAG_STORE, hash_t
 from .context import get_db
 from .logging import logger
@@ -112,16 +112,15 @@ def rq_eval(
     # Load operation
     op = get_op(db, current)
 
-    # load current queue
-    queue = Queue(connection=job.connection, **op.opt.queue_args)
-
     # Now we run the job
     stat = run_op(db, op)
 
     if stat > 0:
         # Success! Let's enqueue dependents.
         for element in __dag_dependents(db, dag_of, current):
-            queue.enqueue_call(rq_eval, args=(dag_of, element), **op.opt.job_args)
+            options = get_op_options(db, element)
+            queue = Queue(connection=db, **options.queue_args)
+            queue.enqueue_call(rq_eval, args=(dag_of, element), **options.job_args)
 
     return stat
 
@@ -150,5 +149,6 @@ def execute(
 
     # enqueue everything starting from root
     for element in __dag_dependents(db, dag_of, hash_t("root")):
-        # TODO FIX JOB_ARGS
-        queue.enqueue_call(rq_eval, args=(dag_of, element))  # ,**op.opt.job_args
+        options = get_op_options(db, element)
+        queue = Queue(connection=db, **options.queue_args)
+        queue.enqueue_call(rq_eval, args=(dag_of, element), **options.job_args)

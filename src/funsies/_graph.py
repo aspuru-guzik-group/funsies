@@ -11,11 +11,13 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, store_funsie
+from .config import Options
 from .constants import (
     ARTEFACTS,
     DATA_STATUS,
     hash_t,
     OPERATIONS,
+    OPTIONS,
     SREADY,
     SRUNNING,
     STORE,
@@ -24,7 +26,6 @@ from .constants import (
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
 from .logging import logger
-from .config import Options
 
 
 # --------------------------------------------------------------------------------
@@ -249,7 +250,6 @@ class Operation:
     funsie: hash_t
     inp: Dict[str, hash_t]
     out: Dict[str, hash_t]
-    opt: Options
 
     def pack(self: "Operation") -> bytes:
         """Pack an Operation to a bytestring."""
@@ -258,9 +258,7 @@ class Operation:
     @classmethod
     def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
         """Unpack an Operation from a byte string."""
-        d = unpackb(data)
-        d["opt"] = Options(**d["opt"])
-        return Operation(**d)
+        return Operation(**unpackb(data))
 
 
 def make_op(
@@ -299,7 +297,14 @@ def make_op(
         out_art[key] = variable_artefact(store, ophash, key).hash
 
     # Make the node
-    node = Operation(ophash, funsie.hash, inp_art, out_art, opt)
+    node = Operation(ophash, funsie.hash, inp_art, out_art)
+
+    # store the runtime options for the node
+    store.hset(
+        OPTIONS,
+        ophash,
+        opt.pack(),
+    )
 
     # store the node
     store.hset(
@@ -315,7 +320,7 @@ def make_op(
     return node
 
 
-def get_op(store: Redis, hash: str) -> Operation:
+def get_op(store: Redis, hash: hash_t) -> Operation:
     """Load an operation from Redis store."""
     # store the artefact
     out = store.hget(OPERATIONS, hash)
@@ -323,3 +328,13 @@ def get_op(store: Redis, hash: str) -> Operation:
         raise RuntimeError(f"Operation at {hash} could not be found.")
 
     return Operation.unpack(out)
+
+
+def get_op_options(store: Redis, hash: hash_t) -> Operation:
+    """Load an operation from Redis store."""
+    # store the artefact
+    out = store.hget(OPTIONS, hash)
+    if out is None:
+        raise RuntimeError(f"Options for operation at {hash} could not be found.")
+
+    return Options.unpack(out)

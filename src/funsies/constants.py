@@ -1,5 +1,5 @@
 """Names of stuff in the key value store."""
-from typing import Any, Dict, NewType
+from typing import NewType
 
 # Some types
 hash_t = NewType("hash_t", str)
@@ -8,6 +8,7 @@ hash_t = NewType("hash_t", str)
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
+OPTIONS = "funsies.runtime_options"
 STORE = "funsies.store"
 ERRORS = "funsies.errors"
 

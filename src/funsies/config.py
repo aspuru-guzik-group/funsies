@@ -1,7 +1,10 @@
 """Configuration dictionaries for jobs."""
 # std
-from dataclasses import dataclass
-from typing import Any, List, Mapping
+from dataclasses import asdict, dataclass
+from typing import Any, Mapping, Type
+
+# external
+from msgpack import packb, unpackb
 
 
 # Constants
@@ -12,7 +15,6 @@ ONE_MINUTE = 60.0
 @dataclass
 class Options:
     """Runtime options for a funsie.
-
 
     Options for the rq Job instance:
         - timeout: Max exec time for the job in seconds. Defaults to 24h.
@@ -50,3 +52,12 @@ class Options:
     def queue_args(self: "Options") -> Mapping[str, Any]:
         """Return a dictionary of arguments for rq.Queue."""
         return dict(is_async=self.distributed)
+
+    def pack(self: "Options") -> bytes:
+        """Pack an Options instance to a bytestring."""
+        return packb(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type["Options"], data: bytes) -> "Options":
+        """Unpack an Options instance from a byte string."""
+        return Options(**unpackb(data))
