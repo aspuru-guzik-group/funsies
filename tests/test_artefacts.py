@@ -56,4 +56,4 @@ def test_operation_pack() -> None:
     #     op = _graph.make_op(store, fun, {"infile": b})
 
     with pytest.raises(RuntimeError):
-        op = _graph.get_op(store, "b")
+        op = _graph.get_op(store, hash_t("b"))

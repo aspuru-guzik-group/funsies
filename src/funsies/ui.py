@@ -33,10 +33,10 @@ from ._graph import (
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie
+from .config import Options
 from .constants import hash_t
 from .context import get_db, get_options
 from .errors import Result, unwrap
-from .config import Options
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -133,6 +133,7 @@ def shell(  # noqa:C901
         out: Output files for task.
         env: Environment variables to be set.
         strict: Whether this command should still run even if inputs are errored.
+        connection: A Redis connection.
         opt: An Options instance.
 
     Returns:

@@ -330,7 +330,7 @@ def get_op(store: Redis, hash: hash_t) -> Operation:
     return Operation.unpack(out)
 
 
-def get_op_options(store: Redis, hash: hash_t) -> Operation:
+def get_op_options(store: Redis, hash: hash_t) -> Options:
     """Load an operation from Redis store."""
     # store the artefact
     out = store.hget(OPTIONS, hash)

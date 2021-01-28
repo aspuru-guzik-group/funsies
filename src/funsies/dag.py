@@ -1,6 +1,6 @@
 """DAG related utilities."""
 # std
-from typing import Any, Dict, Optional, Set, Union
+from typing import Optional, Set, Union
 
 # external
 from redis import Redis
@@ -16,16 +16,16 @@ from .run import run_op, RunStatus
 from .ui import ShellOutput
 
 
-def __set_as_str(db: Redis, key: str) -> Set[str]:
+def __set_as_str(db: Redis, key: str) -> Set[hash_t]:
     mem = db.smembers(key)
     out = set()
     for k in mem:
         if isinstance(k, bytes):
-            out.add(k.decode())
+            out.add(hash_t(k.decode()))
         elif isinstance(k, str):
-            out.add(k)
+            out.add(hash_t(k))
         else:
-            out.add(str(k))
+            out.add(hash_t(str(k)))
     return out
 
 
@@ -36,7 +36,7 @@ def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> N
     db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
 
 
-def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[str]:
+def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[hash_t]:
     """Get dependents of an op."""
     key = DAG_STORE + dag_of + "." + op_from
     return __set_as_str(db, key)
