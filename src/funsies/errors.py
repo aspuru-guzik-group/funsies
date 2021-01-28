@@ -35,6 +35,7 @@ class Error:
     kind: ErrorKind
     source: Optional[hash_t] = None
     details: Optional[str] = None
+    data: Optional[bytes] = None
 
 
 def set_error(db: Redis, address: hash_t, error: Error) -> None:
@@ -60,8 +61,8 @@ def unwrap(dat: Result[T]) -> T:
     if isinstance(dat, Error):
         raise UnwrapError(
             f"data is errored: kind={dat.kind}"
-            + f"\ndetails={dat.details}"
             + f"\nsource={dat.source}"
+            + f"\ndetails={dat.details}"
         )
     else:
         return dat

@@ -8,6 +8,9 @@ from redis import Redis
 import rq
 from rq.local import LocalStack
 
+# module
+from .logging import logger
+
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()
 
@@ -19,6 +22,7 @@ def Fun(connection: Optional[Redis] = None) -> Iterator[Redis]:
     """Context manager for redis connections."""
     if connection is None:
         connection = Redis()
+        logger.warning("Opening new redis connection with default settings...")
 
     _connect_stack.push(connection)
 

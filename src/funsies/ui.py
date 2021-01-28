@@ -364,28 +364,33 @@ def rm(
 
 
 def wait_for(
-    artefact: Union[Artefact, hash_t],
-    timeout: float = 120.0,
+    thing: Union[ShellOutput, Artefact, hash_t],
+    timeout: Optional[float] = None,
     connection: Optional[Redis] = None,
 ) -> None:
-    """Block until an artefact is computed."""
+    """Block until a thing is computed."""
     db = get_db(connection)
-    if isinstance(artefact, Artefact):
-        h = artefact.hash
+    if isinstance(thing, Artefact):
+        h = thing.hash
+    elif isinstance(thing, ShellOutput):
+        h = thing.stdouts[0].hash
     else:
-        h = artefact
+        h = thing
         assert is_artefact(db, h)
 
     t0 = time.time()
     while True:
         t1 = time.time()
-        if t1 - t0 > timeout:
-            raise RuntimeError("timed out.")
 
         stat = get_status(db, h)
         if stat > 0:
             return
 
+        if timeout is not None:
+            if t1 - t0 > timeout:
+                raise RuntimeError("timed out.")
+
+        # avoids hitting the DB way too often
         time.sleep(0.3)
 
 

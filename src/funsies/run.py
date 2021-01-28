@@ -1,6 +1,7 @@
 """Functions for describing redis-backed DAGs."""
 # std
 from enum import IntEnum
+import traceback
 from typing import Dict
 
 # external
@@ -120,14 +121,17 @@ def run_op(  # noqa:C901
     logger.info(f"op running: {address}")
     try:
         out_data = runner(funsie, input_data)
-    except Exception as e:
+    except Exception:
+        tb_exc = traceback.format_exc()
         # much trouble
         for val in op.out.values():
             mark_error(
                 db,
                 val,
                 error=Error(
-                    kind=ErrorKind.ExceptionRaised, source=address, details=str(e)
+                    kind=ErrorKind.ExceptionRaised,
+                    source=address,
+                    details=tb_exc,
                 ),
             )
         return RunStatus.executed

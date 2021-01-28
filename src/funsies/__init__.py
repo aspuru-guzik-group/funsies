@@ -1,4 +1,5 @@
 """Funsies is a transparently-memoized worfklow engine."""
+from . import utils
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from .constants import hash_t
@@ -53,6 +54,8 @@ __all__ = [
     "RunStatus",
     "Funsie",
     "FunsieHow",
+    # utils
+    "utils",
 ]
 
 # versioning information
