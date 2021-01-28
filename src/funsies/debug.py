@@ -17,7 +17,7 @@ from .ui import _AnyPath, ShellOutput, take, takeout
 
 # ----------------------------------------------------------------------
 # Debugging functions
-def debug_shell(  # noqa:C901
+def shell(  # noqa:C901
     shell_output: ShellOutput, directory: _AnyPath, connection: Optional[Redis] = None
 ) -> None:
     """Extract all the files and outputs of a shell function to a directory."""

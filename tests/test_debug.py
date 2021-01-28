@@ -6,8 +6,7 @@ import tempfile
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import run_op, shell
-from funsies.debug import debug_shell
+from funsies import debug, run_op, shell
 
 
 def test_shell_run() -> None:
@@ -17,7 +16,7 @@ def test_shell_run() -> None:
     _ = run_op(db, cmd.hash)
 
     with tempfile.TemporaryDirectory() as d:
-        debug_shell(cmd, d, connection=db)
+        debug.shell(cmd, d, connection=db)
         n = os.listdir(d)
         assert "stdout0" in n
         assert "stderr0" in n
@@ -34,7 +33,7 @@ def test_shell_norun() -> None:
     cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"], connection=db)
 
     with tempfile.TemporaryDirectory() as d:
-        debug_shell(cmd, d, connection=db)
+        debug.shell(cmd, d, connection=db)
         n = os.listdir(d)
         assert "input_files" in n
         assert "output_files" in n

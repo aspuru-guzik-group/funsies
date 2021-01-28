@@ -1,4 +1,5 @@
 """Funsies is a transparently-memoized worfklow engine."""
+from . import debug
 from . import utils
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
@@ -56,6 +57,7 @@ __all__ = [
     "FunsieHow",
     # utils
     "utils",
+    "debug",
 ]
 
 # versioning information
