@@ -51,6 +51,19 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
+def is_it_cached(db: Redis, op: Operation) -> bool:
+    """Check if an operation is fully cached and doesn't need to be recomputed."""
+    # We do this by checking whether all of it's outputs are already saved.
+    # This ensures that there is no mismatch between artefact statuses and the
+    # status of generating operations.
+    for val in op.out.values():
+        stat = get_status(db, val)
+        if stat <= ArtefactStatus.no_data:
+            return False
+    else:
+        return True
+
+
 def run_op(  # noqa:C901
     db: Redis, op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
@@ -73,14 +86,7 @@ def run_op(  # noqa:C901
 
     # Check if the current job needs to be done at all
     # ------------------------------------------------
-    # We do this by checking whether all of it's outputs are already saved.
-    # This ensures that there is no mismatch between artefact statuses and the
-    # status of generating functions.
-    for val in op.out.values():
-        stat = get_status(db, val)
-        if stat <= ArtefactStatus.no_data:
-            break
-    else:
+    if is_it_cached(db, op):
         # All outputs are ok. We exit this run.
         logger.info(f"op skipped: {op.hash} has cached results")
         __make_ready(db, op.hash)

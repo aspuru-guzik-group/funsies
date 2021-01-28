@@ -12,7 +12,7 @@ from ._graph import Artefact, get_artefact, get_op, get_op_options, Operation
 from .constants import DAG_STORE, hash_t
 from .context import get_db
 from .logging import logger
-from .run import run_op, RunStatus
+from .run import is_it_cached, run_op, RunStatus
 from .ui import ShellOutput
 
 
@@ -78,8 +78,14 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
     queue = [node]
-    while True:
+    while len(queue) != 0:
         curr = queue.pop()
+
+        if is_it_cached(db, curr):
+            # We don't need to run this because all of its outputs are cached
+            # anyway.
+            logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
+            continue
 
         # no dependency -> add as root
         if len(curr.inp) == 0:
@@ -94,8 +100,6 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
             else:
                 __dag_append(db, address, hash_t("root"), curr.hash)
 
-        if len(queue) == 0:
-            break
     return DAG_STORE + address
 
 

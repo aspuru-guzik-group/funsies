@@ -140,17 +140,18 @@ def get_data(
         return valb
 
 
-def rm_data(store: Redis, artefact: Artefact) -> None:
-    """Delete data associated with an artefact."""
-    stat = get_status(store, artefact.hash)
-    if stat == ArtefactStatus.const:
-        raise TypeError("Attempted to remove data of a const artefact.")
+# This introduces all kind of side-effects:
+# def rm_data(store: Redis, artefact: Artefact) -> None:
+#     """Delete data associated with an artefact."""
+#     stat = get_status(store, artefact.hash)
+#     if stat == ArtefactStatus.const:
+#         raise TypeError("Attempted to remove data of a const artefact.")
 
-    _ = store.hdel(
-        STORE,
-        artefact.hash,
-    )
-    mark_deleted(store, artefact.hash)
+#     _ = store.hdel(
+#         STORE,
+#         artefact.hash,
+#     )
+#     mark_deleted(store, artefact.hash)
 
 
 def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:

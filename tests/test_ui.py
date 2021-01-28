@@ -9,7 +9,6 @@ import pytest
 
 # module
 from funsies import _graph, Fun, run_op, ui
-from funsies.errors import UnwrapError
 
 
 def test_shell_run() -> None:
@@ -49,25 +48,25 @@ def test_store_cache() -> None:
         assert ui.take(s) == b"bla bla"
 
 
-def test_rm() -> None:
-    """Test rm."""
-    with Fun(Redis()) as db:
-        dat = ui.put("bla bla")
-        with pytest.raises(TypeError):
-            ui.rm(dat)
+# def test_rm() -> None:
+#     """Test rm."""
+#     with Fun(Redis()) as db:
+#         dat = ui.put("bla bla")
+#         with pytest.raises(TypeError):
+#             ui.rm(dat)
 
-        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
-        run_op(db, morph.parent)
-        assert ui.take(morph) == b"BLA BLA"
+#         morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
+#         run_op(db, morph.parent)
+#         assert ui.take(morph) == b"BLA BLA"
 
-        ui.rm(morph)
-        with pytest.raises(UnwrapError):
-            # deletion works
-            assert ui.take(morph) == b"BLA BLA"
+#         ui.rm(morph)
+#         with pytest.raises(UnwrapError):
+#             # deletion works
+#             assert ui.take(morph) == b"BLA BLA"
 
-        # re run
-        run_op(db, morph.parent)
-        assert ui.take(morph) == b"BLA BLA"
+#         # re run
+#         run_op(db, morph.parent)
+#         assert ui.take(morph) == b"BLA BLA"
 
 
 def test_morph() -> None:
