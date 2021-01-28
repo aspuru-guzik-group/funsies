@@ -1,5 +1,6 @@
 """Contextual DB usage."""
 # std
+from dataclasses import replace
 from contextlib import contextmanager
 from typing import Iterator, Optional
 
@@ -10,22 +11,29 @@ from rq.local import LocalStack
 
 # module
 from .logging import logger
-from .options import Options
+from .config import Options
 
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()
+_options_stack = LocalStack()
 
 
 # --------------------------------------------------------------------------------
 # Main DB context manager
 @contextmanager
-def Fun(connection: Optional[Redis] = None) -> Iterator[Redis]:
+def Fun(
+    connection: Optional[Redis] = None, defaults: Optional[Options] = None
+) -> Iterator[Redis]:
     """Context manager for redis connections."""
     if connection is None:
         connection = Redis()
         logger.warning("Opening new redis connection with default settings...")
 
+    if defaults is None:
+        defaults = Options()
+
     _connect_stack.push(connection)
+    _options_stack.push(defaults)
 
     # also push on rq
     # TODO maybe just use the RQ version of this?
@@ -65,4 +73,16 @@ def get_options(opt: Optional[Options] = None) -> Options:
     if opt is not None:
         return opt
     else:
-        return Options()
+        if _options_stack.top is not None:
+            return _options_stack.top
+        else:
+            raise RuntimeError("No Options instance available.")
+
+
+# TODO: Document better
+def options(**kwargs) -> Options:
+    """Set runtime options."""
+    if _options_stack.top is None:
+        return Options(**kwargs)
+    else:
+        return replace(_options_stack.top, **kwargs)

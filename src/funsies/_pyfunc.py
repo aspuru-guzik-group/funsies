@@ -67,7 +67,7 @@ def python_funsie(
         inp=list(inputs),
         out=list(outputs),
         aux=cloudpickle.dumps(fun),
-        options_ok=not strict,
+        error_tolerant=not strict,
     )
 
 

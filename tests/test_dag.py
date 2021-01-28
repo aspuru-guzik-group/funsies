@@ -6,7 +6,7 @@ import time
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import dag, Fun, morph, put, rm, shell, take
+from funsies import dag, Fun, morph, options, put, rm, shell, take
 
 
 def test_dag_build() -> None:
@@ -33,14 +33,14 @@ def test_dag_build() -> None:
 
 def test_dag_execute() -> None:
     """Test execution of a dag."""
-    with Fun(Redis()):
+    with Fun(Redis(), options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
 
         # make queue
-        dag.execute(output, queue_args=dict(is_async=False))
+        dag.execute(output)
         out = take(output)
         time.sleep(0.1)
         assert out == b"BLA BLAbla bla"
@@ -48,7 +48,7 @@ def test_dag_execute() -> None:
 
 def test_dag_execute2() -> None:
     """Test execution of a dag."""
-    with Fun(Redis()):
+    with Fun(Redis(), options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -59,7 +59,7 @@ def test_dag_execute2() -> None:
         output = final.stdout
 
         # make queue
-        dag.execute(output, queue_args=dict(is_async=False))
+        dag.execute(output)
         out = take(output)
         assert out == b"bla\nBLA BLAbla bla"
 
@@ -75,22 +75,22 @@ def test_dag_rm() -> None:
         seed()
         return dat + f"{random()}".encode()
 
-    with Fun(Redis()):
+    with Fun(Redis(), options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(__r, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
-        dag.execute(output, queue_args=dict(is_async=False))
+        dag.execute(output)
 
         out1 = take(output)
         rnd1 = take(step1)
 
-        dag.execute(output, queue_args=dict(is_async=False))
+        dag.execute(output)
         out2 = take(output)
         assert out1 == out2
 
         rm(step1)
-        dag.execute(output, queue_args=dict(is_async=False))
+        dag.execute(output)
         rnd2 = take(step1)
 
         out2 = take(output)

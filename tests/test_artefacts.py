@@ -8,6 +8,11 @@ import pytest
 # module
 from funsies import _funsies as f
 from funsies import _graph, errors, hash_t
+from funsies import options
+
+
+# defaults
+opt = options()
 
 
 def test_artefact_add() -> None:
@@ -38,13 +43,14 @@ def test_operation_pack() -> None:
         inp=["infile"],
         out=["out"],
     )
-    op = _graph.make_op(store, fun, {"infile": a})
+    op = _graph.make_op(store, fun, {"infile": a}, opt)
     op2 = _graph.get_op(store, op.hash)
     assert op == op2
 
     with pytest.raises(AttributeError):
-        op = _graph.make_op(store, fun, {})
+        op = _graph.make_op(store, fun, {}, opt)
 
+    # TODO?
     # b = _graph.store_explicit_artefact(store, b"bla bla")
     # with pytest.raises(TypeError):
     #     op = _graph.make_op(store, fun, {"infile": b})

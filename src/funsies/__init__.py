@@ -4,7 +4,7 @@ from . import utils
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from .constants import hash_t
-from .context import Fun
+from .context import Fun, options
 from .dag import execute
 from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
@@ -40,6 +40,8 @@ __all__ = [
     "execute",
     # error
     "unwrap",
+    # options
+    "options",
     # run
     "run_op",
     "RUNNERS",

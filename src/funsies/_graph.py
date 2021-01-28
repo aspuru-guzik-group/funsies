@@ -24,6 +24,7 @@ from .constants import (
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
 from .logging import logger
+from .config import Options
 
 
 # --------------------------------------------------------------------------------
@@ -248,6 +249,7 @@ class Operation:
     funsie: hash_t
     inp: Dict[str, hash_t]
     out: Dict[str, hash_t]
+    opt: Options
 
     def pack(self: "Operation") -> bytes:
         """Pack an Operation to a bytestring."""
@@ -256,10 +258,14 @@ class Operation:
     @classmethod
     def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
         """Unpack an Operation from a byte string."""
-        return Operation(**unpackb(data))
+        d = unpackb(data)
+        d["opt"] = Options(**d["opt"])
+        return Operation(**d)
 
 
-def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation:
+def make_op(
+    store: Redis, funsie: Funsie, inp: Dict[str, Artefact], opt: Options
+) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
@@ -293,7 +299,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
         out_art[key] = variable_artefact(store, ophash, key).hash
 
     # Make the node
-    node = Operation(ophash, funsie.hash, inp_art, out_art)
+    node = Operation(ophash, funsie.hash, inp_art, out_art, opt)
 
     # store the node
     store.hset(

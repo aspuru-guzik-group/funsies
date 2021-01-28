@@ -45,7 +45,7 @@ class Funsie:
     inp: List[str]
     out: List[str]
     aux: Optional[bytes] = None
-    options_ok: bool = False
+    error_tolerant: bool = False
 
     def __str__(self: "Funsie") -> str:
         """Get the string representation of a funsie."""
@@ -61,7 +61,7 @@ class Funsie:
         for key in sorted(self.out):
             out += f"    {key}\n"
 
-        if self.options_ok:
+        if self.error_tolerant:
             out += "  ERROR TOLERANT\n"
         # ==============================================================
         return out + "  ]"
@@ -80,7 +80,7 @@ class Funsie:
             if key in actual:
                 val = actual[key]
                 if isinstance(val, Error):
-                    if self.options_ok:
+                    if self.error_tolerant:
                         logger.warning(f"errored {key} ignored.")
                         errors[key] = val
                     else:
@@ -91,7 +91,7 @@ class Funsie:
                     output[key] = val
             else:
                 logger.error(f"{key} not found.")
-                if self.options_ok:
+                if self.error_tolerant:
                     errors[key] = Error(
                         kind=ErrorKind.MissingInput,
                         source=self.hash,

@@ -36,7 +36,7 @@ from ._shell import shell_funsie
 from .constants import hash_t
 from .context import get_db, get_options
 from .errors import Result, unwrap
-from .options import Options
+from .config import Options
 
 # Types
 _AnyPath = Union[str, os.PathLike]
@@ -175,7 +175,7 @@ def shell(  # noqa:C901
         outputs = [str(o) for o in out]
 
     funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env, strict=strict)
-    operation = make_op(db, funsie, inputs)
+    operation = make_op(db, funsie, inputs, opt)
     return ShellOutput(db, operation)
 
 
@@ -243,7 +243,7 @@ def mapping(  # noqa:C901
 
         funsie = python_funsie(lax_map, arg_names, outputs, name=fun_name, strict=False)
 
-    operation = make_op(db, funsie, inputs)
+    operation = make_op(db, funsie, inputs, opt)
     return tuple([get_artefact(db, operation.out[o]) for o in outputs])
 
 

@@ -21,7 +21,3 @@ SRUNNING = "funsies.jobs.running"
 
 # job descendants
 DAG_STORE = "funsies.dags."
-
-# RQ defaults
-RQ_JOB_DEFAULTS: Dict[str, Any] = dict()
-RQ_QUEUE_DEFAULTS: Dict[str, Any] = dict()
