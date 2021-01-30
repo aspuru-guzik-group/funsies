@@ -12,7 +12,7 @@ from ._graph import Artefact, get_artefact, get_op, get_op_options, Operation
 from .constants import DAG_STORE, hash_t
 from .context import get_db
 from .logging import logger
-from .run import run_op, RunStatus
+from .run import is_it_cached, run_op, RunStatus
 from .ui import ShellOutput
 
 
@@ -85,11 +85,11 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
         # but start from the same initial point. if that's the case and we
         # preemptively remove that initial point, the other dag wont get run!
 
-        # if is_it_cached(db, curr):
-        #     # We don't need to run this because all of its outputs are cached
-        #     # anyway.
-        #     logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
-        #     continue
+        if is_it_cached(db, curr):
+            # We don't need to run this because all of its outputs are cached
+            # anyway.
+            logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
+            continue
 
         # no dependency -> add as root
         if len(curr.inp) == 0:

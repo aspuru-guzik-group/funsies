@@ -42,7 +42,6 @@ def test_dag_execute() -> None:
         # make queue
         dag.execute(output)
         out = take(output)
-        time.sleep(0.1)
         assert out == b"BLA BLAbla bla"
 
 
@@ -62,6 +61,23 @@ def test_dag_execute2() -> None:
         dag.execute(output)
         out = take(output)
         assert out == b"bla\nBLA BLAbla bla"
+
+
+def test_dag_execute_same_root() -> None:
+    """Test execution of two dags that share the same origin."""
+    with Fun(Redis(), options(distributed=False)):
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
+        step2b = shell("cat file1", inp=dict(file1=step1))
+
+        dag.execute(step2)
+        out = take(step2.stdout)
+        assert out == b"BLA BLAbla bla"
+
+        dag.execute(step2b)
+        out = take(step2b.stdout)
+        assert out == b"BLA BLA"
 
 
 # def test_dag_rm() -> None:
