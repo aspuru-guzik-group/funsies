@@ -1,6 +1,5 @@
 """Test of Funsies shell capabilities."""
 # std
-import time
 
 # external
 from fakeredis import FakeStrictRedis as Redis

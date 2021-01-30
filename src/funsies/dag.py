@@ -85,14 +85,16 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
         # but start from the same initial point. if that's the case and we
         # preemptively remove that initial point, the other dag wont get run!
 
-        if is_it_cached(db, curr):
-            # We don't need to run this because all of its outputs are cached
-            # anyway.
-            logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
-            continue
+        # if is_it_cached(db, curr):
+        #     # We don't need to run this because all of its outputs are cached
+        #     # anyway.
+        #     logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
+        #     continue
 
-        # no dependency -> add as root
-        if len(curr.inp) == 0:
+        # Instead we add the cached operation as descending from root, and do
+        # "run" it, to ensure that it's dependents are also run, but we don't
+        # include it's inputs.
+        if len(curr.inp) == 0 or is_it_cached(db, curr):
             __dag_append(db, address, hash_t("root"), curr.hash)
 
         for el in curr.inp.values():
