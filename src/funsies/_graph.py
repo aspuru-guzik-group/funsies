@@ -14,6 +14,7 @@ from ._funsies import Funsie, store_funsie
 from .config import Options
 from .constants import (
     ARTEFACTS,
+    BLOCK_SIZE,
     DATA_STATUS,
     hash_t,
     OPERATIONS,
@@ -30,6 +31,7 @@ from .logging import logger
 # Max redis value size in bytes
 MIB = 1024 * 1024
 MAX_VALUE_SIZE = 512 * MIB
+
 
 # --------------------------------------------------------------------------------
 # Artefact status
@@ -116,6 +118,12 @@ def tag_artefact(db: Redis, address: hash_t, tag: str) -> None:
     _ = db.sadd(TAGS_SET, tag)  # type:ignore
 
 
+def _set_block_size(n: int) -> None:
+    """Change block size."""
+    global BLOCK_SIZE
+    BLOCK_SIZE = n
+
+
 # Save and load artefacts
 def get_data(
     store: Redis, artefact: Artefact, source: Optional[hash_t] = None
@@ -140,6 +148,17 @@ def get_data(
                 details="expected data was not found",
                 source=source,
             )
+
+        count = 1
+        while True:
+            # Load more data if it is split
+            nval = store.hget(STORE, artefact.hash + f"_{count}")
+            if nval is None:
+                break
+            else:
+                valb += nval
+                count = count + 1
+
         return valb
 
 
@@ -149,14 +168,34 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     if stat == ArtefactStatus.const:
         raise TypeError("Attempted to set data to a const artefact.")
 
-    if len(value) > MAX_VALUE_SIZE:
-        raise RuntimeError(f"Data too large to save in db, size={len(value)/MIB} MiB.")
+    count = 0
+    k = 0
+    # Split data in blocks if need be.
+    while True:
+        nextk = min(k + BLOCK_SIZE, len(value))
+        val = value[k:nextk]
+        if count > 0:
+            where = artefact.hash + f"_{count}"
+        else:
+            where = artefact.hash
 
-    _ = store.hset(
-        STORE,
-        artefact.hash,
-        value,
-    )
+        if len(val) > MAX_VALUE_SIZE:
+            raise RuntimeError(
+                f"Data too large to save in db, size={len(val)/MIB} MiB."
+            )
+
+        _ = store.hset(
+            STORE,
+            where,
+            val,
+        )
+
+        count = count + 1
+        if nextk == len(value):
+            break
+        else:
+            k = nextk
+
     mark_done(store, artefact.hash)
 
 

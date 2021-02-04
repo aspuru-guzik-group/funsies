@@ -23,3 +23,6 @@ SRUNNING = "funsies.jobs.running"
 # job dags
 DAG_STORE = "funsies.dags."
 DAG_INDEX = "funsies.dags.index"
+
+# Max size of continuous data
+BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB
