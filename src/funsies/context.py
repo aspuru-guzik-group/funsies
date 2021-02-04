@@ -11,6 +11,7 @@ from rq.local import LocalStack
 
 # module
 from .config import Options
+from .dag import delete_all_dags
 from .logging import logger
 
 # A thread local stack of connections (adapted from RQ)
@@ -22,7 +23,9 @@ _options_stack = LocalStack()
 # Main DB context manager
 @contextmanager
 def Fun(
-    connection: Optional[Redis] = None, defaults: Optional[Options] = None
+    connection: Optional[Redis] = None,
+    defaults: Optional[Options] = None,
+    cleanup: bool = True,
 ) -> Iterator[Redis]:
     """Context manager for redis connections."""
     if connection is None:
@@ -31,6 +34,15 @@ def Fun(
 
     if defaults is None:
         defaults = Options()
+
+    if cleanup:
+        # Clean up the Redis instance of old jobs (not of job data though.)
+        queues = rq.Queue.all(connection=connection)
+        for queue in queues:
+            queue.delete(delete_jobs=True)
+
+        # Now we cleanup all the old dags that are lying around
+        delete_all_dags(connection)
 
     _connect_stack.push(connection)
     _options_stack.push(defaults)

@@ -1,6 +1,6 @@
 """DAG related utilities."""
 # std
-from typing import Optional, Set, Union
+from typing import Optional, Set
 
 # external
 from redis import Redis
@@ -8,15 +8,13 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import Artefact, get_artefact, get_op, get_op_options, Operation
-from .constants import DAG_STORE, hash_t
-from .context import get_db
+from ._graph import get_artefact, get_op, get_op_options
+from .constants import DAG_INDEX, DAG_STORE, hash_t
 from .logging import logger
 from .run import is_it_cached, run_op, RunStatus
-from .ui import ShellOutput
 
 
-def __set_as_str(db: Redis, key: str) -> Set[hash_t]:
+def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
     mem = db.smembers(key)
     out = set()
     for k in mem:
@@ -39,20 +37,37 @@ def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> N
 def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[hash_t]:
     """Get dependents of an op."""
     key = DAG_STORE + dag_of + "." + op_from
-    return __set_as_str(db, key)
+    return __set_as_hashes(db, key)
 
 
 def delete_dag(db: Redis, dag_of: hash_t) -> None:
     """Delete DAG corresponding to a given output hash."""
-    which = __set_as_str(db, DAG_STORE + dag_of + ".keys")
+    which = __set_as_hashes(db, DAG_STORE + dag_of + ".keys")
     for key in which:
         _ = db.delete(key)
+    # Remove from index
+    db.srem(DAG_INDEX, dag_of)
+
+
+def delete_all_dags(db: Redis) -> None:
+    """Delete all currently stored DAGs."""
+    for dag in __set_as_hashes(db, DAG_INDEX):
+        delete_dag(db, dag)
+
+
+def register_dag(db: Redis, dag_of: hash_t) -> int:
+    """Register a new DAG."""
+    there: int = db.sadd(DAG_INDEX, dag_of)  # type:ignore
+    return there
 
 
 def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
     # first delete any previous dag at this address
     delete_dag(db, address)
+
+    # register dag
+    register_dag(db, address)
 
     # TODO add custom root for sub-DAGs
     root = "root"
@@ -135,28 +150,13 @@ def rq_eval(
     return stat
 
 
-def execute(
-    output: Union[hash_t, Operation, Artefact, ShellOutput],
-    connection: Optional[Redis] = None,
-) -> None:
+def start_dag_execution(db: Redis, data_output: hash_t) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
-    if (
-        isinstance(output, Operation)
-        or isinstance(output, Artefact)
-        or isinstance(output, ShellOutput)
-    ):
-        dag_of = output.hash
-    else:
-        dag_of = output
-
-    # get redis
-    db = get_db(connection)
-
     # make dag
-    build_dag(db, dag_of)
+    build_dag(db, data_output)
 
     # enqueue everything starting from root
-    for element in __dag_dependents(db, dag_of, hash_t("root")):
+    for element in __dag_dependents(db, data_output, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
-        queue.enqueue_call(rq_eval, args=(dag_of, element), **options.job_args)
+        queue.enqueue_call(rq_eval, args=(data_output, element), **options.job_args)

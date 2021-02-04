@@ -5,7 +5,8 @@
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import dag, Fun, morph, options, put, shell, take
+from funsies import dag, execute, Fun, morph, options, put, shell, take
+from funsies.constants import DAG_INDEX
 
 
 def test_dag_build() -> None:
@@ -39,7 +40,7 @@ def test_dag_execute() -> None:
         output = step2.stdout
 
         # make queue
-        dag.execute(output)
+        execute(output)
         out = take(output)
         assert out == b"BLA BLAbla bla"
 
@@ -57,7 +58,7 @@ def test_dag_execute2() -> None:
         output = final.stdout
 
         # make queue
-        dag.execute(output)
+        execute(output)
         out = take(output)
         assert out == b"bla\nBLA BLAbla bla"
 
@@ -70,44 +71,28 @@ def test_dag_execute_same_root() -> None:
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         step2b = shell("cat file1", inp=dict(file1=step1))
 
-        dag.execute(step2)
+        execute(step2)
         out = take(step2.stdout)
         assert out == b"BLA BLAbla bla"
 
-        dag.execute(step2b)
+        execute(step2b)
         out = take(step2b.stdout)
         assert out == b"BLA BLA"
 
 
-# def test_dag_rm() -> None:
-#     """Test re-execution of a dag when data is deleted."""
-#     # specifically, this checks for the expected behaviour: only the rm-ed
-#     # data is re-executed but none of its dependencies. This is weird, but
-#     # it's the only way to keep DAGs side effect free.
-#     from random import random, seed
+def test_dag_cleanup() -> None:
+    """Test execution of two dags that share the same origin."""
+    with Fun(Redis(), options(distributed=False)) as db:
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
 
-#     def __r(dat: bytes) -> bytes:
-#         seed()
-#         return dat + f"{random()}".encode()
+        execute(step2)
+        out = take(step2.stdout)
+        assert out == b"BLA BLAbla bla"
 
-#     with Fun(Redis(), options(distributed=False)):
-#         dat = put("bla bla")
-#         step1 = morph(__r, dat)
-#         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
-#         output = step2.stdout
-#         dag.execute(output)
+    with Fun(db, options(distributed=False), cleanup=False):
+        assert len(db.smembers(DAG_INDEX)) == 1
 
-#         out1 = take(output)
-#         rnd1 = take(step1)
-
-#         dag.execute(output)
-#         out2 = take(output)
-#         assert out1 == out2
-
-#         rm(step1)
-#         dag.execute(output)
-#         rnd2 = take(step1)
-
-#         out2 = take(output)
-#         assert out1 == out2
-#         assert rnd1 != rnd2
+    with Fun(db, options(distributed=False), cleanup=True):
+        assert len(db.smembers(DAG_INDEX)) == 0
