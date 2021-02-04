@@ -37,6 +37,7 @@ def test_operation_pack() -> None:
     """Test packing and unpacking of operations."""
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
+    b = _graph.constant_artefact(store, b"bla bla bla")
     fun = f.Funsie(
         how=f.FunsieHow.shell,
         what=b"cat",
@@ -50,10 +51,13 @@ def test_operation_pack() -> None:
     with pytest.raises(AttributeError):
         op = _graph.make_op(store, fun, {}, opt)
 
-    # TODO?
-    # b = _graph.store_explicit_artefact(store, b"bla bla")
-    # with pytest.raises(TypeError):
-    #     op = _graph.make_op(store, fun, {"infile": b})
+    with pytest.raises(AttributeError):
+        # no inputs
+        op = _graph.make_op(store, fun, {}, opt)
+
+    with pytest.raises(AttributeError):
+        # too many inputs
+        op = _graph.make_op(store, fun, {"infile": a, "infile2": b}, opt)
 
     with pytest.raises(RuntimeError):
         op = _graph.get_op(store, hash_t("b"))

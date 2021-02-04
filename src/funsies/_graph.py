@@ -269,6 +269,10 @@ def make_op(
     # Setup the input artefacts.
     inp_art = {}
     dependencies = set()
+    for key in inp:
+        if key not in funsie.inp:
+            raise AttributeError(f"Extra key {key} passed to funsie.")
+
     for key in funsie.inp:
         if key not in inp:
             raise AttributeError(f"Missing {key} from inputs required by funsie.")

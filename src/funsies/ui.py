@@ -87,6 +87,12 @@ def shell(  # noqa:C901
     set to False, input files with errors will simply (and silently) not be
     passed to the shell script.
 
+    Shell commands are run in a temporary directory which conveys some measure
+    of encapsulation, but it is quite weak, so the callee should make sure
+    that commands only use relative paths etc. to ensure proper cleanup and
+    lack of side effects. This is done using python's tempfile; the temporary
+    directory can be set using the TMPDIR environment variable.
+
     Arguments:
         *args: Shell commands.
         inp: Input files for task.

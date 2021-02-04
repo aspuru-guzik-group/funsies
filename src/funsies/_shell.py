@@ -49,9 +49,7 @@ def run_shell_funsie(  # noqa:C901
     input_values: Mapping[str, Result[bytes]],
 ) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
-    # TODO expandvar, expandusr for tempdir
-    # TODO setable tempdir
-    with tempfile.TemporaryDirectory(dir=None) as dir:
+    with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
         incoming_files, _ = funsie.check_inputs(input_values)
         for fn, val in incoming_files.items():

@@ -69,7 +69,6 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     # register dag
     register_dag(db, address)
 
-    # TODO add custom root for sub-DAGs
     root = "root"
     art = None
     try:
