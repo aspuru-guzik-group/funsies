@@ -6,7 +6,7 @@ from fakeredis import FakeStrictRedis as Redis
 
 # module
 from funsies import dag, execute, Fun, morph, options, put, shell, take
-from funsies.constants import DAG_INDEX
+from funsies.constants import DAG_INDEX, DAG_STORE
 
 
 def test_dag_build() -> None:
@@ -17,18 +17,55 @@ def test_dag_build() -> None:
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
 
-        dag_of = dag.build_dag(db, output.hash)
-        assert dag_of is not None
-        assert len(db.smembers(dag_of + ".root")) == 2
+        dag.build_dag(db, output.hash)
+        assert len(db.smembers(DAG_STORE + output.hash + ".root")) == 2
 
         # test deletion
         dag.delete_dag(db, output.hash)
-        assert len(db.smembers(dag_of + ".root")) == 0
+        assert len(db.smembers(DAG_STORE + output.hash + ".root")) == 0
 
         # test new dag
-        dag_of = dag.build_dag(db, step1.hash)
-        assert dag_of is not None
-        assert len(db.smembers(dag_of + ".root")) == 1
+        dag.build_dag(db, step1.hash)
+        assert len(db.smembers(DAG_STORE + step1.hash + ".root")) == 1
+
+
+def test_dag_efficient() -> None:
+    """Test that DAG building doesn't do extra work."""
+    with Fun(Redis()) as db:
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2 = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
+        )
+        step2b = shell("echo 'not'", inp=dict(file1=step1))
+        output = step2.stdout
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+
+        dag.build_dag(db, output.hash)
+        dag.build_dag(db, merge.hash)
+        # check that step2 only has stdout has dependent
+        assert len(dag._dag_dependents(db, output.hash, step1.parent)) == 1
+        # check that however, the merged one has two dependents for step1
+        assert len(dag._dag_dependents(db, merge.hash, step1.parent)) == 2
+
+
+def test_dag_cached() -> None:
+    """Test that DAG building doesn't do extra work."""
+    with Fun(Redis(), options(distributed=False)):
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2 = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
+        )
+        step2b = shell("echo 'not'", inp=dict(file1=step1))
+        output = step2.stdout
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+        execute(merge)
+        execute(output)
 
 
 def test_dag_execute() -> None:

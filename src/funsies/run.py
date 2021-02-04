@@ -64,6 +64,16 @@ def is_it_cached(db: Redis, op: Operation) -> bool:
         return True
 
 
+def dependencies_are_met(db: Redis, op: Operation) -> bool:
+    """Check if all the dependencies of an operation are met."""
+    for val in op.inp.values():
+        stat = get_status(db, val)
+        if stat <= ArtefactStatus.no_data:
+            return False
+
+    return True
+
+
 def run_op(  # noqa:C901
     db: Redis, op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
@@ -96,13 +106,9 @@ def run_op(  # noqa:C901
         raise RuntimeError("Attempting to run an operation, but check_only is set.")
 
     # # Then we check if all the inputs are ready to be processed.
-    for val in op.inp.values():
-        stat = get_status(db, val)
-        if stat <= ArtefactStatus.no_data:
-            # One of the inputs is not processed yet, we return.
-            logger.info(f"op skipped: {op.hash} has unmet dependencies.")
-            __make_ready(db, op.hash)
-            return RunStatus.unmet_dependencies
+    if not dependencies_are_met(db, op):
+        __make_ready(db, op.hash)
+        return RunStatus.unmet_dependencies
 
     # load the funsie
     funsie = get_funsie(db, op.funsie)
