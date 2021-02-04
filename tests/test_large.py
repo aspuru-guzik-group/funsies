@@ -20,3 +20,18 @@ def test_artefact_add_large() -> None:
 
     assert len(store.hkeys(funsies.constants.STORE)) == 100
     assert data == data2
+
+
+def test_artefact_add_large() -> None:
+    """Test replacing large artefacts."""
+    store = Redis()
+    _graph._set_block_size(5)
+    art = _graph.variable_artefact(store, hash_t("1"), "file")
+    data = b"12345" * 100
+    _graph.set_data(store, art, data)
+
+    _graph._set_block_size(10000)
+    _graph.set_data(store, art, data)
+    data2 = _graph.get_data(store, art)
+
+    assert data == data2

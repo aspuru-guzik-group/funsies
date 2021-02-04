@@ -168,6 +168,18 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     if stat == ArtefactStatus.const:
         raise TypeError("Attempted to set data to a const artefact.")
 
+    # delete previous data
+    count = 0
+    while True:
+        if count > 0:
+            where = artefact.hash + f"_{count}"
+        else:
+            where = artefact.hash
+        i = store.hdel(STORE, where)
+        if not i:
+            break
+        count += 1
+
     count = 0
     k = 0
     # Split data in blocks if need be.
