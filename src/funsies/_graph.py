@@ -27,6 +27,9 @@ from .constants import (
 from .errors import Error, ErrorKind, get_error, Result, set_error
 from .logging import logger
 
+# Max redis value size in bytes
+MIB = 8 * 1024 * 1024
+MAX_VALUE_SIZE = 512 * MIB
 
 # --------------------------------------------------------------------------------
 # Artefact status
@@ -140,25 +143,14 @@ def get_data(
         return valb
 
 
-# This introduces all kind of side-effects:
-# def rm_data(store: Redis, artefact: Artefact) -> None:
-#     """Delete data associated with an artefact."""
-#     stat = get_status(store, artefact.hash)
-#     if stat == ArtefactStatus.const:
-#         raise TypeError("Attempted to remove data of a const artefact.")
-
-#     _ = store.hdel(
-#         STORE,
-#         artefact.hash,
-#     )
-#     mark_deleted(store, artefact.hash)
-
-
 def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     """Update an artefact with a value."""
     stat = get_status(store, artefact.hash)
     if stat == ArtefactStatus.const:
         raise TypeError("Attempted to set data to a const artefact.")
+
+    if len(value) > MAX_VALUE_SIZE:
+        raise RuntimeError(f"Data too large to save in db, size={len(value)/MIB} MiB.")
 
     _ = store.hset(
         STORE,
