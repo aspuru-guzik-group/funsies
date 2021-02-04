@@ -110,15 +110,15 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
         # include it's inputs.
         if len(curr.inp) == 0 or is_it_cached(db, curr):
             __dag_append(db, address, hash_t("root"), curr.hash)
+        else:
+            for el in curr.inp.values():
+                art = get_artefact(db, el)
 
-        for el in curr.inp.values():
-            art = get_artefact(db, el)
-
-            if art.parent != root:
-                queue.append(get_op(db, art.parent))
-                __dag_append(db, address, art.parent, curr.hash)
-            else:
-                __dag_append(db, address, hash_t("root"), curr.hash)
+                if art.parent != root:
+                    queue.append(get_op(db, art.parent))
+                    __dag_append(db, address, art.parent, curr.hash)
+                else:
+                    __dag_append(db, address, hash_t("root"), curr.hash)
 
     return DAG_STORE + address
 
