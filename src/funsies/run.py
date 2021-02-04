@@ -2,7 +2,7 @@
 # std
 from enum import IntEnum
 import traceback
-from typing import Dict
+from typing import Dict, Union
 
 # external
 from redis import Redis
@@ -16,6 +16,7 @@ from ._graph import (
     get_op,
     get_status,
     mark_error,
+    Operation,
     set_data,
 )
 from ._pyfunc import run_python_funsie  # runner for python functions
@@ -50,38 +51,45 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
+def is_it_cached(db: Redis, op: Operation) -> bool:
+    """Check if an operation is fully cached and doesn't need to be recomputed."""
+    # We do this by checking whether all of it's outputs are already saved.
+    # This ensures that there is no mismatch between artefact statuses and the
+    # status of generating operations.
+    for val in op.out.values():
+        stat = get_status(db, val)
+        if stat <= ArtefactStatus.no_data:
+            return False
+    else:
+        return True
+
+
 def run_op(  # noqa:C901
-    db: Redis, address: hash_t, check_only: bool = False
+    db: Redis, op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
     """Run an Operation from its hash address."""
+    # Compatibility feature
+    if not isinstance(op, Operation):
+        op = get_op(db, op)
+
     # Check if job is ready for execution
     # -----------------------------------
     # First, we check if this address is even ready to go. We do this by
     # moving the job from READY->DONE. We do it this way because this
     # operation is atomic. Thus, if any other worker is also attempting to
     # start this job, they'll know we currently are processing it.
-    val: int = db.smove(SREADY, SRUNNING, address)  # type:ignore
+    val: int = db.smove(SREADY, SRUNNING, op.hash)  # type:ignore
     if val == 0:
         # job is NOT ready. return.
-        logger.info(f"op skipped: {address} is being processed elsewhere")
+        logger.info(f"op skipped: {op.hash} is being processed elsewhere")
         return RunStatus.not_ready
-
-    # load the operation
-    op = get_op(db, address)
 
     # Check if the current job needs to be done at all
     # ------------------------------------------------
-    # We do this by checking whether all of it's outputs are already saved.
-    # This ensures that there is no mismatch between artefact statuses and the
-    # status of generating functions.
-    for val in op.out.values():
-        stat = get_status(db, val)
-        if stat <= ArtefactStatus.no_data:
-            break
-    else:
+    if is_it_cached(db, op):
         # All outputs are ok. We exit this run.
-        logger.info(f"op skipped: {address} has cached results")
-        __make_ready(db, address)
+        logger.info(f"op skipped: {op.hash} has cached results")
+        __make_ready(db, op.hash)
         return RunStatus.using_cached
 
     if check_only:
@@ -92,8 +100,8 @@ def run_op(  # noqa:C901
         stat = get_status(db, val)
         if stat <= ArtefactStatus.no_data:
             # One of the inputs is not processed yet, we return.
-            logger.info(f"op skipped: {address} has unmet dependencies.")
-            __make_ready(db, address)
+            logger.info(f"op skipped: {op.hash} has unmet dependencies.")
+            __make_ready(db, op.hash)
             return RunStatus.unmet_dependencies
 
     # load the funsie
@@ -104,9 +112,9 @@ def run_op(  # noqa:C901
     input_data: Dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
-        dat = get_data(db, artefact, source=address)
+        dat = get_data(db, artefact, source=op.hash)
         if isinstance(dat, Error):
-            if funsie.options_ok:
+            if funsie.error_tolerant:
                 logger.warning(f"input {key} to error-tolerant funsie has errors.")
                 input_data[key] = dat
             else:
@@ -118,7 +126,7 @@ def run_op(  # noqa:C901
         else:
             input_data[key] = dat
 
-    logger.info(f"op running: {address}")
+    logger.info(f"op running: {op.hash}")
     try:
         out_data = runner(funsie, input_data)
     except Exception:
@@ -130,7 +138,7 @@ def run_op(  # noqa:C901
                 val,
                 error=Error(
                     kind=ErrorKind.ExceptionRaised,
-                    source=address,
+                    source=op.hash,
                     details=tb_exc,
                 ),
             )
@@ -139,13 +147,13 @@ def run_op(  # noqa:C901
     for key, val in out_data.items():
         artefact = get_artefact(db, op.out[key])
         if val is None:
-            logger.warning(f"{address} -> missing output data for {key}")
+            logger.warning(f"{op.hash} -> missing output data for {key}")
             mark_error(
                 db,
                 artefact.hash,
                 error=Error(
                     kind=ErrorKind.MissingOutput,
-                    source=address,
+                    source=op.hash,
                     details="output not returned by runner",
                 ),
             )
@@ -154,5 +162,5 @@ def run_op(  # noqa:C901
         else:
             set_data(db, artefact, val)
 
-    __make_ready(db, address)
+    __make_ready(db, op.hash)
     return RunStatus.executed

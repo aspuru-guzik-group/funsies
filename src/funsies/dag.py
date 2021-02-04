@@ -1,6 +1,6 @@
 """DAG related utilities."""
 # std
-from typing import Any, Dict, Optional, Set, Union
+from typing import Optional, Set, Union
 
 # external
 from redis import Redis
@@ -8,24 +8,24 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import Artefact, get_artefact, get_op, Operation
-from .constants import DAG_STORE, hash_t, RQ_JOB_DEFAULTS, RQ_QUEUE_DEFAULTS
+from ._graph import Artefact, get_artefact, get_op, get_op_options, Operation
+from .constants import DAG_STORE, hash_t
 from .context import get_db
 from .logging import logger
-from .run import run_op, RunStatus
+from .run import is_it_cached, run_op, RunStatus
 from .ui import ShellOutput
 
 
-def __set_as_str(db: Redis, key: str) -> Set[str]:
+def __set_as_str(db: Redis, key: str) -> Set[hash_t]:
     mem = db.smembers(key)
     out = set()
     for k in mem:
         if isinstance(k, bytes):
-            out.add(k.decode())
+            out.add(hash_t(k.decode()))
         elif isinstance(k, str):
-            out.add(k)
+            out.add(hash_t(k))
         else:
-            out.add(str(k))
+            out.add(hash_t(str(k)))
     return out
 
 
@@ -36,7 +36,7 @@ def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> N
     db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
 
 
-def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[str]:
+def __dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[hash_t]:
     """Get dependents of an op."""
     key = DAG_STORE + dag_of + "." + op_from
     return __set_as_str(db, key)
@@ -78,11 +78,23 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
     queue = [node]
-    while True:
+    while len(queue) != 0:
         curr = queue.pop()
 
-        # no dependency -> add as root
-        if len(curr.inp) == 0:
+        # This is a bad idea because two dags could end in different places
+        # but start from the same initial point. if that's the case and we
+        # preemptively remove that initial point, the other dag wont get run!
+
+        # if is_it_cached(db, curr):
+        #     # We don't need to run this because all of its outputs are cached
+        #     # anyway.
+        #     logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
+        #     continue
+
+        # Instead we add the cached operation as descending from root, and do
+        # "run" it, to ensure that it's dependents are also run, but we don't
+        # include it's inputs.
+        if len(curr.inp) == 0 or is_it_cached(db, curr):
             __dag_append(db, address, hash_t("root"), curr.hash)
 
         for el in curr.inp.values():
@@ -94,16 +106,12 @@ def build_dag(db: Redis, address: hash_t) -> Optional[str]:  # noqa:C901
             else:
                 __dag_append(db, address, hash_t("root"), curr.hash)
 
-        if len(queue) == 0:
-            break
     return DAG_STORE + address
 
 
 def rq_eval(
     dag_of: hash_t,
     current: hash_t,
-    job_args: Dict[str, Any],
-    queue_args: Dict[str, Any],
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
     # load database
@@ -111,18 +119,18 @@ def rq_eval(
     job = rq.get_current_job()
     db: Redis = job.connection
 
-    # load current queue
-    queue = Queue(name=job.origin, connection=job.connection, **queue_args)
+    # Load operation
+    op = get_op(db, current)
 
     # Now we run the job
-    stat = run_op(db, current)
+    stat = run_op(db, op)
 
     if stat > 0:
         # Success! Let's enqueue dependents.
         for element in __dag_dependents(db, dag_of, current):
-            queue.enqueue_call(
-                rq_eval, args=(dag_of, element, job_args, queue_args), **job_args
-            )
+            options = get_op_options(db, element)
+            queue = Queue(connection=db, **options.queue_args)
+            queue.enqueue_call(rq_eval, args=(dag_of, element), **options.job_args)
 
     return stat
 
@@ -130,15 +138,8 @@ def rq_eval(
 def execute(
     output: Union[hash_t, Operation, Artefact, ShellOutput],
     connection: Optional[Redis] = None,
-    job_args: Optional[Dict[str, Any]] = None,
-    queue_args: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
-    if job_args is None:
-        job_args = RQ_JOB_DEFAULTS
-    if queue_args is None:
-        queue_args = RQ_QUEUE_DEFAULTS
-
     if (
         isinstance(output, Operation)
         or isinstance(output, Artefact)
@@ -150,13 +151,12 @@ def execute(
 
     # get redis
     db = get_db(connection)
-    queue = Queue(**queue_args)
 
     # make dag
     build_dag(db, dag_of)
 
     # enqueue everything starting from root
     for element in __dag_dependents(db, dag_of, hash_t("root")):
-        queue.enqueue_call(
-            rq_eval, args=(dag_of, element, job_args, queue_args), **job_args
-        )
+        options = get_op_options(db, element)
+        queue = Queue(connection=db, **options.queue_args)
+        queue.enqueue_call(rq_eval, args=(dag_of, element), **options.job_args)

@@ -11,11 +11,13 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, store_funsie
+from .config import Options
 from .constants import (
     ARTEFACTS,
     DATA_STATUS,
     hash_t,
     OPERATIONS,
+    OPTIONS,
     SREADY,
     SRUNNING,
     STORE,
@@ -138,17 +140,18 @@ def get_data(
         return valb
 
 
-def rm_data(store: Redis, artefact: Artefact) -> None:
-    """Delete data associated with an artefact."""
-    stat = get_status(store, artefact.hash)
-    if stat == ArtefactStatus.const:
-        raise TypeError("Attempted to remove data of a const artefact.")
+# This introduces all kind of side-effects:
+# def rm_data(store: Redis, artefact: Artefact) -> None:
+#     """Delete data associated with an artefact."""
+#     stat = get_status(store, artefact.hash)
+#     if stat == ArtefactStatus.const:
+#         raise TypeError("Attempted to remove data of a const artefact.")
 
-    _ = store.hdel(
-        STORE,
-        artefact.hash,
-    )
-    mark_deleted(store, artefact.hash)
+#     _ = store.hdel(
+#         STORE,
+#         artefact.hash,
+#     )
+#     mark_deleted(store, artefact.hash)
 
 
 def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
@@ -259,7 +262,9 @@ class Operation:
         return Operation(**unpackb(data))
 
 
-def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation:
+def make_op(
+    store: Redis, funsie: Funsie, inp: Dict[str, Artefact], opt: Options
+) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
@@ -295,6 +300,13 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     # Make the node
     node = Operation(ophash, funsie.hash, inp_art, out_art)
 
+    # store the runtime options for the node
+    store.hset(
+        OPTIONS,
+        ophash,
+        opt.pack(),
+    )
+
     # store the node
     store.hset(
         OPERATIONS,
@@ -309,7 +321,7 @@ def make_op(store: Redis, funsie: Funsie, inp: Dict[str, Artefact]) -> Operation
     return node
 
 
-def get_op(store: Redis, hash: str) -> Operation:
+def get_op(store: Redis, hash: hash_t) -> Operation:
     """Load an operation from Redis store."""
     # store the artefact
     out = store.hget(OPERATIONS, hash)
@@ -317,3 +329,13 @@ def get_op(store: Redis, hash: str) -> Operation:
         raise RuntimeError(f"Operation at {hash} could not be found.")
 
     return Operation.unpack(out)
+
+
+def get_op_options(store: Redis, hash: hash_t) -> Options:
+    """Load an operation from Redis store."""
+    # store the artefact
+    out = store.hget(OPTIONS, hash)
+    if out is None:
+        raise RuntimeError(f"Options for operation at {hash} could not be found.")
+
+    return Options.unpack(out)

@@ -3,14 +3,14 @@
 import sys
 
 # module
-from funsies import execute, Fun, reduce, shell, take
+from funsies import execute, Fun, options, reduce, shell, take
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
 
 # By default, the Fun context manager connects to a Redis instance on
 # localhost, but a different redis instance can be passed to it.
-with Fun():
+with Fun(defaults=options(timeout=60.0)):
     # Start of computational workflow
     # -------------------------------
     # Our task is to take a bunch of molecules, given as SMILES, make conformers
@@ -87,22 +87,9 @@ with Fun():
     tr = reduce(join, *outputs)
 
     if sys.argv[-1] != "read":
-        # Setup the RQ job queue and run
-        # ------------------------------
-        # Set some good defaults for the jobs on queue. In general, it's not worth
-        # setting ttl or result_ttl to other values because when doing chemistry
-        # simulations, we are not going to run 1 million jobs per minute and thus
-        # crash because of out-of-memory errors. However, as all the jobs are really
-        # long, we don't want jobs to be cancelled just because it's taking a while to
-        # find a worker.
-        job_args = dict(
-            timeout="3h",  # how long each job has
-            ttl="10d",  # how long jobs are kept on queue
-            result_ttl="10d",  # how long job result objects are kept
-        )
         # run everything by using the fact that the last transformer depends on all
         # the outputs
-        execute(tr, job_args=job_args)
+        execute(tr)
     else:
         # Analyze / compile results
         # -------------------------

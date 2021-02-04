@@ -1,9 +1,10 @@
 """Funsies is a transparently-memoized worfklow engine."""
+from . import debug
 from . import utils
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from .constants import hash_t
-from .context import Fun
+from .context import Fun, options
 from .dag import execute
 from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
@@ -12,7 +13,6 @@ from .ui import (
     morph,
     put,
     reduce,
-    rm,
     shell,
     ShellOutput,
     tag,
@@ -28,7 +28,6 @@ __all__ = [
     "reduce",
     "mapping",
     "put",
-    "rm",
     "tag",
     "take",
     "takeout",
@@ -39,6 +38,8 @@ __all__ = [
     "execute",
     # error
     "unwrap",
+    # options
+    "options",
     # run
     "run_op",
     "RUNNERS",
@@ -56,6 +57,7 @@ __all__ = [
     "FunsieHow",
     # utils
     "utils",
+    "debug",
 ]
 
 # versioning information

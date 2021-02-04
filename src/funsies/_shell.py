@@ -37,7 +37,7 @@ def shell_funsie(
         what=packb({"cmds": cmds, "env": env}),
         inp=list(input_files),
         out=out,
-        options_ok=not strict,
+        error_tolerant=not strict,
     )
 
 

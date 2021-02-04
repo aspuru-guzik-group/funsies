@@ -8,7 +8,11 @@ from fakeredis import FakeStrictRedis as Redis
 from funsies import _graph
 from funsies import _pyfunc as p
 from funsies import _shell as s
-from funsies import run_op, RunStatus
+from funsies import options, run_op, RunStatus
+
+
+# defaults
+opt = options()
 
 
 def capitalize(inputs: Dict[str, bytes]) -> Dict[str, bytes]:
@@ -32,7 +36,7 @@ def test_shell_run() -> None:
     db = Redis()
     cmd = s.shell_funsie(["cat file1"], ["file1"], [])
     inp = {"file1": _graph.constant_artefact(db, b"bla bla")}
-    operation = _graph.make_op(db, cmd, inp)
+    operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
 
     # test return values
@@ -51,7 +55,7 @@ def test_pyfunc_run() -> None:
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
-    operation = _graph.make_op(db, cmd, inp)
+    operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
 
     # test return values
@@ -70,7 +74,7 @@ def test_cached_run() -> None:
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
-    operation = _graph.make_op(db, cmd, inp)
+    operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
 
     # test return values
@@ -84,14 +88,14 @@ def test_cached_instances() -> None:
     db = Redis()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
-    operation = _graph.make_op(db, cmd, inp)
+    operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
     # test return values
     assert status == RunStatus.executed
 
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
-    operation = _graph.make_op(db, cmd, inp)
+    operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
     assert status == RunStatus.using_cached
 
@@ -102,10 +106,10 @@ def test_dependencies() -> None:
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"])
     cmd2 = p.python_funsie(uncapitalize, ["inp"], ["inp"])
     operation = _graph.make_op(
-        db, cmd, inp={"inp": _graph.constant_artefact(db, b"bla bla")}
+        db, cmd, inp={"inp": _graph.constant_artefact(db, b"bla bla")}, opt=opt
     )
     operation2 = _graph.make_op(
-        db, cmd2, inp={"inp": _graph.get_artefact(db, operation.out["inp"])}
+        db, cmd2, inp={"inp": _graph.get_artefact(db, operation.out["inp"])}, opt=opt
     )
 
     status = run_op(db, operation2.hash)

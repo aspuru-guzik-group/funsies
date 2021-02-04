@@ -1,7 +1,8 @@
 """Contextual DB usage."""
 # std
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from dataclasses import replace
+from typing import Any, Iterator, Optional
 
 # external
 from redis import Redis
@@ -9,22 +10,30 @@ import rq
 from rq.local import LocalStack
 
 # module
+from .config import Options
 from .logging import logger
 
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()
+_options_stack = LocalStack()
 
 
 # --------------------------------------------------------------------------------
 # Main DB context manager
 @contextmanager
-def Fun(connection: Optional[Redis] = None) -> Iterator[Redis]:
+def Fun(
+    connection: Optional[Redis] = None, defaults: Optional[Options] = None
+) -> Iterator[Redis]:
     """Context manager for redis connections."""
     if connection is None:
         connection = Redis()
         logger.warning("Opening new redis connection with default settings...")
 
+    if defaults is None:
+        defaults = Options()
+
     _connect_stack.push(connection)
+    _options_stack.push(defaults)
 
     # also push on rq
     # TODO maybe just use the RQ version of this?
@@ -42,10 +51,10 @@ def Fun(connection: Optional[Redis] = None) -> Iterator[Redis]:
 
 def get_db(db: Optional[Redis] = None) -> Redis:
     """Get Redis instance."""
-    if db is not None:
+    if isinstance(db, Redis):
         # explicit redis instance
         return db
-    else:
+    elif db is None:
         if _connect_stack.top is not None:
             # try context instance
             out: Redis = _connect_stack.top
@@ -55,3 +64,27 @@ def get_db(db: Optional[Redis] = None) -> Redis:
             return out2
         else:
             raise RuntimeError("No redis instance available.")
+    else:
+        raise TypeError(f"object {db} not of type Optional[Redis]")
+
+
+def get_options(opt: Optional[Options] = None) -> Options:
+    """Get Options instance."""
+    if opt is not None:
+        return opt
+    else:
+        if _options_stack.top is not None:
+            out: Options = _options_stack.top
+            return out
+        else:
+            raise RuntimeError("No Options instance available.")
+
+
+# TODO: Document better
+def options(**kwargs: Any) -> Options:
+    """Set runtime options."""
+    if _options_stack.top is None:
+        return Options(**kwargs)
+    else:
+        defaults: Options = _options_stack.top
+        return replace(defaults, **kwargs)
