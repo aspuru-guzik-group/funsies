@@ -28,7 +28,7 @@ from .errors import Error, ErrorKind, get_error, Result, set_error
 from .logging import logger
 
 # Max redis value size in bytes
-MIB = 8 * 1024 * 1024
+MIB = 1024 * 1024
 MAX_VALUE_SIZE = 512 * MIB
 
 # --------------------------------------------------------------------------------
