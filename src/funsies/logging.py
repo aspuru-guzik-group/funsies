@@ -1,4 +1,11 @@
 """Logging and log levels."""
-import logging
+# std
+import sys
 
-logger = logging.getLogger("funsies")
+# external
+import loguru
+
+# logger = logging.getLogger("funsies")
+logger = loguru.logger
+logger.remove()
+logger.add(sys.stderr, filter="funsies", level="INFO")
