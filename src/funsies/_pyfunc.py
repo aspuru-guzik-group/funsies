@@ -76,7 +76,7 @@ def run_python_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
 ) -> Dict[str, Optional[bytes]]:
     """Execute a python function."""
-    logger.info(f"python function")
+    logger.info("python function")
     fun: pyfunc_t = cloudpickle.loads(funsie.aux)
     name = funsie.what.decode()
     inps, errs = funsie.check_inputs(input_values)
@@ -92,7 +92,7 @@ def run_python_funsie(
         if output in outfun:
             out[output] = outfun[output]
         else:
-            logger.warning(f"missing expected output {file}")
+            logger.warning(f"missing expected output {output}")
             out[output] = None
 
     return out

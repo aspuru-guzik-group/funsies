@@ -78,11 +78,12 @@ def run_op(  # noqa:C901
     db: Redis, op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
     """Run an Operation from its hash address."""
+    # Compatibility feature
+    if not isinstance(op, Operation):
+        op = get_op(db, op)
+
     with logger.contextualize(op=short_hash(op.hash)):
         logger.info(f"--- {op.hash} ---")
-        # Compatibility feature
-        if not isinstance(op, Operation):
-            op = get_op(db, op)
 
         # Check if job is ready for execution
         # -----------------------------------
@@ -93,14 +94,14 @@ def run_op(  # noqa:C901
         val: int = db.smove(SREADY, SRUNNING, op.hash)  # type:ignore
         if val == 0:
             # job is NOT ready. return.
-            logger.success(f"DONE: taken by another thread.")
+            logger.success("DONE: taken by another thread.")
             return RunStatus.not_ready
 
         # Check if the current job needs to be done at all
         # ------------------------------------------------
         if is_it_cached(db, op):
             # All outputs are ok. We exit this run.
-            logger.success(f"DONE: using cached data.")
+            logger.success("DONE: using cached data.")
             __make_ready(db, op.hash)
             return RunStatus.using_cached
 
@@ -109,7 +110,7 @@ def run_op(  # noqa:C901
 
         # # Then we check if all the inputs are ready to be processed.
         if not dependencies_are_met(db, op):
-            logger.success(f"DONE: waiting on dependencies.")
+            logger.success("DONE: waiting on dependencies.")
             __make_ready(db, op.hash)
             return RunStatus.unmet_dependencies
 
@@ -136,11 +137,11 @@ def run_op(  # noqa:C901
             else:
                 input_data[key] = dat
 
-        logger.info(f"running...")
+        logger.info("running...")
         try:
             out_data = runner(funsie, input_data)
         except Exception:
-            logger.exception('runner raised!')
+            logger.exception("runner raised!")
             tb_exc = traceback.format_exc()
             # much trouble
             for val in op.out.values():
@@ -154,7 +155,7 @@ def run_op(  # noqa:C901
                     ),
                 )
             __make_ready(db, op.hash)
-            logger.error('DONE: runner raised exception.')
+            logger.error("DONE: runner raised exception.")
             return RunStatus.executed
 
         for key, val in out_data.items():

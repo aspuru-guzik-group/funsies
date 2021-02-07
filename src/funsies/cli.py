@@ -73,7 +73,7 @@ def clean(url):
     with Connection(Redis.from_url(url)):
         logger.info(f"connected to {url}")
         logger.info("cleaning up")
-        funsies.context.cleanup(Redis.from_url(url))
+        funsies.context.cleanup_funsies(Redis.from_url(url))
         logger.info("done")
 
 

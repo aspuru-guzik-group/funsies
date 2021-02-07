@@ -49,7 +49,7 @@ def run_shell_funsie(  # noqa:C901
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
 ) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
-    logger.info(f"shell command")
+    logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
         incoming_files, _ = funsie.check_inputs(input_values)

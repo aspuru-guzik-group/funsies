@@ -81,7 +81,6 @@ class Funsie:
                 val = actual[key]
                 if isinstance(val, Error):
                     if self.error_tolerant:
-                        logger.warning(f"errored {key} ignored.")
                         errors[key] = val
                     else:
                         logger.error(f"{key} is in error.")
