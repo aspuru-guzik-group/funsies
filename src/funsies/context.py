@@ -19,13 +19,24 @@ _connect_stack = LocalStack()
 _options_stack = LocalStack()
 
 
+def cleanup(connection: Redis) -> None:
+    """Clean up Redis instance of DAGs and Queues."""
+    # Clean up the Redis instance of old jobs (not of job data though.)
+    queues = rq.Queue.all(connection=connection)
+    for queue in queues:
+        queue.delete(delete_jobs=True)
+
+    # Now we cleanup all the old dags that are lying around
+    delete_all_dags(connection)
+
+
 # --------------------------------------------------------------------------------
 # Main DB context manager
 @contextmanager
 def Fun(
     connection: Optional[Redis] = None,
     defaults: Optional[Options] = None,
-    cleanup: bool = True,
+    cleanup: bool = False,
 ) -> Iterator[Redis]:
     """Context manager for redis connections."""
     if connection is None:
@@ -36,13 +47,7 @@ def Fun(
         defaults = Options()
 
     if cleanup:
-        # Clean up the Redis instance of old jobs (not of job data though.)
-        queues = rq.Queue.all(connection=connection)
-        for queue in queues:
-            queue.delete(delete_jobs=True)
-
-        # Now we cleanup all the old dags that are lying around
-        delete_all_dags(connection)
+        cleanup(connection)
 
     _connect_stack.push(connection)
     _options_stack.push(defaults)
