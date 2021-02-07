@@ -1,8 +1,15 @@
 """Names of stuff in the key value store."""
 from typing import NewType
 
+
 # Some types
 hash_t = NewType("hash_t", str)
+
+
+def short_hash(h: hash_t) -> str:
+    """Shorten a hash."""
+    return h[:6]
+
 
 # Some locations
 ARTEFACTS = "funsies.artefacts"

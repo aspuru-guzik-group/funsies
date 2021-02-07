@@ -21,7 +21,7 @@ from ._graph import (
 )
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
-from .constants import hash_t, SREADY, SRUNNING
+from .constants import hash_t, short_hash, SREADY, SRUNNING
 from .errors import Error, ErrorKind, Result
 from .logging import logger
 
@@ -78,95 +78,103 @@ def run_op(  # noqa:C901
     db: Redis, op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
     """Run an Operation from its hash address."""
-    # Compatibility feature
-    if not isinstance(op, Operation):
-        op = get_op(db, op)
+    with logger.contextualize(op=short_hash(op.hash)):
+        logger.info(f"--- {op.hash} ---")
+        # Compatibility feature
+        if not isinstance(op, Operation):
+            op = get_op(db, op)
 
-    # Check if job is ready for execution
-    # -----------------------------------
-    # First, we check if this address is even ready to go. We do this by
-    # moving the job from READY->DONE. We do it this way because this
-    # operation is atomic. Thus, if any other worker is also attempting to
-    # start this job, they'll know we currently are processing it.
-    val: int = db.smove(SREADY, SRUNNING, op.hash)  # type:ignore
-    if val == 0:
-        # job is NOT ready. return.
-        logger.info(f"op skipped: {op.hash} is being processed elsewhere")
-        return RunStatus.not_ready
+        # Check if job is ready for execution
+        # -----------------------------------
+        # First, we check if this address is even ready to go. We do this by
+        # moving the job from READY->DONE. We do it this way because this
+        # operation is atomic. Thus, if any other worker is also attempting to
+        # start this job, they'll know we currently are processing it.
+        val: int = db.smove(SREADY, SRUNNING, op.hash)  # type:ignore
+        if val == 0:
+            # job is NOT ready. return.
+            logger.success(f"DONE: taken by another thread.")
+            return RunStatus.not_ready
 
-    # Check if the current job needs to be done at all
-    # ------------------------------------------------
-    if is_it_cached(db, op):
-        # All outputs are ok. We exit this run.
-        logger.info(f"op skipped: {op.hash} has cached results")
-        __make_ready(db, op.hash)
-        return RunStatus.using_cached
+        # Check if the current job needs to be done at all
+        # ------------------------------------------------
+        if is_it_cached(db, op):
+            # All outputs are ok. We exit this run.
+            logger.success(f"DONE: using cached data.")
+            __make_ready(db, op.hash)
+            return RunStatus.using_cached
 
-    if check_only:
-        raise RuntimeError("Attempting to run an operation, but check_only is set.")
+        if check_only:
+            raise RuntimeError("Attempting to run an operation, but check_only is set.")
 
-    # # Then we check if all the inputs are ready to be processed.
-    if not dependencies_are_met(db, op):
-        __make_ready(db, op.hash)
-        return RunStatus.unmet_dependencies
+        # # Then we check if all the inputs are ready to be processed.
+        if not dependencies_are_met(db, op):
+            logger.success(f"DONE: waiting on dependencies.")
+            __make_ready(db, op.hash)
+            return RunStatus.unmet_dependencies
 
-    # load the funsie
-    funsie = get_funsie(db, op.funsie)
-    runner = RUNNERS[funsie.how]
+        # load the funsie
+        funsie = get_funsie(db, op.funsie)
+        runner = RUNNERS[funsie.how]
 
-    # load input files
-    input_data: Dict[str, Result[bytes]] = {}
-    for key, val in op.inp.items():
-        artefact = get_artefact(db, val)
-        dat = get_data(db, artefact, source=op.hash)
-        if isinstance(dat, Error):
-            if funsie.error_tolerant:
-                logger.warning(f"input {key} to error-tolerant funsie has errors.")
-                input_data[key] = dat
+        # load input files
+        input_data: Dict[str, Result[bytes]] = {}
+        for key, val in op.inp.items():
+            artefact = get_artefact(db, val)
+            dat = get_data(db, artefact, source=op.hash)
+            if isinstance(dat, Error):
+                if funsie.error_tolerant:
+                    logger.warning(f"error on input {key} (tolerated).")
+                    input_data[key] = dat
+                else:
+                    # forward errors and stop
+                    for val in op.out.values():
+                        mark_error(db, val, dat)
+                    logger.error(f"DONE: error on input {key} (fragile).")
+                    __make_ready(db, op.hash)
+                    return RunStatus.input_error
             else:
-                logger.error(f"input {key} to error-fragile funsie has errors.")
-                # forward errors and stop
-                for val in op.out.values():
-                    mark_error(db, val, dat)
-                return RunStatus.input_error
-        else:
-            input_data[key] = dat
+                input_data[key] = dat
 
-    logger.info(f"op running: {op.hash}")
-    try:
-        out_data = runner(funsie, input_data)
-    except Exception:
-        tb_exc = traceback.format_exc()
-        # much trouble
-        for val in op.out.values():
-            mark_error(
-                db,
-                val,
-                error=Error(
-                    kind=ErrorKind.ExceptionRaised,
-                    source=op.hash,
-                    details=tb_exc,
-                ),
-            )
+        logger.info(f"running...")
+        try:
+            out_data = runner(funsie, input_data)
+        except Exception:
+            logger.exception('runner raised!')
+            tb_exc = traceback.format_exc()
+            # much trouble
+            for val in op.out.values():
+                mark_error(
+                    db,
+                    val,
+                    error=Error(
+                        kind=ErrorKind.ExceptionRaised,
+                        source=op.hash,
+                        details=tb_exc,
+                    ),
+                )
+            __make_ready(db, op.hash)
+            logger.error('DONE: runner raised exception.')
+            return RunStatus.executed
+
+        for key, val in out_data.items():
+            artefact = get_artefact(db, op.out[key])
+            if val is None:
+                logger.warning(f"no output data for {key}")
+                mark_error(
+                    db,
+                    artefact.hash,
+                    error=Error(
+                        kind=ErrorKind.MissingOutput,
+                        source=op.hash,
+                        details="output not returned by runner",
+                    ),
+                )
+                # not that in this case, the other outputs are not necesserarily
+                # invalidated, only this one.
+            else:
+                set_data(db, artefact, val)
+
+        __make_ready(db, op.hash)
+        logger.success("DONE: successful eval.")
         return RunStatus.executed
-
-    for key, val in out_data.items():
-        artefact = get_artefact(db, op.out[key])
-        if val is None:
-            logger.warning(f"{op.hash} -> missing output data for {key}")
-            mark_error(
-                db,
-                artefact.hash,
-                error=Error(
-                    kind=ErrorKind.MissingOutput,
-                    source=op.hash,
-                    details="output not returned by runner",
-                ),
-            )
-            # not that in this case, the other outputs are not necesserarily
-            # invalidated, only this one.
-        else:
-            set_data(db, artefact, val)
-
-    __make_ready(db, op.hash)
-    return RunStatus.executed

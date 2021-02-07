@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Custom worker class for RQ."""
 import sys
+import os
 
 from redis import Redis
 from rq import Connection, Worker
@@ -40,8 +41,16 @@ def main():
 @click.argument("queues", nargs=-1)
 def worker(url, queues, burst, rq_logging, logging_level):
     """Starts an RQ worker for funsies."""
-    with Connection(Redis.from_url(url)):
-        logger.info(f"connected to {url}")
+    logger.info(f"connecting to {url}")
+    db = Redis.from_url(url)
+    try:
+        db.ping()
+    except Exception:
+        logger.critical(f"could not connect to server! exiting")
+        sys.exit(-1)
+    logger.success(f"connected")
+
+    with Connection(db):
         queues = queues or ["default"]
         if burst:
             burst_mode = " in burst mode"
