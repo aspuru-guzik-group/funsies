@@ -1,7 +1,4 @@
 """A quantum chemistry example."""
-# std
-import sys
-
 # module
 from funsies import execute, Fun, options, reduce, shell, take, wait_for
 from funsies.utils import concat

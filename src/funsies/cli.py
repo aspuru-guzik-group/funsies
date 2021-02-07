@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 """Custom worker class for RQ."""
 import sys
-import os
 
+# external
+import click
 from redis import Redis
 from rq import Connection, Worker
-import click
 
 # required funsies libraries loaded in advance
-import funsies, subprocess, msgpack, hashlib, loguru
+import funsies, subprocess, msgpack, hashlib, loguru  # noqa
+
+# Local
 from . import __version__
 from .logging import logger
 
@@ -16,7 +18,7 @@ from .logging import logger
 # This is the main funsies command
 @click.group()
 @click.version_option(__version__)
-def main():
+def main() -> None:
     """Command-line tools for funsies."""
     pass
 
@@ -39,16 +41,16 @@ def main():
     "--logging-level", type=str, default="INFO", help="Set logging level for funsies"
 )
 @click.argument("queues", nargs=-1)
-def worker(url, queues, burst, rq_logging, logging_level):
+def worker(url, queues, burst, rq_logging, logging_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
     logger.info(f"connecting to {url}")
     db = Redis.from_url(url)
     try:
         db.ping()
     except Exception:
-        logger.critical(f"could not connect to server! exiting")
+        logger.critical("could not connect to server! exiting")
         sys.exit(-1)
-    logger.success(f"connected")
+    logger.success("connected")
 
     with Connection(db):
         queues = queues or ["default"]
@@ -68,7 +70,7 @@ def worker(url, queues, burst, rq_logging, logging_level):
     default="redis://localhost:6379",
     help="URL describing Redis connection details.",
 )
-def clean(url):
+def clean(url):  # noqa:ANN001,ANN201
     """Reset job queues and DAGs."""
     with Connection(Redis.from_url(url)):
         logger.info(f"connected to {url}")
