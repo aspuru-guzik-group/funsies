@@ -79,6 +79,7 @@ def test_integration(reference: str, nworkers: int) -> None:
 
         execute(estdout)
         wait_for(merge, timeout=10.0)
+        wait_for(estdout, timeout=10.0)
 
         # stop workers
         for i in range(nworkers):
@@ -110,10 +111,11 @@ def test_integration(reference: str, nworkers: int) -> None:
 
             assert take(merge) == data
 
+    time.sleep(0.1)
     # stop db
+    [w.kill() for w in worker_pool]
     redis_server.kill()
     shutil.rmtree(dir)
 
 
-# make_reference = True
-# test_integration("0.1")
+test_integration("0.1", 1)

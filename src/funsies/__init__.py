@@ -3,18 +3,18 @@ from . import debug
 from . import utils
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
+from ._shell import ShellOutput
 from .constants import hash_t
 from .context import Fun, options
-from .dag import execute
 from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
 from .ui import (
+    execute,
     mapping,
     morph,
     put,
     reduce,
     shell,
-    ShellOutput,
     tag,
     take,
     takeout,
@@ -23,6 +23,7 @@ from .ui import (
 
 __all__ = [
     # ui
+    "execute",
     "shell",
     "morph",
     "reduce",

@@ -118,3 +118,25 @@ def test_error_propagation_shell() -> None:
     with Fun(store):
         assert funsies.take(s3.stderr) != b""
         assert funsies.take(s3.returncode) != b"0"
+
+
+def test_error_tolerant() -> None:
+    """Test error tolerant funsie."""
+    store = Redis()
+
+    def error_tolerant_fun(inp: funsies.Result[bytes]) -> bytes:
+        if isinstance(inp, funsies.Error):
+            return b"err"
+        else:
+            return b""
+
+    with Fun(store):
+        s1 = funsies.shell("cp file1 file3", inp=dict(file1="bla"), out=["file2"])
+        s2 = funsies.morph(error_tolerant_fun, s1.out["file2"], strict=False)
+
+        with pytest.raises(RuntimeError):
+            # Test operation not found
+            funsies.run_op(store, s2.hash)
+        funsies.run_op(store, s1.op)
+        funsies.run_op(store, s2.parent)
+        assert funsies.take(s2) == b"err"
