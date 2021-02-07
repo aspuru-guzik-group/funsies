@@ -128,6 +128,7 @@ def run_op(  # noqa:C901
                 # forward errors and stop
                 for val in op.out.values():
                     mark_error(db, val, dat)
+                __make_ready(db, op.hash)
                 return RunStatus.input_error
         else:
             input_data[key] = dat
@@ -148,6 +149,7 @@ def run_op(  # noqa:C901
                     details=tb_exc,
                 ),
             )
+        __make_ready(db, op.hash)
         return RunStatus.executed
 
     for key, val in out_data.items():
