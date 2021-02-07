@@ -22,7 +22,7 @@ def test_artefact_add_large() -> None:
     assert data == data2
 
 
-def test_artefact_add_large() -> None:
+def test_artefact_replace_large() -> None:
     """Test replacing large artefacts."""
     store = Redis()
     _graph._set_block_size(5)
