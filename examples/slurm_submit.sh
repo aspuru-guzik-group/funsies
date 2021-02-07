@@ -32,7 +32,7 @@ export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 
 # start workers in burst mode: work until no work is present, then quit
 srun --ntasks=${worker_num} --cpus-per-task=${SLURM_CPUS_PER_TASK}\
-     rq worker --url redis://${server_node} --burst
+     funsies worker --url redis://${server_node} --burst
 
 # save database
 redis-cli --rdb results.rdb

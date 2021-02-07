@@ -3,6 +3,7 @@
 import os
 import subprocess
 import tempfile
+import time
 from typing import Dict, Mapping, Optional, Sequence
 
 # external
@@ -45,10 +46,10 @@ def shell_funsie(
 
 
 def run_shell_funsie(  # noqa:C901
-    funsie: Funsie,
-    input_values: Mapping[str, Result[bytes]],
+    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
 ) -> Dict[str, Optional[bytes]]:
     """Execute a shell command."""
+    logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
         incoming_files, _ = funsie.check_inputs(input_values)
@@ -64,6 +65,8 @@ def run_shell_funsie(  # noqa:C901
         out: Dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
+            t1 = time.time()
+            logger.info(f"{k+1}/{len(cmds)} $> {c}")
             proc = subprocess.run(
                 c,
                 cwd=dir,
@@ -71,10 +74,14 @@ def run_shell_funsie(  # noqa:C901
                 env=env,
                 shell=True,
             )
+            t2 = time.time()
+            logger.info(f"done {k+1}/{len(cmds)} \t\tduration: {t2-t1:.2f}s")
 
             out[f"{STDOUT}{k}"] = proc.stdout
             out[f"{STDERR}{k}"] = proc.stderr
             out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+            if proc.returncode:
+                logger.warning(f"nonzero returncode={proc.returncode}")
 
         # Output files
         for file in funsie.out:
@@ -85,7 +92,7 @@ def run_shell_funsie(  # noqa:C901
                     with open(os.path.join(dir, file), "rb") as f:
                         out[file] = f.read()
                 except FileNotFoundError:
-                    logger.warning(f"expected file {file}, but didn't find it")
+                    logger.warning(f"missing expected output {file}")
                     out[file] = None
     return out
 

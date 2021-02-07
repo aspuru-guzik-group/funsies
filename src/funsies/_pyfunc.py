@@ -1,5 +1,6 @@
 """Run shell commands using funsies."""
 # std
+import time
 from typing import Callable, Dict, Literal, Mapping, Optional, overload, Sequence, Union
 
 # external
@@ -72,22 +73,26 @@ def python_funsie(
 
 
 def run_python_funsie(
-    funsie: Funsie,
-    input_values: Mapping[str, Result[bytes]],
+    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
 ) -> Dict[str, Optional[bytes]]:
     """Execute a python function."""
+    logger.info("python function")
     fun: pyfunc_t = cloudpickle.loads(funsie.aux)
     name = funsie.what.decode()
     inps, errs = funsie.check_inputs(input_values)
     inps.update(errs)  # type:ignore
 
+    logger.info(f"$> {name}(*args)")
+    t1 = time.time()
     outfun = fun(inps)
+    t2 = time.time()
+    logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
     out: Dict[str, Optional[bytes]] = {}
     for output in funsie.out:
         if output in outfun:
             out[output] = outfun[output]
         else:
-            logger.error(f"expected output {output} not returned by function {name}.")
+            logger.warning(f"missing expected output {output}")
             out[output] = None
 
     return out

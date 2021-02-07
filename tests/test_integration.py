@@ -113,7 +113,8 @@ def test_integration(reference: str, nworkers: int) -> None:
 
     time.sleep(0.1)
     # stop db
-    [w.kill() for w in worker_pool]
+    for w in worker_pool:
+        w.kill()
     redis_server.kill()
     shutil.rmtree(dir)
 

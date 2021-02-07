@@ -20,5 +20,10 @@ setuptools.setup(
         "cloudpickle",
         "rq>=1.7",
         'importlib-metadata ~= 1.0 ; python_version < "3.8"',
+        "loguru",
     ],
+    entry_points="""
+        [console_scripts]
+        funsies=funsies.cli:main
+    """,
 )
