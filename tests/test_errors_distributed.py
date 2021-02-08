@@ -32,3 +32,31 @@ def test_raising_funsie() -> None:
         s2 = f.morph(lambda x: x, s1)
         f.execute(s2)
         f.wait_for(s2, timeout=0.5)
+
+
+def test_timeout_funsie() -> None:
+    """Test funsie that timeout.
+
+    This test is specifically designed to catch the deadlock produced when a
+    funsie times out.
+
+    """
+
+    def timeout_fun(*inp: bytes) -> bytes:
+        time.sleep(3.0)
+        return b"what"
+
+    with f.ManagedFun(nworkers=1):
+        # Test when python function times out
+        s1 = f.reduce(timeout_fun, "bla bla", "bla bla", opt=f.options(timeout=1))
+        f.execute(s1)
+        f.wait_for(s1, timeout=2)
+        with pytest.raises(f.UnwrapError):
+            _ = f.take(s1)
+
+        # Test when shell function times out
+        s1 = f.shell("sleep 20", opt=f.options(timeout=1))
+        f.execute(s1)
+        f.wait_for(s1, timeout=2)
+        with pytest.raises(f.UnwrapError):
+            _ = f.take(s1.stdout)
