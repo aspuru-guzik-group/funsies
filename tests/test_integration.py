@@ -1,4 +1,4 @@
-"""Test of Funsies shell capabilities."""
+"""Test of Funsies backward compatibility."""
 # std
 import os
 import shutil
@@ -54,7 +54,7 @@ def test_integration(reference: str, nworkers: int) -> None:
     time.sleep(0.1)
 
     # spawn workers
-    worker_pool = [subprocess.Popen(["rq", "worker"]) for i in range(nworkers)]
+    worker_pool = [subprocess.Popen(["funsies", "worker"]) for i in range(nworkers)]
 
     # Start funsie script
     with Fun():
@@ -117,6 +117,3 @@ def test_integration(reference: str, nworkers: int) -> None:
         w.kill()
     redis_server.kill()
     shutil.rmtree(dir)
-
-
-test_integration("0.1", 1)
