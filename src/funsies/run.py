@@ -154,8 +154,8 @@ def run_op(  # noqa:C901
                         details=tb_exc,
                     ),
                 )
-            __make_ready(db, op.hash)
             logger.error("DONE: runner raised exception.")
+            __make_ready(db, op.hash)
             return RunStatus.executed
 
         for key, val in out_data.items():
@@ -176,6 +176,6 @@ def run_op(  # noqa:C901
             else:
                 set_data(db, artefact, val)
 
-        __make_ready(db, op.hash)
         logger.success("DONE: successful eval.")
+        __make_ready(db, op.hash)
         return RunStatus.executed

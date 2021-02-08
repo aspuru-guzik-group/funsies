@@ -94,40 +94,23 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
     queue = [node]
     while len(queue) != 0:
         curr = queue.pop()
-
-        # Note: this is how I originally implemented the caching....
-        #
-        # if is_it_cached(db, curr):
-        #     # We don't need to run this because all of its outputs are cached
-        #     # anyway.
-        #     logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
-        #     continue
-        #
-        # This is a bad idea because two dags could end in different places
-        # but start from the same initial point. if that's the case and we
-        # preemptively remove that initial point, the other dag wont get run!
-        #
-        #
-        # Note: I then added the following lines that put the cached job on
-        # the dag but not it's dependencies. However, as nice as this is, I
-        # think it could hide some fairly nasty bugs that may not be clear at
-        # first sight, like the one above. So instead I've fixed up task() to
-        # do recursive executing of cached task to reduce the amount of tasks
-        # generated, while also keeping full dag contstruction on every run.
-        #
-        # if len(curr.inp) == 0 or is_it_cached(db, curr):
-        #     __dag_append(db, address, hash_t("root"), curr.hash)
-        if len(curr.inp) == 0:
+        if len(curr.inp) == 0 or is_it_cached(db, curr):
+            # DAG has no inputs or is cached.
             __dag_append(db, address, hash_t("root"), curr.hash)
         else:
+            only_root = True
             for el in curr.inp.values():
                 art = get_artefact(db, el)
-
                 if art.parent != root:
                     queue.append(get_op(db, art.parent))
                     __dag_append(db, address, art.parent, curr.hash)
-                else:
-                    __dag_append(db, address, hash_t("root"), curr.hash)
+                    only_root = False
+
+            if only_root:
+                # ONLY IF ALL THE PARENTS ARE ROOT DO WE ADD THIS DAG TO
+                # ROOT!! This is to avoid having root-dependent steps that get
+                # re-run over and over again.
+                __dag_append(db, address, hash_t("root"), curr.hash)
 
 
 def task(
