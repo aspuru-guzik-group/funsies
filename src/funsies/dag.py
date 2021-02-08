@@ -10,9 +10,9 @@ from rq.queue import Queue
 
 # module
 from ._graph import get_artefact, get_op, get_op_options
-from .constants import DAG_INDEX, DAG_STORE, hash_t
+from .constants import DAG_INDEX, DAG_STORE, hash_t, short_hash
 from .logging import logger
-from .run import dependencies_are_met, is_it_cached, run_op, RunStatus
+from .run import is_it_cached, run_op, RunStatus
 
 
 def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
@@ -134,27 +134,16 @@ def task(
 
     if stat > 0:
         # Success! Let's enqueue dependents.
-        for dependent in _dag_dependents(db, dag_of, current):
-            # To reduce the number of task, we only enqueue tasks when
-            # dependencies are met.
-            # TODO: maybe I shouldn't pull and deserialize the operation just
-            # for this. oh well.
-            dependent_op = get_op(db, dependent)
+        depen = _dag_dependents(db, dag_of, current)
+        logger.info(f"enqueuing {len(depen)} dependents")
 
-            if dependencies_are_met(db, dependent_op):
-                if is_it_cached(db, dependent_op):
-                    # This task won't actually run, because it's cached. It
-                    # will be much faster if I just evaluate it recursively
-                    # right here then if I enqueue it etc etc.
-                    logger.debug(f"recursing into cached task {dependent}.")
-                    task(dag_of, dependent)
-                else:
-                    # Run the dependent task
-                    options = get_op_options(db, dependent)
-                    queue = Queue(connection=db, **options.queue_args)
-                    queue.enqueue_call(
-                        task, args=(dag_of, dependent), **options.job_args
-                    )
+        for dependent in depen:
+            # Run the dependent task
+            options = get_op_options(db, dependent)
+            queue = Queue(connection=db, **options.queue_args)
+
+            logger.info(f"-> {short_hash(dependent)}")
+            queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
 
     return stat
 

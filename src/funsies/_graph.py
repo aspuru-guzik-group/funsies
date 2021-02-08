@@ -396,3 +396,15 @@ def get_op_options(store: Redis, hash: hash_t) -> Options:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
 
     return Options.unpack(out)
+
+
+def reset_locks(db: Redis) -> None:
+    """Reset all the operation locks."""
+    # store the node
+    keys = db.hkeys(OPERATIONS)
+    pipe = db.pipeline(transaction=True)  # type:ignore
+    for key in keys:
+        # Add to the ready list and remove from the running list if it was
+        # previously aborted.
+        pipe.srem(SRUNNING, key)
+        pipe.sadd(SREADY, key)
