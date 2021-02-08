@@ -8,6 +8,7 @@ from redis import Redis
 
 # module
 from ._graph import Artefact
+from .config import Options
 from .errors import Error, Result
 from .ui import reduce
 
@@ -36,6 +37,7 @@ def concat(
     *inp: Union[Artefact, str, bytes],
     join: Union[Artefact, str, bytes] = b"",
     strict: bool = True,
+    opt: Optional[Options] = None,
     connection: Optional[Redis] = None
 ) -> Artefact:
     """Concatenate artefacts."""
@@ -49,7 +51,9 @@ def concat(
                 out += joiner
         return out
 
-    return reduce(concatenation, join, *inp, strict=strict, connection=connection)
+    return reduce(
+        concatenation, join, *inp, strict=strict, connection=connection, opt=opt
+    )
 
 
 def pickled(fun: Callable[..., Any]) -> Callable[..., Any]:
