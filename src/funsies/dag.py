@@ -4,6 +4,7 @@ from typing import Set
 
 # external
 from redis import Redis
+from redis.client import Pipeline
 import rq
 from rq.queue import Queue
 
@@ -92,25 +93,27 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
     queue = [node]
+    pipe: Pipeline = db.pipeline(transaction=False)  # type:ignore
     while len(queue) != 0:
         curr = queue.pop()
         if len(curr.inp) == 0 or is_it_cached(db, curr):
             # DAG has no inputs or is cached.
-            __dag_append(db, address, hash_t("root"), curr.hash)
+            __dag_append(pipe, address, hash_t("root"), curr.hash)
         else:
             only_root = True
             for el in curr.inp.values():
                 art = get_artefact(db, el)
                 if art.parent != root:
                     queue.append(get_op(db, art.parent))
-                    __dag_append(db, address, art.parent, curr.hash)
+                    __dag_append(pipe, address, art.parent, curr.hash)
                     only_root = False
 
             if only_root:
                 # ONLY IF ALL THE PARENTS ARE ROOT DO WE ADD THIS DAG TO
                 # ROOT!! This is to avoid having root-dependent steps that get
                 # re-run over and over again.
-                __dag_append(db, address, hash_t("root"), curr.hash)
+                __dag_append(pipe, address, hash_t("root"), curr.hash)
+    pipe.execute()  # type:ignore
 
 
 def task(

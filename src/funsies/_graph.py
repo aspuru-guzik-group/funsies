@@ -8,6 +8,7 @@ from typing import Dict, Optional, Type
 # external
 from msgpack import packb, unpackb
 from redis import Redis
+from redis.client import Pipeline
 
 # module
 from ._funsies import Funsie, store_funsie
@@ -226,8 +227,10 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
     # ==============================================================
 
     node = Artefact(hash=h, parent=hash_t("root"))
+
+    pipe: Pipeline = store.pipeline(transaction=False)  # type:ignore
     # store the artefact
-    val = store.hset(
+    val = pipe.hset(
         ARTEFACTS,
         h,
         node.pack(),
@@ -235,13 +238,14 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
     if val != 1:
         logger.debug(f"Const artefact at {h} already exists.")
     # store the artefact data
-    _ = store.hset(
+    _ = pipe.hset(
         STORE,
         h,
         value,
     )
     # mark the artefact as const
-    _ = store.hset(DATA_STATUS, h, int(ArtefactStatus.const))
+    _ = pipe.hset(DATA_STATUS, h, int(ArtefactStatus.const))
+    pipe.execute()  # type:ignore
     return node
 
 
@@ -323,8 +327,11 @@ def make_op(
             inp_art[key] = inp[key].hash
             dependencies.add(inp[key].parent)
 
+    # Setup a buffered command pipeline for performance
+    pipe: Pipeline = store.pipeline(transaction=False)  # type:ignore
+
     # save funsie
-    store_funsie(store, funsie)
+    store_funsie(pipe, funsie)
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -342,20 +349,20 @@ def make_op(
     # Setup the output artefacts.
     out_art = {}
     for key in funsie.out:
-        out_art[key] = variable_artefact(store, ophash, key).hash
+        out_art[key] = variable_artefact(pipe, ophash, key).hash
 
     # Make the node
     node = Operation(ophash, funsie.hash, inp_art, out_art)
 
     # store the runtime options for the node
-    store.hset(
+    pipe.hset(
         OPTIONS,
         ophash,
         opt.pack(),
     )
 
     # store the node
-    store.hset(
+    pipe.hset(
         OPERATIONS,
         ophash,
         node.pack(),
@@ -363,8 +370,11 @@ def make_op(
 
     # Add to the ready list and remove from the running list if it was
     # previously aborted.
-    store.srem(SRUNNING, ophash)
-    store.sadd(SREADY, ophash)  # type:ignore
+    pipe.srem(SRUNNING, ophash)
+    pipe.sadd(SREADY, ophash)  # type:ignore
+
+    # Execute the full transaction
+    pipe.execute()  # type:ignore
     return node
 
 
