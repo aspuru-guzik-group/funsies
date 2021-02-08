@@ -151,6 +151,8 @@ def ManagedFun(
         # stop db
         for w in worker_pool:
             w.kill()
+            w.wait()
         redis_server.kill()
+        redis_server.wait()
         shutil.rmtree(dir)
         logger.success("stopping managed fun")
