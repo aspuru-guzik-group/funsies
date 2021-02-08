@@ -43,14 +43,14 @@ def main() -> None:
 @click.argument("queues", nargs=-1)
 def worker(url, queues, burst, rq_logging, logging_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
-    logger.info(f"connecting to {url}")
+    logger.debug(f"connecting to {url}")
     db = Redis.from_url(url)
     try:
         db.ping()
     except Exception:
         logger.critical("could not connect to server! exiting")
         sys.exit(-1)
-    logger.success("connected")
+    logger.debug("connection sucessful")
 
     with Connection(db):
         queues = queues or ["default"]
@@ -58,7 +58,7 @@ def worker(url, queues, burst, rq_logging, logging_level):  # noqa:ANN001,ANN201
             burst_mode = " in burst mode"
         else:
             burst_mode = ""
-        logger.info(f"working on {', '.join(queues)}{burst_mode}")
+        logger.success(f"url={url} queues={', '.join(queues)}{burst_mode}")
         w = Worker(queues, log_job_description=False)
         w.work(burst=burst, logging_level=rq_logging)
 

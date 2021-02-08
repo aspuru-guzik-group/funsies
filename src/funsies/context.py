@@ -2,6 +2,10 @@
 # std
 from contextlib import contextmanager
 from dataclasses import replace
+import shutil
+import subprocess
+import tempfile
+import time
 from typing import Any, Iterator, Optional
 
 # external
@@ -105,3 +109,48 @@ def options(**kwargs: Any) -> Options:
     else:
         defaults: Options = _options_stack.top
         return replace(defaults, **kwargs)
+
+
+# ---------------------------------------------------------------------------------
+# Utility contexts
+@contextmanager
+def ManagedFun(
+    nworkers: int = 1, defaults: Optional[Options] = None
+) -> Iterator[Redis]:
+    """Make a fully managed funsies db."""
+    dir = tempfile.mkdtemp()
+    logger.debug(f"running redis-server in {dir}")
+
+    # Start redis
+    port = 7777  # TODO make adjustable
+    url = f"redis://localhost:{port}"
+    redis_server = subprocess.Popen(
+        ["redis-server", "--port", f"{port}"],
+        cwd=dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    # TODO:CHECK that server started successfully
+    time.sleep(0.1)
+    logger.debug(f"redis running at {url}")
+
+    # spawn workers
+    logger.debug(f"spawning {nworkers} funsies workers")
+    worker_pool = [
+        subprocess.Popen(["funsies", "worker", "--url", url], cwd=dir)
+        for i in range(nworkers)
+    ]
+
+    try:
+        logger.success(f"{nworkers} workers connected to {url}")
+        with Fun(Redis.from_url(url), defaults=defaults) as db:
+            yield db
+    finally:
+        logger.debug("terminating worker pool and server")
+        time.sleep(0.1)
+        # stop db
+        for w in worker_pool:
+            w.kill()
+        redis_server.kill()
+        shutil.rmtree(dir)
+        logger.success("stopping managed fun")

@@ -5,7 +5,7 @@ from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._shell import ShellOutput
 from .constants import hash_t
-from .context import Fun, options
+from .context import Fun, ManagedFun, options
 from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
 from .run import run_op, RUNNERS, RunStatus
 from .ui import (
@@ -35,6 +35,7 @@ __all__ = [
     "wait_for",
     # context,
     "Fun",
+    "ManagedFun",
     # dag
     "execute",
     # error
