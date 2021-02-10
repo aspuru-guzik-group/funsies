@@ -84,5 +84,5 @@ def shell(  # noqa:C901
 
     if what["env"] is not None:
         with open(os.path.join(directory, "op.env"), "w") as f:
-            for key, val in what["env"]:
+            for key, val in what["env"].items():
                 f.write(f"{key}={val}\n")
