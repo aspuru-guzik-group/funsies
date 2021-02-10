@@ -33,7 +33,7 @@ context sets up the connection to Redis (by default, on localhost).
 Chaining shell commands is simple,
 #+BEGIN_SRC python
   t2 = shell(
-      ['grep "HOMO-LUMO ENERGY" myfile'],
+      'grep "HOMO-LUMO ENERGY" myfile',
       inp={"myfile": t1.out["params.out"]},
   )
 #+END_SRC
@@ -59,7 +59,7 @@ becomes retrievable using ~take().~
 Running workflows is done using rq, a minimalist job queue library. To create
 workers, simply run the following in the shell,
 #+BEGIN_SRC shell
-rq worker
+funsies worker
 #+END_SRC
 There are many settings available. Importantly, workers can connect to remote
 Redis servers, which allow full distributed computations. An example as to how
@@ -201,3 +201,32 @@ On the local machine, run
 #+END_SRC
 to tunnel to the dashboard. If everything worked, the dashboard should be
 accessible using a browser pointed at address http://localhost:9181
+
+** Using funsies to orchestrate jobs
+One potentially interesting use of funsies is as an HPC job manager or
+orchestration tool. Due to its distributed nature, the submitting and result
+analysis script does not need to be local to the workers.
+
+In HPC environment, the easiest way to do this orchestration is through using
+a ssh tunnel. In debug mode, this would look like
+#+BEGIN_SRC shell
+  salloc -p debug --time=1:00:00
+  module load conda3
+  source activate funsies         # the same env should be used for submission
+                                  # if any python code is to be run on the
+                                  # workers.
+
+  redis-server redis.conf &       # make sure to use a redis.conf file that
+                                  # disables protected mode.
+
+  # start workers
+  srun --ntasks=40 --cpus-per-task=1 funsies worker
+#+END_SRC
+Then, we just need to punch a ssh tunnel to run jobs on the scinet node above,
+#+BEGIN_SRC
+ssh niagara.scinet.utoronto.ca -L 6379:{node_address}.local:6379
+#+END_SRC
+where ~{node_address}~ is the specific nodes that run the redis instance. This
+approach can be scaled to many more than one node of course. In addition, once
+jobs are executing, the client does not need to remain connected anymore,
+which provides a degree of stability.

@@ -132,18 +132,19 @@ def task(
     # Now we run the job
     stat = run_op(db, op)
 
-    if stat > 0:
-        # Success! Let's enqueue dependents.
-        depen = _dag_dependents(db, dag_of, current)
-        logger.info(f"enqueuing {len(depen)} dependents")
+    with logger.contextualize(op=short_hash(op.hash)):
+        if stat > 0:
+            # Success! Let's enqueue dependents.
+            depen = _dag_dependents(db, dag_of, current)
+            logger.info(f"enqueuing {len(depen)} dependents")
 
-        for dependent in depen:
-            # Run the dependent task
-            options = get_op_options(db, dependent)
-            queue = Queue(connection=db, **options.queue_args)
+            for dependent in depen:
+                # Run the dependent task
+                options = get_op_options(db, dependent)
+                queue = Queue(connection=db, **options.queue_args)
 
-            logger.info(f"-> {short_hash(dependent)}")
-            queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
+                logger.info(f"-> {short_hash(dependent)}")
+                queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
 
     return stat
 
