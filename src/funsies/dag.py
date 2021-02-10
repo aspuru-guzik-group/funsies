@@ -96,7 +96,7 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
     pipe: Pipeline = db.pipeline(transaction=False)  # type:ignore
     while len(queue) != 0:
         curr = queue.pop()
-        if len(curr.inp) == 0 or is_it_cached(db, curr):
+        if len(curr.inp) == 0:
             # DAG has no inputs or is cached.
             __dag_append(pipe, address, hash_t("root"), curr.hash)
         else:
