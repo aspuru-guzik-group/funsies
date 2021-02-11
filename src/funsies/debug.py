@@ -1,15 +1,19 @@
 """Helpful function for debugging workflows."""
 # std
+from dataclasses import asdict
+import json
 import os
 import os.path
-from typing import Optional
+from typing import Optional, Union
 
 # external
 from msgpack import unpackb
 from redis import Redis
 
 # module
-from ._funsies import get_funsie
+from . import getter
+from ._funsies import FunsieHow, get_funsie
+from ._graph import Artefact, get_op, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath, hash_t
 from .context import get_db
@@ -23,11 +27,11 @@ def shell(  # noqa:C901
     shell_output: ShellOutput, directory: _AnyPath, connection: Optional[Redis] = None
 ) -> None:
     """Extract all the files and outputs of a shell function to a directory."""
-    errors = ""
     os.makedirs(directory, exist_ok=True)
     inp = os.path.join(directory, "input_files")
     out = os.path.join(directory, "output_files")
     db = get_db(connection)
+    errors = {}
 
     for key, val in shell_output.inp.items():
         try:
@@ -35,11 +39,7 @@ def shell(  # noqa:C901
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors += (
-                f"input file:{key}:"
-                + str(take(val, strict=False, connection=db))
-                + "\n"
-            )
+            errors[f"input:{key}"] = asdict(take(val, strict=False, connection=db))
 
     for key, val in shell_output.out.items():
         try:
@@ -47,11 +47,7 @@ def shell(  # noqa:C901
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors += (
-                f"output file:{key}:"
-                + str(take(val, strict=False, connection=db))
-                + "\n"
-            )
+            errors[f"output:{key}"] = asdict(take(val, strict=False, connection=db))
 
     for i in range(len(shell_output.stdouts)):
         try:
@@ -61,7 +57,7 @@ def shell(  # noqa:C901
                 connection=db,
             )
         except UnwrapError:
-            errors += f"stdout{i}:" + str(take(val, strict=False, connection=db)) + "\n"
+            errors[f"stdout:{key}"] = asdict(take(val, strict=False, connection=db))
 
         try:
             takeout(
@@ -70,13 +66,19 @@ def shell(  # noqa:C901
                 connection=db,
             )
         except UnwrapError:
-            errors += f"stderr{i}:" + str(take(val, strict=False, connection=db)) + "\n"
+            errors[f"stderr:{key}"] = asdict(take(val, strict=False, connection=db))
 
-    with open(os.path.join(directory, "error.log"), "w") as f:
-        f.write(errors)
+    with open(os.path.join(directory, "errors.json"), "w") as f:
+        f.write(
+            json.dumps(
+                errors,
+                sort_keys=True,
+                indent=2,
+            )
+        )
 
-    with open(os.path.join(directory, "op.hash"), "w") as f:
-        f.write(shell_output.hash)
+    with open(os.path.join(directory, "operation.json"), "w") as f:
+        f.write(json.dumps(asdict(shell_output.op), sort_keys=True, indent=2))
 
     what = unpackb(get_funsie(db, shell_output.op.funsie).what)
     with open(os.path.join(directory, "op.sh"), "w") as f:
@@ -90,9 +92,105 @@ def shell(  # noqa:C901
 
 
 # --------------
-# Debug anything
-def anything(
-    hash: hash_t, output: _AnyPath, connection: Optional[Redis] = None
-) -> None:
+# Debug artefact
+def artefact(
+    target: Artefact, directory: _AnyPath, connection: Optional[Redis] = None
+) -> str:
     """Output content of any hash object to a file."""
-    pass
+    db = get_db(connection)
+    os.makedirs(directory, exist_ok=True)
+    with open(os.path.join(directory, "metadata.json"), "w") as f:
+        f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
+    try:
+        takeout(
+            target,
+            os.path.join(directory, "data"),
+            connection=db,
+        )
+    except UnwrapError:
+        # dump error to json file
+        with open(os.path.join(directory, "error.json"), "w") as f:
+            f.write(
+                json.dumps(
+                    asdict(take(target, strict=False, connection=db)),
+                    sort_keys=True,
+                    indent=2,
+                )
+            )
+
+
+def python(
+    target: Union[Operation, Artefact],
+    directory: _AnyPath,
+    connection: Optional[Redis] = None,
+) -> str:
+    """Output content of any hash object to a file."""
+    db = get_db(connection)
+
+    if isinstance(target, Artefact):
+        # Get the corresponding operation
+        target = get_op(db, target.parent)
+        if target is None:
+            raise RuntimeError(f"Operation not found at {target.parent}")
+
+    os.makedirs(directory, exist_ok=True)
+    funsie = get_funsie(db, target.funsie)
+    inp = os.path.join(directory, "inputs")
+    out = os.path.join(directory, "outputs")
+    errors = {}
+    if funsie.how != FunsieHow.python:
+        raise RuntimeError(f"Operation is of type {funsie.how}, not a python function.")
+
+    for key, val in target.inp.items():
+        try:
+            p = os.path.join(inp, key)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            takeout(val, p, connection=db)
+        except UnwrapError:
+            errors[f"input:{key}"] = asdict(take(val, strict=False, connection=db))
+
+    for key, val in target.out.items():
+        try:
+            p = os.path.join(out, key)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            takeout(val, p, connection=db)
+        except UnwrapError:
+            errors[f"output:{key}"] = asdict(take(val, strict=False, connection=db))
+
+    with open(os.path.join(directory, "errors.json"), "w") as f:
+        f.write(
+            json.dumps(
+                errors,
+                sort_keys=True,
+                indent=2,
+            )
+        )
+
+    meta = {
+        "what": funsie.what.decode(),
+        "inp": funsie.inp,
+        "out": funsie.out,
+        "error_tolerant": funsie.error_tolerant,
+    }
+    with open(os.path.join(directory, "funsie.json"), "w") as f:
+        f.write(json.dumps(meta, sort_keys=True, indent=2))
+
+    with open(os.path.join(directory, "operation.json"), "w") as f:
+        f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
+
+    with open(os.path.join(directory, "function.pkl"), "wb") as f:
+        f.write(funsie.aux)
+
+
+# --------------
+# Debug anything
+def anything(hash: hash_t, output: _AnyPath, connection: Optional[Redis] = None) -> str:
+    """Output content of any hash object to a file."""
+    db = get_db(connection)
+    obj = getter.get(hash, connection=db)
+    if isinstance(obj, Operation):
+        funsie = get_funsie(obj.funsie)
+        if funsie.how == FunsieHow.shell:
+            shell_output = ShellOutput(db, obj)
+            shell(shell_output, output, db)
+            return "shell command"
