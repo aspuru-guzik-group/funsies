@@ -61,19 +61,18 @@ def run_shell_funsie(  # noqa:C901
 
         # goto shell funsie above for definitions of those.
         cmds = shell["cmds"]
+
+        # Just update env variables with the new values, do not erase them.
         env = shell["env"]
+        if env is not None:
+            env = os.environ.copy().update(env)
+
         out: Dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
             t1 = time.time()
             logger.info(f"{k+1}/{len(cmds)} $> {c}")
-            proc = subprocess.run(
-                c,
-                cwd=dir,
-                capture_output=True,
-                env=env,
-                shell=True,
-            )
+            proc = subprocess.run(c, cwd=dir, capture_output=True, shell=True, env=env)
             t2 = time.time()
             logger.info(f"done {k+1}/{len(cmds)} \t\tduration: {t2-t1:.2f}s")
 

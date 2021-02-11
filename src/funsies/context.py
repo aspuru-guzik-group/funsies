@@ -2,6 +2,7 @@
 # std
 from contextlib import contextmanager
 from dataclasses import replace
+import os
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,7 @@ from rq.local import LocalStack
 # module
 from ._graph import reset_locks
 from .config import Options
+from .constants import _AnyPath
 from .dag import delete_all_dags
 from .logging import logger
 
@@ -117,17 +119,28 @@ def options(**kwargs: Any) -> Options:
 # Utility contexts
 @contextmanager
 def ManagedFun(
-    nworkers: int = 1, defaults: Optional[Options] = None
+    nworkers: int = 1,
+    defaults: Optional[Options] = None,
+    directory: Optional[_AnyPath] = None,
 ) -> Iterator[Redis]:
     """Make a fully managed funsies db."""
-    dir = tempfile.mkdtemp()
+    if directory is None:
+        dir = tempfile.mkdtemp()
+    else:
+        dir = str(directory)
+
     logger.debug(f"running redis-server in {dir}")
 
     # Start redis
-    port = 7777  # TODO make adjustable
+    port = 16379
     url = f"redis://localhost:{port}"
+    if os.path.exists(os.path.join(dir, "redis.conf")):
+        cmdline = ["redis-server", "redis.conf", "--port", f"{port}"]
+    else:
+        cmdline = ["redis-server", "--port", f"{port}"]
+
     redis_server = subprocess.Popen(
-        ["redis-server", "--port", f"{port}"],
+        cmdline,
         cwd=dir,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -156,5 +169,6 @@ def ManagedFun(
             w.wait()
         redis_server.kill()
         redis_server.wait()
-        shutil.rmtree(dir)
+        if directory is None:
+            shutil.rmtree(dir)
         logger.success("stopping managed fun")

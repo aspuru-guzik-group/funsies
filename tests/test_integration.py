@@ -2,18 +2,15 @@
 # std
 import os
 import shutil
-import subprocess
 import tempfile
-import time
 
 # external
 import pytest
 
 # module
-import funsies
 from funsies import (
     execute,
-    Fun,
+    ManagedFun,
     mapping,
     morph,
     put,
@@ -45,19 +42,10 @@ def test_integration(reference: str, nworkers: int) -> None:
     dir = tempfile.mkdtemp()
     if not make_reference:
         shutil.copy(os.path.join(ref_dir, reference, "appendonly.aof"), dir)
-
     shutil.copy(os.path.join(ref_dir, "redis.conf"), dir)
 
-    # Start redis
-    redis_server = subprocess.Popen(["redis-server", "redis.conf"], cwd=dir)
-    # wait for server to start
-    time.sleep(0.1)
-
-    # spawn workers
-    worker_pool = [subprocess.Popen(["funsies", "worker"]) for i in range(nworkers)]
-
     # Start funsie script
-    with Fun():
+    with ManagedFun(nworkers=nworkers, directory=dir):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell(
@@ -81,10 +69,6 @@ def test_integration(reference: str, nworkers: int) -> None:
         wait_for(merge, timeout=10.0)
         wait_for(estdout, timeout=10.0)
 
-        # stop workers
-        for i in range(nworkers):
-            worker_pool[i].kill()
-
         # wait till completed
         assert take(step1) == b"BLA BLA"
         assert take(step2.stdout) == b"BLA BLAbla bla"
@@ -95,9 +79,6 @@ def test_integration(reference: str, nworkers: int) -> None:
                 assert out is not None
                 f.write(out)
 
-            db = funsies.context.get_db()
-            db.save()
-            time.sleep(0.3)
             shutil.copy(
                 os.path.join(dir, "appendonly.aof"),
                 os.path.join(ref_dir, reference, "appendonly.aof"),
@@ -108,12 +89,6 @@ def test_integration(reference: str, nworkers: int) -> None:
                 data = f.read()
 
             print(take(merge))
-
             assert take(merge) == data
 
-    time.sleep(0.1)
-    # stop db
-    for w in worker_pool:
-        w.kill()
-    redis_server.kill()
     shutil.rmtree(dir)

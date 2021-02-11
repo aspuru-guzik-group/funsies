@@ -33,13 +33,12 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
 from .config import Options
-from .constants import hash_t
+from .constants import _AnyPath, hash_t
 from .context import get_db, get_options
 from .dag import start_dag_execution
 from .errors import Result, unwrap
 
 # Types
-_AnyPath = Union[str, os.PathLike]
 _INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 

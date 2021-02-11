@@ -1,8 +1,10 @@
 """Names of stuff in the key value store."""
-from typing import NewType
+from os import PathLike
+from typing import NewType, Union
 
 
 # Some types
+_AnyPath = Union[str, PathLike]
 hash_t = NewType("hash_t", str)
 
 

@@ -11,9 +11,10 @@ from redis import Redis
 # module
 from ._funsies import get_funsie
 from ._shell import ShellOutput
+from .constants import _AnyPath
 from .context import get_db
 from .errors import UnwrapError
-from .ui import _AnyPath, take, takeout
+from .ui import take, takeout
 
 
 # ----------------------------------------------------------------------
