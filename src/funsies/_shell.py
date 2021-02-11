@@ -63,9 +63,12 @@ def run_shell_funsie(  # noqa:C901
         cmds = shell["cmds"]
 
         # Just update env variables with the new values, do not erase them.
-        env = shell["env"]
-        if env is not None:
-            env = os.environ.copy().update(env)
+        new_env = shell["env"]
+        if new_env is not None:
+            env = os.environ.copy()
+            env.update(new_env)
+        else:
+            env = None
 
         out: Dict[str, Optional[bytes]] = {}
 

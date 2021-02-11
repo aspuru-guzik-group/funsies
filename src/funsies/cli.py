@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-"""Custom worker class for RQ."""
+"""Cli utilities."""
 import sys
+from typing import Optional
 
 # external
 import click
@@ -77,6 +78,29 @@ def clean(url):  # noqa:ANN001,ANN201
         logger.info("cleaning up")
         funsies.context.cleanup_funsies(Redis.from_url(url))
         logger.info("done")
+
+
+@main.command()
+@click.option(
+    "--url",
+    "-u",
+    default="redis://localhost:6379",
+    help="URL describing Redis connection details.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=str,
+    help="Folder were to save the output hash.",
+)
+@click.argument(
+    "hash",
+    type=str,
+)
+def get(hash, url, output: Optional[str]):  # noqa:ANN001,ANN201
+    """Extract data related to a given hash value."""
+    with funsies.context.Fun(Redis.from_url(url)):
+        logger.info(f"connected to {url}")
 
 
 if __name__ == "__main__":
