@@ -152,7 +152,7 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "worker", "--url", url], cwd=dir)
+        subprocess.Popen(["funsies", "--url", url, "worker"], cwd=dir)
         for i in range(nworkers)
     ]
 
