@@ -82,26 +82,26 @@ def clean(ctx: click.Context):  # noqa:ANN001,ANN201
     logger.info("done")
 
 
-# @main.command()
-# @click.option(
-#     "--output",
-#     "-o",
-#     type=click.Path(exists=False, writable=True),
-#     help="Output location (defaults to first characters of hash).",
-# )
-# @click.argument(
-#     "hash",
-#     type=str,
-# )
-# @click.pass_context
-# def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
-#     """Extract data related to a given hash value."""
-#     db = ctx.obj
-#     if output is None:
-#         output = short_hash(hash)
+@main.command()
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(exists=False, writable=True),
+    help="Output location (defaults to first characters of hash).",
+)
+@click.argument(
+    "hash",
+    type=str,
+)
+@click.pass_context
+def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
+    """Extract data related to a given hash value."""
+    db = ctx.obj
+    if output is None:
+        output = short_hash(hash_t(hash))
 
-#     with funsies.context.Fun(db):
-#         funsies.take(hash_t(hash))
+    with funsies.context.Fun(db):
+        funsies.debug.anything(hash_t(hash), output)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from ._shell import ShellOutput
 from .constants import _AnyPath, hash_t
 from .context import get_db
 from .errors import UnwrapError
+from .logging import logger
 from .ui import take, takeout
 
 
@@ -95,7 +96,7 @@ def shell(  # noqa:C901
 # Debug artefact
 def artefact(
     target: Artefact, directory: _AnyPath, connection: Optional[Redis] = None
-) -> str:
+) -> None:
     """Output content of any hash object to a file."""
     db = get_db(connection)
     os.makedirs(directory, exist_ok=True)
@@ -123,7 +124,7 @@ def python(
     target: Union[Operation, Artefact],
     directory: _AnyPath,
     connection: Optional[Redis] = None,
-) -> str:
+) -> None:
     """Output content of any hash object to a file."""
     db = get_db(connection)
 
@@ -179,6 +180,7 @@ def python(
         f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
 
     with open(os.path.join(directory, "function.pkl"), "wb") as f:
+        assert funsie.aux is not None
         f.write(funsie.aux)
 
 
@@ -189,8 +191,21 @@ def anything(hash: hash_t, output: _AnyPath, connection: Optional[Redis] = None)
     db = get_db(connection)
     obj = getter.get(hash, connection=db)
     if isinstance(obj, Operation):
-        funsie = get_funsie(obj.funsie)
+        funsie = get_funsie(db, obj.funsie)
         if funsie.how == FunsieHow.shell:
             shell_output = ShellOutput(db, obj)
             shell(shell_output, output, db)
             return "shell command"
+        elif funsie.how == FunsieHow.python:
+            python(obj, output, db)
+            return "python function"
+        else:
+            raise RuntimeError()
+    elif isinstance(obj, Artefact):
+        artefact(obj, output, db)
+        return "artefact"
+    elif obj is None:
+        logger.error("hash {hash} could not be found")
+        return "nothing"
+    else:
+        raise NotImplementedError(f"Object of type {obj} cannot be debugged.")
