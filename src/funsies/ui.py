@@ -316,22 +316,6 @@ def takeout(
         f.write(dat)
 
 
-# This introduces all kind of side-effects.
-# def rm(
-#     where: Union[Artefact, hash_t],
-#     connection: Optional[Redis] = None,
-# ) -> None:
-#     """Delete data associated with an artefact from the DB."""
-#     db = get_db(connection)
-#     if isinstance(where, Artefact):
-#         obj = where
-#     else:
-#         obj = get_artefact(db, where)
-#         if obj is None:
-#             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-#     rm_data(db, obj)
-
-
 def wait_for(
     thing: Union[ShellOutput, Artefact, hash_t],
     timeout: Optional[float] = None,

@@ -17,7 +17,11 @@ def short_hash(h: hash_t) -> str:
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
+
+# Data associated with operations
 OPTIONS = "funsies.runtime_options"
+
+# Data associated with artefacts
 STORE = "funsies.store"
 ERRORS = "funsies.errors"
 

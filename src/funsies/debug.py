@@ -11,7 +11,7 @@ from redis import Redis
 # module
 from ._funsies import get_funsie
 from ._shell import ShellOutput
-from .constants import _AnyPath
+from .constants import _AnyPath, hash_t
 from .context import get_db
 from .errors import UnwrapError
 from .ui import take, takeout
@@ -87,3 +87,12 @@ def shell(  # noqa:C901
         with open(os.path.join(directory, "op.env"), "w") as f:
             for key, val in what["env"].items():
                 f.write(f"{key}={val}\n")
+
+
+# --------------
+# Debug anything
+def anything(
+    hash: hash_t, output: _AnyPath, connection: Optional[Redis] = None
+) -> None:
+    """Output content of any hash object to a file."""
+    pass
