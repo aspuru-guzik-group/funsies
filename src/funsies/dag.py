@@ -12,7 +12,7 @@ from rq.queue import Queue
 from ._graph import get_artefact, get_op, get_op_options
 from .constants import DAG_INDEX, DAG_STORE, hash_t, short_hash
 from .logging import logger
-from .run import is_it_cached, run_op, RunStatus
+from .run import run_op, RunStatus
 
 
 def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:

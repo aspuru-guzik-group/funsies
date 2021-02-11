@@ -64,11 +64,10 @@ def run_shell_funsie(  # noqa:C901
 
         # Just update env variables with the new values, do not erase them.
         new_env = shell["env"]
+        env: Optional[Dict[str, str]] = None
         if new_env is not None:
             env = os.environ.copy()
             env.update(new_env)
-        else:
-            env = None
 
         out: Dict[str, Optional[bytes]] = {}
 

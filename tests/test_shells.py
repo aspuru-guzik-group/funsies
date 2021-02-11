@@ -40,13 +40,13 @@ def test_shell_env() -> None:
     out = s.run_shell_funsie(cmd, {})
     assert out[f"{s.STDOUT}0"] == b"\n"
 
-    # Check that other env variables are not erased
-    for key, value in os.environ.items():
-        break
-    cmd = s.shell_funsie([f"echo ${key}"], [], [])
-    out = s.run_shell_funsie(cmd, {})
-    assert out[f"{s.STDOUT}0"] == f"{value}\n".encode()
+    k = "PATH"
+    v = os.environ[k]
 
-    cmd = s.shell_funsie([f"echo ${key} $VAR"], [], [], {"VAR": "bla"})
+    cmd = s.shell_funsie([f"echo ${k}"], [], [])
     out = s.run_shell_funsie(cmd, {})
-    assert out[f"{s.STDOUT}0"] == f"{value} bla\n".encode()
+    assert out[f"{s.STDOUT}0"] == f"{v}\n".encode()
+
+    cmd = s.shell_funsie([f"echo ${k} $VAR"], [], [], {"VAR": "bla"})
+    out = s.run_shell_funsie(cmd, {})
+    assert out[f"{s.STDOUT}0"] == f"{v} bla\n".encode()
