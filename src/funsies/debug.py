@@ -13,14 +13,12 @@ from msgpack import unpackb
 from redis import Redis
 
 # module
-from . import getter
-from ._funsies import FunsieHow, get_funsie
-from ._graph import Artefact, get_op, Operation
+from ._funsies import Funsie, FunsieHow, get_funsie
+from ._graph import Artefact, get_artefact, get_op, Operation
 from ._shell import ShellOutput
-from .constants import _AnyPath, hash_t
+from .constants import _AnyPath
 from .context import get_db
 from .errors import UnwrapError
-from .logging import logger
 from .ui import take, takeout
 
 
@@ -146,7 +144,8 @@ def python(
     if funsie.how != FunsieHow.python:
         raise RuntimeError(f"Operation is of type {funsie.how}, not a python function.")
 
-    for key, val in target.inp.items():
+    for key, v in target.inp.items():
+        val = get_artefact(db, v)
         try:
             p = os.path.join(inp, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -154,7 +153,8 @@ def python(
         except UnwrapError:
             errors[f"input:{key}"] = asdict(take(val, strict=False, connection=db))
 
-    for key, val in target.out.items():
+    for key, v in target.out.items():
+        val = get_artefact(db, v)
         try:
             p = os.path.join(out, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -191,27 +191,24 @@ def python(
 # --------------
 # Debug anything
 def anything(
-    hash: hash_t, output: _AnyPath, connection: Optional[Redis[bytes]] = None
-) -> str:
-    """Output content of any hash object to a file."""
+    obj: Union[Artefact, Funsie, Operation, ShellOutput],
+    output: _AnyPath,
+    connection: Optional[Redis[bytes]] = None,
+) -> None:
+    """Debug anything really."""
     db = get_db(connection)
-    obj = getter.get(hash, connection=db)
     if isinstance(obj, Operation):
         funsie = get_funsie(db, obj.funsie)
         if funsie.how == FunsieHow.shell:
             shell_output = ShellOutput(db, obj)
             shell(shell_output, output, db)
-            return "shell command"
         elif funsie.how == FunsieHow.python:
             python(obj, output, db)
-            return "python function"
         else:
             raise RuntimeError()
     elif isinstance(obj, Artefact):
         artefact(obj, output, db)
-        return "artefact"
-    elif obj is None:
-        logger.error("hash {hash} could not be found")
-        return "nothing"
+    elif isinstance(obj, ShellOutput):
+        shell(obj, output, db)
     else:
         raise NotImplementedError(f"Object of type {obj} cannot be debugged.")

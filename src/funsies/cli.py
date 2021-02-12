@@ -16,8 +16,6 @@ import funsies, subprocess, msgpack, hashlib, loguru  # noqa
 
 # Local
 from . import __version__
-from ._short_hash import shorten_hash
-from .constants import hash_t
 from .logging import logger
 
 
@@ -100,17 +98,30 @@ def clean(ctx: click.Context):  # noqa:ANN001,ANN201
 @click.pass_context
 def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     """Extract data related to a given hash value."""
-    logger.info(f"extracting hash {shorten_hash(hash_t(hash))}")
+    logger.info(f"extracting {hash}")
     db = ctx.obj
     if output is None:
-        output = shorten_hash(hash_t(hash))
+        output = hash
+        output2 = ""
+    else:
+        output2 = output + "_"
 
     with funsies.context.Fun(db):
-        thing = funsies.debug.anything(hash_t(hash), output)
-        if thing == "nothing":
-            logger.error("hash does not correspond to anything!")
+        things = funsies.get(hash)
+        if len(things) == 0:
+            logger.error(f"{hash} does not correspond to anything!")
+        elif len(things) == 1:
+            logger.info(f"got {type(things[0])}")
+            funsies.debug.anything(things[0], output)
+            logger.success(f"saved to {output}")
+
         else:
-            logger.success(f"{thing} saved to {output}")
+            logger.warning(f"got {len(things)} objects")
+            funsies.debug.anything(things[0], output)
+            logger.success(f"{type(things[0])} -> {output}")
+            for el in things[1:]:
+                funsies.debug.anything(el, output2 + el.hash)
+                logger.success(f"{type(el)} -> {output2 + el.hash}")
 
 
 if __name__ == "__main__":

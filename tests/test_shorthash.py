@@ -52,3 +52,6 @@ def test_get_short_hash():
 
     dat = sh.hash_load(db, val2)
     assert len(dat) == 1
+
+    with pytest.raises(AttributeError):
+        sh.hash_load(db, val + "x")

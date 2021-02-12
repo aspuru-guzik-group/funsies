@@ -26,6 +26,9 @@ def hash_save(db: Redis[bytes], hash: hash_t) -> None:
 
 def hash_load(db: Redis[bytes], short_hash: str) -> list[hash_t]:
     """Save the shortened version of this hash for convenient retrieval."""
+    if len(short_hash) > 64:
+        raise AttributeError("hash {short_hash} has length {len(short_hash)} > 64")
+
     data = db.zrangebylex(HASH_INDEX, f"[{short_hash}", "+")  # type:ignore
     out = []
     for key in data:

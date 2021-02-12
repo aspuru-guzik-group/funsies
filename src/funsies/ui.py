@@ -23,7 +23,6 @@ from ._graph import (
     get_artefact,
     get_data,
     get_status,
-    is_artefact,
     make_op,
     Operation,
     tag_artefact,
@@ -31,7 +30,7 @@ from ._graph import (
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
 from .config import Options
-from .constants import _AnyPath, hash_t
+from .constants import _AnyPath
 from .context import get_db, get_options
 from .dag import start_dag_execution
 from .errors import Result, unwrap
@@ -44,24 +43,15 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 # --------------------------------------------------------------------------------
 # Dag execution
 def execute(
-    output: Union[hash_t, Operation, Artefact, ShellOutput],
+    output: Union[Operation, Artefact, ShellOutput],
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
-    if (
-        isinstance(output, Operation)
-        or isinstance(output, Artefact)
-        or isinstance(output, ShellOutput)
-    ):
-        dag_of = output.hash
-    else:
-        dag_of = output
-
     # get redis
     db = get_db(connection)
 
     # run dag
-    start_dag_execution(db, dag_of)
+    start_dag_execution(db, output.hash)
 
 
 # --------------------------------------------------------------------------------
@@ -264,31 +254,24 @@ def put(
 
 # fmt:off
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
+def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
     ...
 
 
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[bytes]:  # noqa
+def take(where: Artefact, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[bytes]:  # noqa
     ...
 # fmt:on
 
 
 def take(
-    where: Union[Artefact, hash_t],
+    where: Artefact,
     strict: bool = True,
     connection: Optional[Redis[bytes]] = None,
 ) -> Result[bytes]:
     """Take an artefact from the database."""
     db = get_db(connection)
-    if isinstance(where, Artefact):
-        obj = where
-    else:
-        obj = get_artefact(db, where)
-        if obj is None:
-            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-
-    dat = get_data(db, obj)
+    dat = get_data(db, where)
     if strict:
         return unwrap(dat)
     else:
@@ -296,27 +279,20 @@ def take(
 
 
 def takeout(
-    where: Union[Artefact, hash_t],
+    where: Artefact,
     filename: _AnyPath,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Take an artefact and save it to a file."""
     db = get_db(connection)
-    if isinstance(where, Artefact):
-        obj = where
-    else:
-        obj = get_artefact(db, where)
-        if obj is None:
-            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-
-    dat = unwrap(get_data(db, obj))
+    dat = unwrap(get_data(db, where))
 
     with open(filename, "wb") as f:
         f.write(dat)
 
 
 def wait_for(
-    thing: Union[ShellOutput, Artefact, hash_t],
+    thing: Union[ShellOutput, Artefact],
     timeout: Optional[float] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
@@ -327,8 +303,7 @@ def wait_for(
     elif isinstance(thing, ShellOutput):
         h = thing.stdouts[0].hash
     else:
-        h = thing
-        assert is_artefact(db, h)
+        raise TypeError("can only wait for artefacts or shell outputs.")
 
     t0 = time.time()
     while True:
@@ -349,16 +324,10 @@ def wait_for(
 # object tags
 def tag(
     tag: str,
-    *artefacts: Union[Artefact, hash_t],
+    *artefacts: Artefact,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Tag artefacts in the database."""
     db = get_db(connection)
     for where in artefacts:
-        if isinstance(where, Artefact):
-            h = where.hash
-        else:
-            h = where
-            assert is_artefact(db, h)
-
-        tag_artefact(db, h, tag)
+        tag_artefact(db, where.hash, tag)
