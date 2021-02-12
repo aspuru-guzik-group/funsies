@@ -42,6 +42,8 @@ with Fun(defaults=options(timeout=60.0)):
             if "HOMO-LUMO GAP" in line:
                 gap = float(line.strip()[18:-7].strip())
                 break
+        else:
+            raise RuntimeError("HOMO-LUMO gap was not found!")
 
         # output is a csv row
         output = f"{smi.decode()},{gap}\n"

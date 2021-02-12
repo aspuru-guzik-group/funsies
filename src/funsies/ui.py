@@ -29,11 +29,13 @@ from ._graph import (
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
+from ._short_hash import shorten_hash
 from .config import Options
-from .constants import _AnyPath
+from .constants import _AnyPath, hash_t
 from .context import get_db, get_options
 from .dag import start_dag_execution
-from .errors import Result, unwrap
+from .errors import Error, Result, unwrap
+from .logging import logger
 
 # Types
 _INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]
@@ -252,6 +254,11 @@ def put(
         raise TypeError(f"value of type {type(value)} not bytes or string")
 
 
+def __log_error(where: hash_t, dat: Result[bytes]) -> None:
+    if isinstance(dat, Error):
+        logger.warning(f"data error at hash {shorten_hash(where)}")
+
+
 # fmt:off
 @overload
 def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
@@ -272,6 +279,7 @@ def take(
     """Take an artefact from the database."""
     db = get_db(connection)
     dat = get_data(db, where)
+    __log_error(where.hash, dat)
     if strict:
         return unwrap(dat)
     else:
@@ -285,8 +293,9 @@ def takeout(
 ) -> None:
     """Take an artefact and save it to a file."""
     db = get_db(connection)
-    dat = unwrap(get_data(db, where))
-
+    dat = get_data(db, where)
+    __log_error(where.hash, dat)
+    dat = unwrap(dat)
     with open(filename, "wb") as f:
         f.write(dat)
 

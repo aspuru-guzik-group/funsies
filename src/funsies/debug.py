@@ -14,12 +14,12 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, FunsieHow, get_funsie
-from ._graph import Artefact, get_artefact, get_op, Operation
+from ._graph import Artefact, get_artefact, get_data, get_op, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath
 from .context import get_db
 from .errors import UnwrapError
-from .ui import take, takeout
+from .ui import takeout
 
 
 # ----------------------------------------------------------------------
@@ -42,7 +42,7 @@ def shell(  # noqa:C901
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors[f"input:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"input:{key}"] = asdict(get_data(db, val))
 
     for key, val in shell_output.out.items():
         try:
@@ -50,7 +50,7 @@ def shell(  # noqa:C901
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors[f"output:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"output:{key}"] = asdict(get_data(db, val))
 
     for i in range(len(shell_output.stdouts)):
         try:
@@ -60,7 +60,7 @@ def shell(  # noqa:C901
                 connection=db,
             )
         except UnwrapError:
-            errors[f"stdout:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"stdout:{key}"] = asdict(get_data(db, val))
 
         try:
             takeout(
@@ -69,7 +69,7 @@ def shell(  # noqa:C901
                 connection=db,
             )
         except UnwrapError:
-            errors[f"stderr:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"stderr:{key}"] = asdict(get_data(db, val))
 
     with open(os.path.join(directory, "errors.json"), "w") as f:
         f.write(
@@ -115,7 +115,7 @@ def artefact(
         with open(os.path.join(directory, "error.json"), "w") as f:
             f.write(
                 json.dumps(
-                    asdict(take(target, strict=False, connection=db)),
+                    asdict(get_data(db, target)),
                     sort_keys=True,
                     indent=2,
                 )
@@ -151,7 +151,7 @@ def python(
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors[f"input:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"input:{key}"] = asdict(get_data(db, val))
 
     for key, v in target.out.items():
         val = get_artefact(db, v)
@@ -160,7 +160,7 @@ def python(
             os.makedirs(os.path.dirname(p), exist_ok=True)
             takeout(val, p, connection=db)
         except UnwrapError:
-            errors[f"output:{key}"] = asdict(take(val, strict=False, connection=db))
+            errors[f"output:{key}"] = asdict(get_data(db, val))
 
     with open(os.path.join(directory, "errors.json"), "w") as f:
         f.write(
