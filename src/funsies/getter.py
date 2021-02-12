@@ -1,4 +1,6 @@
 """Generic getter of stuff."""
+from __future__ import annotations
+
 # std
 from typing import Optional, Union
 
@@ -15,7 +17,7 @@ from .logging import logger
 
 def get(
     target: c.hash_t,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Union[Artefact, Funsie, Operation, None]:
     """Get the object returned by a given hash value."""
     db = get_db(connection)

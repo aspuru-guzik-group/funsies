@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 """Cli utilities."""
+from __future__ import annotations
+
+# std
 import sys
 from typing import Optional
 
@@ -61,7 +64,7 @@ def main(ctx: click.Context, url: str) -> None:
 @click.pass_context
 def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
-    db: Redis = ctx.obj
+    db: Redis[bytes] = ctx.obj
     with Connection(db):
         queues = queues or ["default"]
         if burst:

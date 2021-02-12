@@ -1,10 +1,12 @@
 """Run shell commands using funsies."""
+from __future__ import annotations
+
 # std
 import os
 import subprocess
 import tempfile
 import time
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Mapping, Optional, Sequence
 
 # external
 from msgpack import packb, unpackb
@@ -28,7 +30,7 @@ def shell_funsie(
     cmds: Sequence[str],
     input_files: Sequence[str],
     output_files: Sequence[str],
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
@@ -47,7 +49,7 @@ def shell_funsie(
 
 def run_shell_funsie(  # noqa:C901
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> Dict[str, Optional[bytes]]:
+) -> dict[str, Optional[bytes]]:
     """Execute a shell command."""
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
@@ -64,12 +66,12 @@ def run_shell_funsie(  # noqa:C901
 
         # Just update env variables with the new values, do not erase them.
         new_env = shell["env"]
-        env: Optional[Dict[str, str]] = None
+        env: Optional[dict[str, str]] = None
         if new_env is not None:
             env = os.environ.copy()
             env.update(new_env)
 
-        out: Dict[str, Optional[bytes]] = {}
+        out: dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
             t1 = time.time()
@@ -105,10 +107,10 @@ class ShellOutput:
 
     op: Operation
     hash: hash_t
-    out: Dict[str, Artefact]
-    inp: Dict[str, Artefact]
+    out: dict[str, Artefact]
+    inp: dict[str, Artefact]
 
-    def __init__(self: "ShellOutput", store: Redis, op: Operation) -> None:
+    def __init__(self: "ShellOutput", store: Redis[bytes], op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
         # import the constants
         from ._shell import SPECIAL, RETURNCODE, STDOUT, STDERR

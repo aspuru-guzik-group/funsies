@@ -1,4 +1,6 @@
 """Main data structures."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
@@ -125,13 +127,13 @@ class Funsie:
         return Funsie(**unpackb(data))
 
 
-def store_funsie(store: Redis, funsie: Funsie) -> None:
+def store_funsie(store: Redis[bytes], funsie: Funsie) -> None:
     """Store a funsie in Redis store."""
     _ = store.hset(FUNSIES, funsie.hash, funsie.pack())
     save_short_hash(store, funsie.hash)
 
 
-def get_funsie(store: Redis, hash: str) -> Funsie:
+def get_funsie(store: Redis[bytes], hash: str) -> Funsie:
     """Pull a funsie from the Redis store."""
     out = store.hget(FUNSIES, hash)
     if out is None:

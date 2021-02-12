@@ -1,6 +1,5 @@
 """DAG related utilities."""
-# std
-from typing import Set
+from __future__ import annotations
 
 # external
 from redis import Redis
@@ -16,7 +15,7 @@ from .logging import logger
 from .run import run_op, RunStatus
 
 
-def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
+def __set_as_hashes(db: Redis[bytes], key: str) -> set[hash_t]:
     mem = db.smembers(key)
     out = set()
     for k in mem:
@@ -29,20 +28,22 @@ def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
     return out
 
 
-def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> None:
+def __dag_append(
+    db: Redis[bytes], dag_of: hash_t, op_from: hash_t, op_to: hash_t
+) -> None:
     """Append to a DAG."""
     key = DAG_STORE + dag_of + "." + op_from
-    db.sadd(key, op_to)  # type:ignore
-    db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
+    db.sadd(key, op_to)
+    db.sadd(DAG_STORE + dag_of + ".keys", key)
 
 
-def _dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[hash_t]:
+def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op."""
     key = DAG_STORE + dag_of + "." + op_from
     return __set_as_hashes(db, key)
 
 
-def delete_dag(db: Redis, dag_of: hash_t) -> None:
+def delete_dag(db: Redis[bytes], dag_of: hash_t) -> None:
     """Delete DAG corresponding to a given output hash."""
     which = __set_as_hashes(db, DAG_STORE + dag_of + ".keys")
     for key in which:
@@ -51,19 +52,19 @@ def delete_dag(db: Redis, dag_of: hash_t) -> None:
     db.srem(DAG_INDEX, dag_of)
 
 
-def delete_all_dags(db: Redis) -> None:
+def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in __set_as_hashes(db, DAG_INDEX):
         delete_dag(db, dag)
 
 
-def register_dag(db: Redis, dag_of: hash_t) -> int:
+def register_dag(db: Redis[bytes], dag_of: hash_t) -> int:
     """Register a new DAG."""
-    there: int = db.sadd(DAG_INDEX, dag_of)  # type:ignore
+    there: int = db.sadd(DAG_INDEX, dag_of)
     return there
 
 
-def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
+def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
     # first delete any previous dag at this address
     delete_dag(db, address)
@@ -94,7 +95,7 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
     queue = [node]
-    pipe: Pipeline = db.pipeline(transaction=False)  # type:ignore
+    pipe: Pipeline = db.pipeline(transaction=False)
     while len(queue) != 0:
         curr = queue.pop()
         if len(curr.inp) == 0:
@@ -114,7 +115,7 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
                 # ROOT!! This is to avoid having root-dependent steps that get
                 # re-run over and over again.
                 __dag_append(pipe, address, hash_t("root"), curr.hash)
-    pipe.execute()  # type:ignore
+    pipe.execute()
 
 
 def task(
@@ -125,7 +126,7 @@ def task(
     # load database
     logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()
-    db: Redis = job.connection
+    db: Redis[bytes] = job.connection
 
     # Load operation
     op = get_op(db, current)
@@ -150,7 +151,7 @@ def task(
     return stat
 
 
-def start_dag_execution(db: Redis, data_output: hash_t) -> None:
+def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
     # make dag
     build_dag(db, data_output)

@@ -1,4 +1,6 @@
 """Contextual DB usage."""
+from __future__ import annotations
+
 # std
 from contextlib import contextmanager
 from dataclasses import replace
@@ -26,7 +28,7 @@ _connect_stack = LocalStack()
 _options_stack = LocalStack()
 
 
-def cleanup_funsies(connection: Redis) -> None:
+def cleanup_funsies(connection: Redis[bytes]) -> None:
     """Clean up Redis instance of DAGs and Queues."""
     # Clean up the Redis instance of old jobs (not of job data though.)
     queues = rq.Queue.all(connection=connection)
@@ -42,13 +44,13 @@ def cleanup_funsies(connection: Redis) -> None:
 # Main DB context manager
 @contextmanager
 def Fun(
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
     defaults: Optional[Options] = None,
     cleanup: bool = False,
-) -> Iterator[Redis]:
+) -> Iterator[Redis[bytes]]:
     """Context manager for redis connections."""
     if connection is None:
-        connection = Redis()
+        connection = Redis(decode_responses=False)
         logger.warning("Opening new redis connection with default settings...")
 
     if defaults is None:
@@ -74,23 +76,20 @@ def Fun(
         rq.connections.pop_connection()
 
 
-def get_db(db: Optional[Redis] = None) -> Redis:
+def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
-    if isinstance(db, Redis):
-        # explicit redis instance
-        return db
-    elif db is None:
+    if db is None:
         if _connect_stack.top is not None:
             # try context instance
-            out: Redis = _connect_stack.top
+            out: Redis[bytes] = _connect_stack.top
             return out
         elif (job := rq.get_current_job()) is not None:
-            out2: Redis = job.connection
+            out2: Redis[bytes] = job.connection
             return out2
         else:
             raise RuntimeError("No redis instance available.")
     else:
-        raise TypeError(f"object {db} not of type Optional[Redis]")
+        return db
 
 
 def get_options(opt: Optional[Options] = None) -> Options:
@@ -122,7 +121,7 @@ def ManagedFun(
     nworkers: int = 1,
     defaults: Optional[Options] = None,
     directory: Optional[_AnyPath] = None,
-) -> Iterator[Redis]:
+) -> Iterator[Redis[bytes]]:
     """Make a fully managed funsies db."""
     if directory is None:
         dir = tempfile.mkdtemp()

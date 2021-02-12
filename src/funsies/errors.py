@@ -1,4 +1,6 @@
 """Error for artefact results."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -38,12 +40,12 @@ class Error:
     data: Optional[bytes] = None
 
 
-def set_error(db: Redis, address: hash_t, error: Error) -> None:
+def set_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     """Save an Error to redis."""
     _ = db.hset(ERRORS, address, packb(asdict(error)))
 
 
-def get_error(db: Redis, address: hash_t) -> Error:
+def get_error(db: Redis[bytes], address: hash_t) -> Error:
     """Load an Error from redis."""
     val = db.hget(ERRORS, address)
     assert val is not None  # TODO:fix

@@ -1,8 +1,10 @@
 """Functions for describing redis-backed DAGs."""
+from __future__ import annotations
+
 # std
 from enum import IntEnum
 import traceback
-from typing import Dict, Union
+from typing import Union
 
 # external
 from redis import Redis
@@ -41,7 +43,7 @@ class RunStatus(IntEnum):
     input_error = 4
 
 
-def __make_ready(db: Redis, address: hash_t) -> None:
+def __make_ready(db: Redis[bytes], address: hash_t) -> None:
     # Move back to the ready list
     val: int = db.smove(SRUNNING, SREADY, address)  # type:ignore
     if val != 1:
@@ -51,7 +53,7 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
-def is_it_cached(db: Redis, op: Operation) -> bool:
+def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     """Check if an operation is fully cached and doesn't need to be recomputed."""
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
@@ -64,7 +66,7 @@ def is_it_cached(db: Redis, op: Operation) -> bool:
         return True
 
 
-def dependencies_are_met(db: Redis, op: Operation) -> bool:
+def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
     """Check if all the dependencies of an operation are met."""
     for val in op.inp.values():
         stat = get_status(db, val)
@@ -75,7 +77,7 @@ def dependencies_are_met(db: Redis, op: Operation) -> bool:
 
 
 def run_op(  # noqa:C901
-    db: Redis, op: Union[Operation, hash_t], check_only: bool = False
+    db: Redis[bytes], op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
     """Run an Operation from its hash address."""
     # Compatibility feature
@@ -119,7 +121,7 @@ def run_op(  # noqa:C901
     runner = RUNNERS[funsie.how]
 
     # load input files
-    input_data: Dict[str, Result[bytes]] = {}
+    input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
         dat = get_data(db, artefact, source=op.hash)

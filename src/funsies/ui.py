@@ -1,16 +1,15 @@
 """User-friendly interfaces to funsies functionality."""
+from __future__ import annotations
+
 # std
 import time
 from typing import (
     Callable,
-    Dict,
     Iterable,
-    List,
     Literal,
     Mapping,
     Optional,
     overload,
-    Tuple,
     Union,
 )
 
@@ -46,7 +45,7 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 # Dag execution
 def execute(
     output: Union[hash_t, Operation, Artefact, ShellOutput],
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
     if (
@@ -71,10 +70,10 @@ def shell(  # noqa:C901
     *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
 
@@ -111,8 +110,8 @@ def shell(  # noqa:C901
     db = get_db(connection)
 
     # Parse args --------------------------------------------
-    cmds: List[str] = []
-    inputs: Dict[str, Artefact] = {}
+    cmds: list[str] = []
+    inputs: dict[str, Artefact] = {}
 
     for arg in args:
         if isinstance(arg, str):
@@ -157,8 +156,8 @@ def mapping(  # noqa:C901
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
-) -> Tuple[Artefact, ...]:
+    connection: Optional[Redis[bytes]] = None,
+) -> tuple[Artefact, ...]:
     """Add to the execution graph a general n->m function."""
     opt = get_options(opt)
     db = get_db(connection)
@@ -185,7 +184,7 @@ def mapping(  # noqa:C901
     # This copy paste is a MyPy exclusive! :S
     if strict:
 
-        def strict_map(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+        def strict_map(inpd: dict[str, bytes]) -> dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
             out = fun(*args)
@@ -198,7 +197,7 @@ def mapping(  # noqa:C901
         )
     else:
 
-        def lax_map(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
+        def lax_map(inpd: dict[str, Result[bytes]]) -> dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
             out = fun(*args)
@@ -219,7 +218,7 @@ def morph(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Add to call graph a one-to-one python function."""
     if name is not None:
@@ -237,7 +236,7 @@ def reduce(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Add to call graph a many-to-one python function."""
     if name is not None:
@@ -251,7 +250,7 @@ def reduce(
 # Data loading and saving
 def put(
     value: Union[bytes, str],
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Put an artefact in the database."""
     db = get_db(connection)
@@ -265,12 +264,12 @@ def put(
 
 # fmt:off
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis]=None) -> bytes:  # noqa
+def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
     ...
 
 
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis]=None) -> Result[bytes]:  # noqa
+def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[bytes]:  # noqa
     ...
 # fmt:on
 
@@ -278,7 +277,7 @@ def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connect
 def take(
     where: Union[Artefact, hash_t],
     strict: bool = True,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Result[bytes]:
     """Take an artefact from the database."""
     db = get_db(connection)
@@ -299,7 +298,7 @@ def take(
 def takeout(
     where: Union[Artefact, hash_t],
     filename: _AnyPath,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Take an artefact and save it to a file."""
     db = get_db(connection)
@@ -319,7 +318,7 @@ def takeout(
 def wait_for(
     thing: Union[ShellOutput, Artefact, hash_t],
     timeout: Optional[float] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Block until a thing is computed."""
     db = get_db(connection)
@@ -351,7 +350,7 @@ def wait_for(
 def tag(
     tag: str,
     *artefacts: Union[Artefact, hash_t],
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Tag artefacts in the database."""
     db = get_db(connection)

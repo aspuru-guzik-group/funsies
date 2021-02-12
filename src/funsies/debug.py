@@ -1,4 +1,6 @@
 """Helpful function for debugging workflows."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict
 import json
@@ -25,7 +27,9 @@ from .ui import take, takeout
 # ----------------------------------------------------------------------
 # Debugging functions
 def shell(  # noqa:C901
-    shell_output: ShellOutput, directory: _AnyPath, connection: Optional[Redis] = None
+    shell_output: ShellOutput,
+    directory: _AnyPath,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Extract all the files and outputs of a shell function to a directory."""
     os.makedirs(directory, exist_ok=True)
@@ -95,7 +99,7 @@ def shell(  # noqa:C901
 # --------------
 # Debug artefact
 def artefact(
-    target: Artefact, directory: _AnyPath, connection: Optional[Redis] = None
+    target: Artefact, directory: _AnyPath, connection: Optional[Redis[bytes]] = None
 ) -> None:
     """Output content of any hash object to a file."""
     db = get_db(connection)
@@ -123,7 +127,7 @@ def artefact(
 def python(
     target: Union[Operation, Artefact],
     directory: _AnyPath,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Output content of any hash object to a file."""
     db = get_db(connection)
@@ -186,7 +190,9 @@ def python(
 
 # --------------
 # Debug anything
-def anything(hash: hash_t, output: _AnyPath, connection: Optional[Redis] = None) -> str:
+def anything(
+    hash: hash_t, output: _AnyPath, connection: Optional[Redis[bytes]] = None
+) -> str:
     """Output content of any hash object to a file."""
     db = get_db(connection)
     obj = getter.get(hash, connection=db)
