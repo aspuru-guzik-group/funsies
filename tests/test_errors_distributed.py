@@ -60,3 +60,21 @@ def test_timeout_funsie() -> None:
         f.wait_for(s1, timeout=2)
         with pytest.raises(f.UnwrapError):
             _ = f.take(s1.stdout)
+
+
+@pytest.mark.parametrize("nworkers", [1, 2, 8])
+def test_data_race(nworkers: int) -> None:
+    """Test a data race when execute calls are interleaved."""
+    with f.ManagedFun(nworkers=nworkers):
+        dat = f.put(b"bla bla")
+        step1 = f.morph(lambda x: x.decode().upper().encode(), dat)
+        step2 = f.shell(
+            "cat file1 file2; grep 'bla' file2 file1 > file3; date >> file3",
+            inp=dict(file1=step1, file2=dat),
+            out=["file2", "file3"],
+        )
+
+        f.execute(step1)
+        f.execute(step2)
+        f.wait_for(step1, timeout=1.0)
+        f.wait_for(step2, timeout=1.0)
