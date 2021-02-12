@@ -9,7 +9,7 @@ from typing import Optional
 # external
 import click
 from redis import Redis
-from rq import Connection, Worker
+from rq import command, Connection, Worker
 
 # required funsies libraries loaded in advance
 import funsies, subprocess, msgpack, hashlib, loguru  # noqa
@@ -76,12 +76,32 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 
 @main.command()
 @click.pass_context
-def clean(ctx: click.Context):  # noqa:ANN001,ANN201
+def clean(ctx: click.Context) -> None:
     """Reset job queues and DAGs."""
     db = ctx.obj
     logger.info("cleaning up")
     funsies.context.cleanup_funsies(db)
-    logger.info("done")
+    logger.success("done")
+
+
+@main.command()
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Shutdown workers without finishing jobs.",
+)
+@click.pass_context
+def shutdown(ctx: click.Context, force: bool) -> None:
+    """Tell workers to shutdown."""
+    db = ctx.obj
+    workers = Worker.all(db)
+    logger.info(f"shutting down {len(workers)} workers")
+    for worker in workers:
+        command.send_shutdown_command(db, worker.name)  # Tells worker to shutdown
+        if force:
+            command.send_kill_horse_command(db, worker.name)
+    logger.success("done")
 
 
 @main.command()
