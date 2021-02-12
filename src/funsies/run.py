@@ -1,8 +1,10 @@
 """Functions for describing redis-backed DAGs."""
+from __future__ import annotations
+
 # std
 from enum import IntEnum
 import traceback
-from typing import Dict, Union
+from typing import Union
 
 # external
 from redis import Redis
@@ -41,7 +43,7 @@ class RunStatus(IntEnum):
     input_error = 4
 
 
-def __make_ready(db: Redis, address: hash_t) -> None:
+def __make_ready(db: Redis[bytes], address: hash_t) -> None:
     # Move back to the ready list
     val: int = db.smove(SRUNNING, SREADY, address)  # type:ignore
     if val != 1:
@@ -51,7 +53,7 @@ def __make_ready(db: Redis, address: hash_t) -> None:
         )
 
 
-def is_it_cached(db: Redis, op: Operation) -> bool:
+def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     """Check if an operation is fully cached and doesn't need to be recomputed."""
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
@@ -64,7 +66,7 @@ def is_it_cached(db: Redis, op: Operation) -> bool:
         return True
 
 
-def dependencies_are_met(db: Redis, op: Operation) -> bool:
+def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
     """Check if all the dependencies of an operation are met."""
     for val in op.inp.values():
         stat = get_status(db, val)
@@ -75,12 +77,15 @@ def dependencies_are_met(db: Redis, op: Operation) -> bool:
 
 
 def run_op(  # noqa:C901
-    db: Redis, op: Union[Operation, hash_t], check_only: bool = False
+    db: Redis[bytes], op: Union[Operation, hash_t], check_only: bool = False
 ) -> RunStatus:
     """Run an Operation from its hash address."""
     # Compatibility feature
     if not isinstance(op, Operation):
         op = get_op(db, op)
+
+    logger.info(f"=== {op.hash} ===")
+    logger.info("evaluating...")
 
     # Check if job is ready for execution
     # -----------------------------------
@@ -91,14 +96,14 @@ def run_op(  # noqa:C901
     val: int = db.smove(SREADY, SRUNNING, op.hash)  # type:ignore
     if val == 0:
         # job is NOT ready. return.
-        logger.info(f"op skipped: {op.hash} is being processed elsewhere")
+        logger.success("DONE: taken by another thread.")
         return RunStatus.not_ready
 
     # Check if the current job needs to be done at all
     # ------------------------------------------------
     if is_it_cached(db, op):
         # All outputs are ok. We exit this run.
-        logger.info(f"op skipped: {op.hash} has cached results")
+        logger.success("DONE: using cached data.")
         __make_ready(db, op.hash)
         return RunStatus.using_cached
 
@@ -107,6 +112,7 @@ def run_op(  # noqa:C901
 
     # # Then we check if all the inputs are ready to be processed.
     if not dependencies_are_met(db, op):
+        logger.success("DONE: waiting on dependencies.")
         __make_ready(db, op.hash)
         return RunStatus.unmet_dependencies
 
@@ -115,28 +121,29 @@ def run_op(  # noqa:C901
     runner = RUNNERS[funsie.how]
 
     # load input files
-    input_data: Dict[str, Result[bytes]] = {}
+    input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = get_artefact(db, val)
         dat = get_data(db, artefact, source=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
-                logger.warning(f"input {key} to error-tolerant funsie has errors.")
+                logger.warning(f"error on input {key} (tolerated).")
                 input_data[key] = dat
             else:
-                logger.error(f"input {key} to error-fragile funsie has errors.")
                 # forward errors and stop
                 for val in op.out.values():
                     mark_error(db, val, dat)
+                logger.error(f"DONE: error on input {key} (fragile).")
                 __make_ready(db, op.hash)
                 return RunStatus.input_error
         else:
             input_data[key] = dat
 
-    logger.info(f"op running: {op.hash}")
+    logger.info("running...")
     try:
         out_data = runner(funsie, input_data)
     except Exception:
+        logger.exception("runner raised!")
         tb_exc = traceback.format_exc()
         # much trouble
         for val in op.out.values():
@@ -149,13 +156,14 @@ def run_op(  # noqa:C901
                     details=tb_exc,
                 ),
             )
+        logger.error("DONE: runner raised exception.")
         __make_ready(db, op.hash)
         return RunStatus.executed
 
     for key, val in out_data.items():
         artefact = get_artefact(db, op.out[key])
         if val is None:
-            logger.warning(f"{op.hash} -> missing output data for {key}")
+            logger.warning(f"no output data for {key}")
             mark_error(
                 db,
                 artefact.hash,
@@ -170,5 +178,6 @@ def run_op(  # noqa:C901
         else:
             set_data(db, artefact, val)
 
+    logger.success("DONE: successful eval.")
     __make_ready(db, op.hash)
     return RunStatus.executed

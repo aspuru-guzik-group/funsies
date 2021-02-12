@@ -1,13 +1,16 @@
 """Some useful functions for workflows."""
+from __future__ import annotations
+
 # std
 import pickle
-from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
 
 # module
 from ._graph import Artefact
+from .config import Options
 from .errors import Error, Result
 from .ui import reduce
 
@@ -20,9 +23,9 @@ def match_results(
     results: Sequence[Result[Tin]],
     some: Callable[[Tin], Tout1],
     error: Optional[Callable[[Error], Tout2]] = None,
-) -> List[Union[Tout1, Tout2]]:
+) -> list[Union[Tout1, Tout2]]:
     """Match on result errors."""
-    out: List[Union[Tout1, Tout2]] = []
+    out: list[Union[Tout1, Tout2]] = []
     for el in results:
         if isinstance(el, Error):
             if error is not None:
@@ -36,7 +39,8 @@ def concat(
     *inp: Union[Artefact, str, bytes],
     join: Union[Artefact, str, bytes] = b"",
     strict: bool = True,
-    connection: Optional[Redis] = None
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None
 ) -> Artefact:
     """Concatenate artefacts."""
 
@@ -49,7 +53,9 @@ def concat(
                 out += joiner
         return out
 
-    return reduce(concatenation, join, *inp, strict=strict, connection=connection)
+    return reduce(
+        concatenation, join, *inp, strict=strict, connection=connection, opt=opt
+    )
 
 
 def pickled(fun: Callable[..., Any]) -> Callable[..., Any]:

@@ -1,17 +1,15 @@
 """User-friendly interfaces to funsies functionality."""
+from __future__ import annotations
+
 # std
-import os
 import time
 from typing import (
     Callable,
-    Dict,
     Iterable,
-    List,
     Literal,
     Mapping,
     Optional,
     overload,
-    Tuple,
     Union,
 )
 
@@ -25,21 +23,21 @@ from ._graph import (
     get_artefact,
     get_data,
     get_status,
-    is_artefact,
     make_op,
     Operation,
     tag_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
+from ._short_hash import shorten_hash
 from .config import Options
-from .constants import hash_t
+from .constants import _AnyPath, hash_t
 from .context import get_db, get_options
 from .dag import start_dag_execution
-from .errors import Result, unwrap
+from .errors import Error, Result, unwrap
+from .logging import logger
 
 # Types
-_AnyPath = Union[str, os.PathLike]
 _INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 
@@ -47,24 +45,15 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 # --------------------------------------------------------------------------------
 # Dag execution
 def execute(
-    output: Union[hash_t, Operation, Artefact, ShellOutput],
-    connection: Optional[Redis] = None,
+    output: Union[Operation, Artefact, ShellOutput],
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
-    if (
-        isinstance(output, Operation)
-        or isinstance(output, Artefact)
-        or isinstance(output, ShellOutput)
-    ):
-        dag_of = output.hash
-    else:
-        dag_of = output
-
     # get redis
     db = get_db(connection)
 
     # run dag
-    start_dag_execution(db, dag_of)
+    start_dag_execution(db, output.hash)
 
 
 # --------------------------------------------------------------------------------
@@ -73,10 +62,10 @@ def shell(  # noqa:C901
     *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> ShellOutput:
     """Add one or multiple shell commands to the call graph.
 
@@ -113,8 +102,8 @@ def shell(  # noqa:C901
     db = get_db(connection)
 
     # Parse args --------------------------------------------
-    cmds: List[str] = []
-    inputs: Dict[str, Artefact] = {}
+    cmds: list[str] = []
+    inputs: dict[str, Artefact] = {}
 
     for arg in args:
         if isinstance(arg, str):
@@ -159,8 +148,8 @@ def mapping(  # noqa:C901
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
-) -> Tuple[Artefact, ...]:
+    connection: Optional[Redis[bytes]] = None,
+) -> tuple[Artefact, ...]:
     """Add to the execution graph a general n->m function."""
     opt = get_options(opt)
     db = get_db(connection)
@@ -187,7 +176,7 @@ def mapping(  # noqa:C901
     # This copy paste is a MyPy exclusive! :S
     if strict:
 
-        def strict_map(inpd: Dict[str, bytes]) -> Dict[str, bytes]:
+        def strict_map(inpd: dict[str, bytes]) -> dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
             out = fun(*args)
@@ -200,7 +189,7 @@ def mapping(  # noqa:C901
         )
     else:
 
-        def lax_map(inpd: Dict[str, Result[bytes]]) -> Dict[str, bytes]:
+        def lax_map(inpd: dict[str, Result[bytes]]) -> dict[str, bytes]:
             """Perform a reduction."""
             args = [inpd[key] for key in arg_names]
             out = fun(*args)
@@ -221,7 +210,7 @@ def morph(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Add to call graph a one-to-one python function."""
     if name is not None:
@@ -239,7 +228,7 @@ def reduce(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Add to call graph a many-to-one python function."""
     if name is not None:
@@ -253,7 +242,7 @@ def reduce(
 # Data loading and saving
 def put(
     value: Union[bytes, str],
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Put an artefact in the database."""
     db = get_db(connection)
@@ -265,33 +254,32 @@ def put(
         raise TypeError(f"value of type {type(value)} not bytes or string")
 
 
+def __log_error(where: hash_t, dat: Result[bytes]) -> None:
+    if isinstance(dat, Error):
+        logger.warning(f"data error at hash {shorten_hash(where)}")
+
+
 # fmt:off
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[True] = True, connection: Optional[Redis]=None) -> bytes:  # noqa
+def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
     ...
 
 
 @overload
-def take(where: Union[Artefact, hash_t], strict: Literal[False] = False, connection: Optional[Redis]=None) -> Result[bytes]:  # noqa
+def take(where: Artefact, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[bytes]:  # noqa
     ...
 # fmt:on
 
 
 def take(
-    where: Union[Artefact, hash_t],
+    where: Artefact,
     strict: bool = True,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> Result[bytes]:
     """Take an artefact from the database."""
     db = get_db(connection)
-    if isinstance(where, Artefact):
-        obj = where
-    else:
-        obj = get_artefact(db, where)
-        if obj is None:
-            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-
-    dat = get_data(db, obj)
+    dat = get_data(db, where)
+    __log_error(where.hash, dat)
     if strict:
         return unwrap(dat)
     else:
@@ -299,45 +287,23 @@ def take(
 
 
 def takeout(
-    where: Union[Artefact, hash_t],
+    where: Artefact,
     filename: _AnyPath,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Take an artefact and save it to a file."""
     db = get_db(connection)
-    if isinstance(where, Artefact):
-        obj = where
-    else:
-        obj = get_artefact(db, where)
-        if obj is None:
-            raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-
-    dat = unwrap(get_data(db, obj))
-
+    dat = get_data(db, where)
+    __log_error(where.hash, dat)
+    dat = unwrap(dat)
     with open(filename, "wb") as f:
         f.write(dat)
 
 
-# This introduces all kind of side-effects.
-# def rm(
-#     where: Union[Artefact, hash_t],
-#     connection: Optional[Redis] = None,
-# ) -> None:
-#     """Delete data associated with an artefact from the DB."""
-#     db = get_db(connection)
-#     if isinstance(where, Artefact):
-#         obj = where
-#     else:
-#         obj = get_artefact(db, where)
-#         if obj is None:
-#             raise RuntimeError(f"Address {where} does not point to a valid artefact.")
-#     rm_data(db, obj)
-
-
 def wait_for(
-    thing: Union[ShellOutput, Artefact, hash_t],
+    thing: Union[ShellOutput, Artefact],
     timeout: Optional[float] = None,
-    connection: Optional[Redis] = None,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Block until a thing is computed."""
     db = get_db(connection)
@@ -346,8 +312,7 @@ def wait_for(
     elif isinstance(thing, ShellOutput):
         h = thing.stdouts[0].hash
     else:
-        h = thing
-        assert is_artefact(db, h)
+        raise TypeError("can only wait for artefacts or shell outputs.")
 
     t0 = time.time()
     while True:
@@ -368,16 +333,10 @@ def wait_for(
 # object tags
 def tag(
     tag: str,
-    *artefacts: Union[Artefact, hash_t],
-    connection: Optional[Redis] = None,
+    *artefacts: Artefact,
+    connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Tag artefacts in the database."""
     db = get_db(connection)
     for where in artefacts:
-        if isinstance(where, Artefact):
-            h = where.hash
-        else:
-            h = where
-            assert is_artefact(db, h)
-
-        tag_artefact(db, h, tag)
+        tag_artefact(db, where.hash, tag)

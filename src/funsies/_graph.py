@@ -1,4 +1,6 @@
 """Functions for describing redis-backed DAGs."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
@@ -8,9 +10,11 @@ from typing import Dict, Optional, Type
 # external
 from msgpack import packb, unpackb
 from redis import Redis
+from redis.client import Pipeline
 
 # module
 from ._funsies import Funsie, store_funsie
+from ._short_hash import hash_save
 from .config import Options
 from .constants import (
     ARTEFACTS,
@@ -46,7 +50,7 @@ class ArtefactStatus(IntEnum):
     error = 3
 
 
-def get_status(db: Redis, address: hash_t) -> ArtefactStatus:
+def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
     """Get the status of a given operation or artefact."""
     val = db.hget(DATA_STATUS, address)
     if val is None:
@@ -74,13 +78,13 @@ class Artefact:
         return Artefact(**unpackb(data))
 
 
-def is_artefact(db: Redis, address: hash_t) -> bool:
+def is_artefact(db: Redis[bytes], address: hash_t) -> bool:
     """Check whether a hash corresponds to an artefact."""
     return db.hexists(ARTEFACTS, address)
 
 
 # Mark artefacts
-def mark_done(db: Redis, address: hash_t) -> None:
+def mark_done(db: Redis[bytes], address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
     old = get_status(db, address)
@@ -90,7 +94,7 @@ def mark_done(db: Redis, address: hash_t) -> None:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
 
 
-def mark_deleted(db: Redis, address: hash_t) -> None:
+def mark_deleted(db: Redis[bytes], address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
     old = get_status(db, address)
@@ -100,7 +104,7 @@ def mark_deleted(db: Redis, address: hash_t) -> None:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
 
 
-def mark_error(db: Redis, address: hash_t, error: Error) -> None:
+def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
     old = get_status(db, address)
@@ -112,10 +116,10 @@ def mark_error(db: Redis, address: hash_t, error: Error) -> None:
 
 
 # Tag artefacts
-def tag_artefact(db: Redis, address: hash_t, tag: str) -> None:
+def tag_artefact(db: Redis[bytes], address: hash_t, tag: str) -> None:
     """Set the status of a given operation or artefact."""
-    _ = db.sadd(TAGS + tag, address)  # type:ignore
-    _ = db.sadd(TAGS_SET, tag)  # type:ignore
+    _ = db.sadd(TAGS + tag, address)
+    _ = db.sadd(TAGS_SET, tag)
 
 
 def _set_block_size(n: int) -> None:
@@ -126,7 +130,7 @@ def _set_block_size(n: int) -> None:
 
 # Save and load artefacts
 def get_data(
-    store: Redis, artefact: Artefact, source: Optional[hash_t] = None
+    store: Redis[bytes], artefact: Artefact, source: Optional[hash_t] = None
 ) -> Result[bytes]:
     """Retrieve data corresponding to an artefact."""
     # First check the status
@@ -162,7 +166,7 @@ def get_data(
         return valb
 
 
-def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
+def set_data(store: Redis[bytes], artefact: Artefact, value: bytes) -> None:
     """Update an artefact with a value."""
     stat = get_status(store, artefact.hash)
     if stat == ArtefactStatus.const:
@@ -211,7 +215,7 @@ def set_data(store: Redis, artefact: Artefact, value: bytes) -> None:
     mark_done(store, artefact.hash)
 
 
-def constant_artefact(store: Redis, value: bytes) -> Artefact:
+def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     """Store an artefact with a defined value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -226,26 +230,30 @@ def constant_artefact(store: Redis, value: bytes) -> Artefact:
     # ==============================================================
 
     node = Artefact(hash=h, parent=hash_t("root"))
+
+    pipe: Pipeline = store.pipeline(transaction=False)
     # store the artefact
-    val = store.hset(
+    val = pipe.hset(
         ARTEFACTS,
         h,
         node.pack(),
     )
+    hash_save(pipe, h)
     if val != 1:
         logger.debug(f"Const artefact at {h} already exists.")
     # store the artefact data
-    _ = store.hset(
+    _ = pipe.hset(
         STORE,
         h,
         value,
     )
     # mark the artefact as const
-    _ = store.hset(DATA_STATUS, h, int(ArtefactStatus.const))
+    _ = pipe.hset(DATA_STATUS, h, int(ArtefactStatus.const))
+    pipe.execute()
     return node
 
 
-def variable_artefact(store: Redis, parent_hash: hash_t, name: str) -> Artefact:
+def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Artefact:
     """Store an artefact with a generated value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -267,6 +275,7 @@ def variable_artefact(store: Redis, parent_hash: hash_t, name: str) -> Artefact:
         h,
         node.pack(),
     )
+    hash_save(store, h)
 
     if val != 1:
         logger.debug(
@@ -275,7 +284,7 @@ def variable_artefact(store: Redis, parent_hash: hash_t, name: str) -> Artefact:
     return node
 
 
-def get_artefact(store: Redis, hash: hash_t) -> Artefact:
+def get_artefact(store: Redis[bytes], hash: hash_t) -> Artefact:
     """Pull an artefact from the Redis store."""
     # store the artefact
     out = store.hget(ARTEFACTS, hash)
@@ -306,7 +315,7 @@ class Operation:
 
 
 def make_op(
-    store: Redis, funsie: Funsie, inp: Dict[str, Artefact], opt: Options
+    store: Redis[bytes], funsie: Funsie, inp: Dict[str, Artefact], opt: Options
 ) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
@@ -323,8 +332,11 @@ def make_op(
             inp_art[key] = inp[key].hash
             dependencies.add(inp[key].parent)
 
+    # Setup a buffered command pipeline for performance
+    pipe: Pipeline = store.pipeline(transaction=False)
+
     # save funsie
-    store_funsie(store, funsie)
+    store_funsie(pipe, funsie)
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -342,33 +354,37 @@ def make_op(
     # Setup the output artefacts.
     out_art = {}
     for key in funsie.out:
-        out_art[key] = variable_artefact(store, ophash, key).hash
+        out_art[key] = variable_artefact(pipe, ophash, key).hash
 
     # Make the node
     node = Operation(ophash, funsie.hash, inp_art, out_art)
 
     # store the runtime options for the node
-    store.hset(
+    pipe.hset(
         OPTIONS,
         ophash,
         opt.pack(),
     )
 
     # store the node
-    store.hset(
+    pipe.hset(
         OPERATIONS,
         ophash,
         node.pack(),
     )
+    hash_save(pipe, ophash)
 
     # Add to the ready list and remove from the running list if it was
     # previously aborted.
-    store.srem(SRUNNING, ophash)
-    store.sadd(SREADY, ophash)  # type:ignore
+    pipe.srem(SRUNNING, ophash)
+    pipe.sadd(SREADY, ophash)
+
+    # Execute the full transaction
+    pipe.execute()
     return node
 
 
-def get_op(store: Redis, hash: hash_t) -> Operation:
+def get_op(store: Redis[bytes], hash: hash_t) -> Operation:
     """Load an operation from Redis store."""
     # store the artefact
     out = store.hget(OPERATIONS, hash)
@@ -378,7 +394,7 @@ def get_op(store: Redis, hash: hash_t) -> Operation:
     return Operation.unpack(out)
 
 
-def get_op_options(store: Redis, hash: hash_t) -> Options:
+def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:
     """Load an operation from Redis store."""
     # store the artefact
     out = store.hget(OPTIONS, hash)
@@ -386,3 +402,15 @@ def get_op_options(store: Redis, hash: hash_t) -> Options:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
 
     return Options.unpack(out)
+
+
+def reset_locks(db: Redis[bytes]) -> None:
+    """Reset all the operation locks."""
+    # store the node
+    keys = db.hkeys(OPERATIONS)
+    pipe = db.pipeline(transaction=True)
+    for key in keys:
+        # Add to the ready list and remove from the running list if it was
+        # previously aborted.
+        pipe.srem(SRUNNING, key)
+        pipe.sadd(SREADY, key)

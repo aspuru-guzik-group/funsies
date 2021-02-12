@@ -8,8 +8,9 @@ from msgpack import packb, unpackb
 
 
 # Constants
-ONE_DAY = 86400.0
-ONE_MINUTE = 60.0
+INFINITE = -1
+ONE_DAY = 86400
+ONE_MINUTE = 60
 
 
 @dataclass
@@ -30,10 +31,10 @@ class Options:
     """
 
     # Job options
-    timeout: float = ONE_DAY
-    ttl: float = ONE_DAY
-    result_ttl: float = ONE_MINUTE
-    failure_ttl: float = ONE_MINUTE
+    timeout: int = INFINITE
+    ttl: int = ONE_DAY
+    result_ttl: int = ONE_MINUTE
+    failure_ttl: int = ONE_MINUTE
 
     # Queue options
     distributed: bool = True

@@ -1,9 +1,7 @@
 """A quantum chemistry example."""
-# std
-import sys
-
 # module
-from funsies import execute, Fun, options, reduce, shell, take
+from funsies import execute, Fun, options, reduce, shell, take, wait_for
+from funsies.utils import concat
 
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
@@ -44,6 +42,8 @@ with Fun(defaults=options(timeout=60.0)):
             if "HOMO-LUMO GAP" in line:
                 gap = float(line.strip()[18:-7].strip())
                 break
+        else:
+            raise RuntimeError("HOMO-LUMO gap was not found!")
 
         # output is a csv row
         output = f"{smi.decode()},{gap}\n"
@@ -77,29 +77,10 @@ with Fun(defaults=options(timeout=60.0)):
         outputs += [reduce(get_gap, t1.inp["in.smi"], xtb_out)]
 
     # Final transformer that joins all the outputs.
-    def join(*args: bytes) -> bytes:
-        """Join multiple files together."""
-        out = b""
-        for a in args:
-            out += a
-        return out
+    tr = concat(*outputs, join="")
 
-    tr = reduce(join, *outputs)
-
-    if sys.argv[-1] != "read":
-        # run everything by using the fact that the last transformer depends on all
-        # the outputs
-        execute(tr)
-    else:
-        # Analyze / compile results
-        # -------------------------
-        # Traditionally, we would then use a wait() routine to wait
-        # for all results to come in and then do final DB join/concat operations.
-        # Here, we use the fact that all simulations were recorded to simply
-        # re-run everything in sync mode (meaning without separate worker
-        # threads), playing back all the operations using the memoized data.
-
-        out = take(tr)
-        # Voila! Results to stdout using simply python chem.py read
-        assert out is not None
-        print(out.decode().rstrip() + "\n")
+    # Execute and wait for results
+    execute(tr)
+    wait_for(tr)
+    out = take(tr)
+    print(out.decode().rstrip() + "\n")

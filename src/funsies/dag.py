@@ -1,20 +1,21 @@
 """DAG related utilities."""
-# std
-from typing import Set
+from __future__ import annotations
 
 # external
 from redis import Redis
+from redis.client import Pipeline
 import rq
 from rq.queue import Queue
 
 # module
 from ._graph import get_artefact, get_op, get_op_options
+from ._short_hash import shorten_hash
 from .constants import DAG_INDEX, DAG_STORE, hash_t
 from .logging import logger
-from .run import dependencies_are_met, is_it_cached, run_op, RunStatus
+from .run import run_op, RunStatus
 
 
-def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
+def __set_as_hashes(db: Redis[bytes], key: str) -> set[hash_t]:
     mem = db.smembers(key)
     out = set()
     for k in mem:
@@ -27,48 +28,30 @@ def __set_as_hashes(db: Redis, key: str) -> Set[hash_t]:
     return out
 
 
-def __dag_append(db: Redis, dag_of: hash_t, op_from: hash_t, op_to: hash_t) -> None:
+def __dag_append(db: Redis[bytes], op_from: hash_t, op_to: hash_t) -> None:
     """Append to a DAG."""
-    key = DAG_STORE + dag_of + "." + op_from
-    db.sadd(key, op_to)  # type:ignore
-    db.sadd(DAG_STORE + dag_of + ".keys", key)  # type:ignore
+    key = DAG_STORE + op_from
+    db.sadd(key, op_to)
+    db.sadd(DAG_INDEX, key)
 
 
-def _dag_dependents(db: Redis, dag_of: hash_t, op_from: hash_t) -> Set[hash_t]:
+def _dag_dependents(db: Redis[bytes], op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op."""
-    key = DAG_STORE + dag_of + "." + op_from
+    key = DAG_STORE + op_from
     return __set_as_hashes(db, key)
 
 
-def delete_dag(db: Redis, dag_of: hash_t) -> None:
-    """Delete DAG corresponding to a given output hash."""
-    which = __set_as_hashes(db, DAG_STORE + dag_of + ".keys")
-    for key in which:
-        _ = db.delete(key)
-    # Remove from index
-    db.srem(DAG_INDEX, dag_of)
-
-
-def delete_all_dags(db: Redis) -> None:
+def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in __set_as_hashes(db, DAG_INDEX):
-        delete_dag(db, dag)
+        db.delete(dag)
+
+    # Remove old index
+    db.delete(DAG_INDEX)
 
 
-def register_dag(db: Redis, dag_of: hash_t) -> int:
-    """Register a new DAG."""
-    there: int = db.sadd(DAG_INDEX, dag_of)  # type:ignore
-    return there
-
-
-def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
+def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
-    # first delete any previous dag at this address
-    delete_dag(db, address)
-
-    # register dag
-    register_dag(db, address)
-
     root = "root"
     art = None
     try:
@@ -92,42 +75,27 @@ def build_dag(db: Redis, address: hash_t) -> None:  # noqa:C901
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
     queue = [node]
+    pipe: Pipeline = db.pipeline(transaction=False)
     while len(queue) != 0:
         curr = queue.pop()
-
-        # Note: this is how I originally implemented the caching....
-        #
-        # if is_it_cached(db, curr):
-        #     # We don't need to run this because all of its outputs are cached
-        #     # anyway.
-        #     logger.debug(f"operation {curr.hash} is cached, keeping off dag.")
-        #     continue
-        #
-        # This is a bad idea because two dags could end in different places
-        # but start from the same initial point. if that's the case and we
-        # preemptively remove that initial point, the other dag wont get run!
-        #
-        #
-        # Note: I then added the following lines that put the cached job on
-        # the dag but not it's dependencies. However, as nice as this is, I
-        # think it could hide some fairly nasty bugs that may not be clear at
-        # first sight, like the one above. So instead I've fixed up task() to
-        # do recursive executing of cached task to reduce the amount of tasks
-        # generated, while also keeping full dag contstruction on every run.
-        #
-        # if len(curr.inp) == 0 or is_it_cached(db, curr):
-        #     __dag_append(db, address, hash_t("root"), curr.hash)
         if len(curr.inp) == 0:
-            __dag_append(db, address, hash_t("root"), curr.hash)
+            # DAG has no inputs or is cached.
+            __dag_append(pipe, hash_t("root"), curr.hash)
         else:
+            only_root = True
             for el in curr.inp.values():
                 art = get_artefact(db, el)
-
                 if art.parent != root:
                     queue.append(get_op(db, art.parent))
-                    __dag_append(db, address, art.parent, curr.hash)
-                else:
-                    __dag_append(db, address, hash_t("root"), curr.hash)
+                    __dag_append(pipe, art.parent, curr.hash)
+                    only_root = False
+
+            if only_root:
+                # ONLY IF ALL THE PARENTS ARE ROOT DO WE ADD THIS DAG TO
+                # ROOT!! This is to avoid having root-dependent steps that get
+                # re-run over and over again.
+                __dag_append(pipe, hash_t("root"), curr.hash)
+    pipe.execute()
 
 
 def task(
@@ -138,48 +106,38 @@ def task(
     # load database
     logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()
-    db: Redis = job.connection
+    db: Redis[bytes] = job.connection
 
     # Load operation
     op = get_op(db, current)
 
-    # Now we run the job
-    stat = run_op(db, op)
+    with logger.contextualize(op=shorten_hash(op.hash)):
+        # Now we run the job
+        stat = run_op(db, op)
 
-    if stat > 0:
-        # Success! Let's enqueue dependents.
-        for dependent in _dag_dependents(db, dag_of, current):
-            # To reduce the number of task, we only enqueue tasks when
-            # dependencies are met.
-            # TODO: maybe I shouldn't pull and deserialize the operation just
-            # for this. oh well.
-            dependent_op = get_op(db, dependent)
+        if stat > 0:
+            # Success! Let's enqueue dependents.
+            depen = _dag_dependents(db, current)
+            logger.info(f"enqueuing {len(depen)} dependents")
 
-            if dependencies_are_met(db, dependent_op):
-                if is_it_cached(db, dependent_op):
-                    # This task won't actually run, because it's cached. It
-                    # will be much faster if I just evaluate it recursively
-                    # right here then if I enqueue it etc etc.
-                    logger.debug(f"recursing into cached task {dependent}.")
-                    task(dag_of, dependent)
-                else:
-                    # Run the dependent task
-                    options = get_op_options(db, dependent)
-                    queue = Queue(connection=db, **options.queue_args)
-                    queue.enqueue_call(
-                        task, args=(dag_of, dependent), **options.job_args
-                    )
+            for dependent in depen:
+                # Run the dependent task
+                options = get_op_options(db, dependent)
+                queue = Queue(connection=db, **options.queue_args)
+
+                logger.info(f"-> {shorten_hash(dependent)}")
+                queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
 
     return stat
 
 
-def start_dag_execution(db: Redis, data_output: hash_t) -> None:
+def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
     # make dag
     build_dag(db, data_output)
 
     # enqueue everything starting from root
-    for element in _dag_dependents(db, data_output, hash_t("root")):
+    for element in _dag_dependents(db, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
         queue.enqueue_call(task, args=(data_output, element), **options.job_args)

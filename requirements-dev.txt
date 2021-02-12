@@ -1,6 +1,4 @@
 nox
-pytype
-typeguard
 black
 flake8
 flake8-black
@@ -11,4 +9,3 @@ pytest-cov
 flake8-annotations
 flake8-docstrings
 darglint
-xdoctest

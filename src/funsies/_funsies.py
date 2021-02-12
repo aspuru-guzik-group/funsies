@@ -1,4 +1,6 @@
 """Main data structures."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 from enum import IntEnum
@@ -10,6 +12,7 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
+from ._short_hash import hash_save
 from .constants import FUNSIES, hash_t
 from .errors import Error, ErrorKind, Result
 from .logging import logger
@@ -32,12 +35,14 @@ class Funsie:
     """A funsie is a wrapped command that can be backed up to the KV store.
 
     A Funsie has a "how" (an integer that defines how it is to be executed), a
-    "what" (a string that identifies the funsie, such as a function name or a
-    shell command) and input and output artefacts. All of these are used to
-    generate the hash of the Funsie instance.
+    "what" (a bytestring that identifies the funsie, such as a function name
+    or packed shell commands) and input and output artefact names. All of
+    these are used to generate the hash of the Funsie instance.
 
     Funsies also have an aux field that include auxiliary data that is not to
-    be used in key-ing the funsie, but is useful for executing it.
+    be used in key-ing the funsie, but is useful for executing it, such as a
+    cloudpickled python function.
+
     """
 
     how: FunsieHow
@@ -81,7 +86,6 @@ class Funsie:
                 val = actual[key]
                 if isinstance(val, Error):
                     if self.error_tolerant:
-                        logger.warning(f"errored {key} ignored.")
                         errors[key] = val
                     else:
                         logger.error(f"{key} is in error.")
@@ -123,12 +127,13 @@ class Funsie:
         return Funsie(**unpackb(data))
 
 
-def store_funsie(store: Redis, funsie: Funsie) -> None:
+def store_funsie(store: Redis[bytes], funsie: Funsie) -> None:
     """Store a funsie in Redis store."""
     _ = store.hset(FUNSIES, funsie.hash, funsie.pack())
+    hash_save(store, funsie.hash)
 
 
-def get_funsie(store: Redis, hash: str) -> Funsie:
+def get_funsie(store: Redis[bytes], hash: str) -> Funsie:
     """Pull a funsie from the Redis store."""
     out = store.hget(FUNSIES, hash)
     if out is None:

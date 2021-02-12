@@ -1,9 +1,12 @@
 """Run shell commands using funsies."""
+from __future__ import annotations
+
 # std
 import os
 import subprocess
 import tempfile
-from typing import Dict, Mapping, Optional, Sequence
+import time
+from typing import Mapping, Optional, Sequence
 
 # external
 from msgpack import packb, unpackb
@@ -27,7 +30,7 @@ def shell_funsie(
     cmds: Sequence[str],
     input_files: Sequence[str],
     output_files: Sequence[str],
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
@@ -45,10 +48,10 @@ def shell_funsie(
 
 
 def run_shell_funsie(  # noqa:C901
-    funsie: Funsie,
-    input_values: Mapping[str, Result[bytes]],
-) -> Dict[str, Optional[bytes]]:
+    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
+) -> dict[str, Optional[bytes]]:
     """Execute a shell command."""
+    logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
         incoming_files, _ = funsie.check_inputs(input_values)
@@ -60,21 +63,28 @@ def run_shell_funsie(  # noqa:C901
 
         # goto shell funsie above for definitions of those.
         cmds = shell["cmds"]
-        env = shell["env"]
-        out: Dict[str, Optional[bytes]] = {}
+
+        # Just update env variables with the new values, do not erase them.
+        new_env = shell["env"]
+        env: Optional[dict[str, str]] = None
+        if new_env is not None:
+            env = os.environ.copy()
+            env.update(new_env)
+
+        out: dict[str, Optional[bytes]] = {}
 
         for k, c in enumerate(cmds):
-            proc = subprocess.run(
-                c,
-                cwd=dir,
-                capture_output=True,
-                env=env,
-                shell=True,
-            )
+            t1 = time.time()
+            logger.info(f"{k+1}/{len(cmds)} $> {c}")
+            proc = subprocess.run(c, cwd=dir, capture_output=True, shell=True, env=env)
+            t2 = time.time()
+            logger.info(f"done {k+1}/{len(cmds)} \t\tduration: {t2-t1:.2f}s")
 
             out[f"{STDOUT}{k}"] = proc.stdout
             out[f"{STDERR}{k}"] = proc.stderr
             out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+            if proc.returncode:
+                logger.warning(f"nonzero returncode={proc.returncode}")
 
         # Output files
         for file in funsie.out:
@@ -85,7 +95,7 @@ def run_shell_funsie(  # noqa:C901
                     with open(os.path.join(dir, file), "rb") as f:
                         out[file] = f.read()
                 except FileNotFoundError:
-                    logger.warning(f"expected file {file}, but didn't find it")
+                    logger.warning(f"missing expected output {file}")
                     out[file] = None
     return out
 
@@ -97,10 +107,10 @@ class ShellOutput:
 
     op: Operation
     hash: hash_t
-    out: Dict[str, Artefact]
-    inp: Dict[str, Artefact]
+    out: dict[str, Artefact]
+    inp: dict[str, Artefact]
 
-    def __init__(self: "ShellOutput", store: Redis, op: Operation) -> None:
+    def __init__(self: "ShellOutput", store: Redis[bytes], op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
         # import the constants
         from ._shell import SPECIAL, RETURNCODE, STDOUT, STDERR
