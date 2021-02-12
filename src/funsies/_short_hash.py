@@ -7,14 +7,34 @@ from __future__ import annotations
 from redis import Redis
 
 # module
-from .constants import hash_t
+from .constants import HASH_INDEX, hash_t
+from .logging import logger
+
+# Constants
+SHORT = 6  # Length of short hashes
 
 
 def shorten_hash(h: hash_t) -> str:
     """Shorten a hash."""
-    return h[:6]
+    return h[:SHORT]
 
 
-def save_short_hash(db: Redis[bytes], hash: hash_t) -> None:
+def hash_save(db: Redis[bytes], hash: hash_t) -> None:
     """Save the shortened version of this hash for convenient retrieval."""
-    return
+    db.zadd(HASH_INDEX, {str(hash): "0"})
+
+
+def hash_load(db: Redis[bytes], short_hash: str) -> list[hash_t]:
+    """Save the shortened version of this hash for convenient retrieval."""
+    data = db.zrangebylex(HASH_INDEX, f"[{short_hash}", "+")  # type:ignore
+    out = []
+    for key in data:
+        k = key.decode()
+        if k[: len(short_hash)] == short_hash:
+            out += [hash_t(k)]
+
+    if len(out) == 0:
+        logger.error(f"{short_hash} not found")
+    elif len(out) > 1:
+        logger.warning(f"{len(data)} possible values for {short_hash}")
+    return out

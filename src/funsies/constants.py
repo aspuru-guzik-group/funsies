@@ -12,6 +12,7 @@ hash_t = NewType("hash_t", str)
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
+HASH_INDEX = "funsies.hash_index"
 
 # Data associated with operations
 OPTIONS = "funsies.runtime_options"

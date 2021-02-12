@@ -14,7 +14,7 @@ from redis.client import Pipeline
 
 # module
 from ._funsies import Funsie, store_funsie
-from ._short_hash import save_short_hash
+from ._short_hash import hash_save
 from .config import Options
 from .constants import (
     ARTEFACTS,
@@ -238,7 +238,7 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
         h,
         node.pack(),
     )
-    save_short_hash(pipe, h)
+    hash_save(pipe, h)
     if val != 1:
         logger.debug(f"Const artefact at {h} already exists.")
     # store the artefact data
@@ -275,7 +275,7 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
         h,
         node.pack(),
     )
-    save_short_hash(store, h)
+    hash_save(store, h)
 
     if val != 1:
         logger.debug(
@@ -372,7 +372,7 @@ def make_op(
         ophash,
         node.pack(),
     )
-    save_short_hash(pipe, ophash)
+    hash_save(pipe, ophash)
 
     # Add to the ready list and remove from the running list if it was
     # previously aborted.

@@ -11,12 +11,9 @@ from funsies import _graph, errors, hash_t
 from funsies import options
 
 
-# defaults
-opt = options()
-
-
 def test_artefact_add() -> None:
     """Test adding const artefacts."""
+    options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.get_artefact(store, a.hash)
@@ -26,6 +23,7 @@ def test_artefact_add() -> None:
 
 def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
+    options()
     store = Redis()
     art = _graph.variable_artefact(store, hash_t("1"), "file")
     out = _graph.get_data(store, art)
@@ -35,6 +33,7 @@ def test_artefact_add_implicit() -> None:
 
 def test_operation_pack() -> None:
     """Test packing and unpacking of operations."""
+    opt = options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.constant_artefact(store, b"bla bla bla")
