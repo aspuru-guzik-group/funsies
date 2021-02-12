@@ -73,6 +73,7 @@ def Fun(
             "Unexpected Redis connection was popped off the stack. "
             "Check your Redis connection setup."
         )
+        _options_stack.pop()  # also pop options, important
         rq.connections.pop_connection()
 
 

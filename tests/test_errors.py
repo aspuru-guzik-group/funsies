@@ -7,7 +7,7 @@ import pytest
 
 # module
 import funsies
-from funsies import _graph, Fun, hash_t
+from funsies import _graph, Fun, hash_t, options
 
 
 def test_artefact_add() -> None:
@@ -102,11 +102,21 @@ def test_error_propagation_shell() -> None:
     """Test propagation of errors."""
     store = Redis()
     s1 = funsies.shell(
-        "cp file1 file3", inp=dict(file1="bla"), out=["file2"], connection=store
+        "cp file1 file3",
+        inp=dict(file1="bla"),
+        out=["file2"],
+        connection=store,
+        opt=options(),
     )
-    s2 = funsies.shell("cat file2", inp=dict(file2=s1.out["file2"]), connection=store)
+    s2 = funsies.shell(
+        "cat file2", inp=dict(file2=s1.out["file2"]), connection=store, opt=options()
+    )
     s3 = funsies.shell(
-        "cat file2", inp=dict(file2=s1.out["file2"]), strict=False, connection=store
+        "cat file2",
+        inp=dict(file2=s1.out["file2"]),
+        strict=False,
+        connection=store,
+        opt=options(),
     )
 
     funsies.run_op(store, s1.op.hash)
