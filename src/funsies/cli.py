@@ -96,12 +96,17 @@ def clean(ctx: click.Context):  # noqa:ANN001,ANN201
 @click.pass_context
 def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     """Extract data related to a given hash value."""
+    logger.info(f"extracting hash {short_hash(hash_t(hash))}")
     db = ctx.obj
     if output is None:
         output = short_hash(hash_t(hash))
 
     with funsies.context.Fun(db):
-        funsies.debug.anything(hash_t(hash), output)
+        thing = funsies.debug.anything(hash_t(hash), output)
+        if thing == "nothing":
+            logger.error("hash does not correspond to anything!")
+        else:
+            logger.success(f"{thing} saved to {output}")
 
 
 if __name__ == "__main__":
