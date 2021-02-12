@@ -28,50 +28,30 @@ def __set_as_hashes(db: Redis[bytes], key: str) -> set[hash_t]:
     return out
 
 
-def __dag_append(
-    db: Redis[bytes], dag_of: hash_t, op_from: hash_t, op_to: hash_t
-) -> None:
+def __dag_append(db: Redis[bytes], op_from: hash_t, op_to: hash_t) -> None:
     """Append to a DAG."""
-    key = DAG_STORE + dag_of + "." + op_from
+    key = DAG_STORE + op_from
     db.sadd(key, op_to)
-    db.sadd(DAG_STORE + dag_of + ".keys", key)
+    db.sadd(DAG_INDEX, key)
 
 
-def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
+def _dag_dependents(db: Redis[bytes], op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op."""
-    key = DAG_STORE + dag_of + "." + op_from
+    key = DAG_STORE + op_from
     return __set_as_hashes(db, key)
-
-
-def delete_dag(db: Redis[bytes], dag_of: hash_t) -> None:
-    """Delete DAG corresponding to a given output hash."""
-    which = __set_as_hashes(db, DAG_STORE + dag_of + ".keys")
-    for key in which:
-        _ = db.delete(key)
-    # Remove from index
-    db.srem(DAG_INDEX, dag_of)
 
 
 def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in __set_as_hashes(db, DAG_INDEX):
-        delete_dag(db, dag)
+        db.delete(dag)
 
-
-def register_dag(db: Redis[bytes], dag_of: hash_t) -> int:
-    """Register a new DAG."""
-    there: int = db.sadd(DAG_INDEX, dag_of)
-    return there
+    # Remove old index
+    db.delete(DAG_INDEX)
 
 
 def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
-    # first delete any previous dag at this address
-    delete_dag(db, address)
-
-    # register dag
-    register_dag(db, address)
-
     root = "root"
     art = None
     try:
@@ -100,21 +80,21 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
         curr = queue.pop()
         if len(curr.inp) == 0:
             # DAG has no inputs or is cached.
-            __dag_append(pipe, address, hash_t("root"), curr.hash)
+            __dag_append(pipe, hash_t("root"), curr.hash)
         else:
             only_root = True
             for el in curr.inp.values():
                 art = get_artefact(db, el)
                 if art.parent != root:
                     queue.append(get_op(db, art.parent))
-                    __dag_append(pipe, address, art.parent, curr.hash)
+                    __dag_append(pipe, art.parent, curr.hash)
                     only_root = False
 
             if only_root:
                 # ONLY IF ALL THE PARENTS ARE ROOT DO WE ADD THIS DAG TO
                 # ROOT!! This is to avoid having root-dependent steps that get
                 # re-run over and over again.
-                __dag_append(pipe, address, hash_t("root"), curr.hash)
+                __dag_append(pipe, hash_t("root"), curr.hash)
     pipe.execute()
 
 
@@ -137,7 +117,7 @@ def task(
 
         if stat > 0:
             # Success! Let's enqueue dependents.
-            depen = _dag_dependents(db, dag_of, current)
+            depen = _dag_dependents(db, current)
             logger.info(f"enqueuing {len(depen)} dependents")
 
             for dependent in depen:
@@ -157,7 +137,7 @@ def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
     build_dag(db, data_output)
 
     # enqueue everything starting from root
-    for element in _dag_dependents(db, data_output, hash_t("root")):
+    for element in _dag_dependents(db, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
         queue.enqueue_call(task, args=(data_output, element), **options.job_args)

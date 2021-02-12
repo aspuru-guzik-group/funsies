@@ -26,8 +26,8 @@ TAGS_SET = "funsies.tags"
 
 # job status repos
 DATA_STATUS = "funsies.data.status"
-SREADY = "funsies.jobs.ready"
-SRUNNING = "funsies.jobs.running"
+SREADY = "funsies.jobs.ready."
+SRUNNING = "funsies.jobs.running."
 
 # job dags
 DAG_STORE = "funsies.dags."
