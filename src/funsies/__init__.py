@@ -66,12 +66,6 @@ __all__ = [
 ]
 
 # versioning information
-try:
-    from importlib import metadata
+from importlib import metadata  # noqa
 
-    __version__ = metadata.version("funsies")
-except ImportError:
-    # Running on pre-3.8 Python; use importlib-metadata package
-    import importlib_metadata
-
-    __version__ = importlib_metadata.version("funsies")
+__version__ = metadata.version("funsies")
