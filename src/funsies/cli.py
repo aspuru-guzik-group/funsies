@@ -13,7 +13,8 @@ import funsies, subprocess, msgpack, hashlib, loguru  # noqa
 
 # Local
 from . import __version__
-from .constants import hash_t, short_hash
+from ._short_hash import shorten_hash
+from .constants import hash_t
 from .logging import logger
 
 
@@ -96,10 +97,10 @@ def clean(ctx: click.Context):  # noqa:ANN001,ANN201
 @click.pass_context
 def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     """Extract data related to a given hash value."""
-    logger.info(f"extracting hash {short_hash(hash_t(hash))}")
+    logger.info(f"extracting hash {shorten_hash(hash_t(hash))}")
     db = ctx.obj
     if output is None:
-        output = short_hash(hash_t(hash))
+        output = shorten_hash(hash_t(hash))
 
     with funsies.context.Fun(db):
         thing = funsies.debug.anything(hash_t(hash), output)

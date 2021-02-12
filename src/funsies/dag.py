@@ -10,7 +10,8 @@ from rq.queue import Queue
 
 # module
 from ._graph import get_artefact, get_op, get_op_options
-from .constants import DAG_INDEX, DAG_STORE, hash_t, short_hash
+from ._short_hash import shorten_hash
+from .constants import DAG_INDEX, DAG_STORE, hash_t
 from .logging import logger
 from .run import run_op, RunStatus
 
@@ -129,10 +130,10 @@ def task(
     # Load operation
     op = get_op(db, current)
 
-    # Now we run the job
-    stat = run_op(db, op)
+    with logger.contextualize(op=shorten_hash(op.hash)):
+        # Now we run the job
+        stat = run_op(db, op)
 
-    with logger.contextualize(op=short_hash(op.hash)):
         if stat > 0:
             # Success! Let's enqueue dependents.
             depen = _dag_dependents(db, dag_of, current)
@@ -143,7 +144,7 @@ def task(
                 options = get_op_options(db, dependent)
                 queue = Queue(connection=db, **options.queue_args)
 
-                logger.info(f"-> {short_hash(dependent)}")
+                logger.info(f"-> {shorten_hash(dependent)}")
                 queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
 
     return stat

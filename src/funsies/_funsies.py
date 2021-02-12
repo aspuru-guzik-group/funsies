@@ -10,6 +10,7 @@ from msgpack import packb, unpackb
 from redis import Redis
 
 # module
+from ._short_hash import save_short_hash
 from .constants import FUNSIES, hash_t
 from .errors import Error, ErrorKind, Result
 from .logging import logger
@@ -127,6 +128,7 @@ class Funsie:
 def store_funsie(store: Redis, funsie: Funsie) -> None:
     """Store a funsie in Redis store."""
     _ = store.hset(FUNSIES, funsie.hash, funsie.pack())
+    save_short_hash(store, funsie.hash)
 
 
 def get_funsie(store: Redis, hash: str) -> Funsie:

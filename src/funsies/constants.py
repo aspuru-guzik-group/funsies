@@ -8,11 +8,6 @@ _AnyPath = Union[str, PathLike]
 hash_t = NewType("hash_t", str)
 
 
-def short_hash(h: hash_t) -> str:
-    """Shorten a hash."""
-    return h[:6]
-
-
 # Some locations
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
