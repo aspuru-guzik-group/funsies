@@ -1,12 +1,8 @@
 """DAG related utilities."""
 from __future__ import annotations
 
-# std
-from typing import Optional
-
 # external
 from redis import Redis
-from redis.client import Pipeline
 import rq
 from rq.queue import Queue
 
@@ -83,7 +79,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     if art is not None:
         if art.parent == root:
             # We have basically just a single artefact as the network...
-            logger.debug(f"no dependencies to execute")
+            logger.debug("no dependencies to execute")
             return
         else:
             node = get_op(db, art.parent)
@@ -106,6 +102,8 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
 def task(
     dag_of: hash_t,
     current: hash_t,
+    *,
+    evaluate: bool = True,
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
     # load database
@@ -118,7 +116,7 @@ def task(
 
     with logger.contextualize(op=shorten_hash(op.hash)):
         # Now we run the job
-        stat = run_op(db, op)
+        stat = run_op(db, op, evaluate=evaluate)
 
         if stat > 0:
             # Success! Let's enqueue dependents.
@@ -131,7 +129,12 @@ def task(
                 queue = Queue(connection=db, **options.queue_args)
 
                 logger.info(f"-> {shorten_hash(dependent)}")
-                queue.enqueue_call(task, args=(dag_of, dependent), **options.job_args)
+                queue.enqueue_call(
+                    task,
+                    args=(dag_of, dependent),
+                    kwargs=options.task_args,
+                    **options.job_args,
+                )
 
     return stat
 
@@ -145,4 +148,9 @@ def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
     for element in _dag_dependents(db, data_output, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
-        queue.enqueue_call(task, args=(data_output, element), **options.job_args)
+        queue.enqueue_call(
+            task,
+            args=(data_output, element),
+            kwargs=options.task_args,
+            **options.job_args,
+        )

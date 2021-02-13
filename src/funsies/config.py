@@ -35,6 +35,7 @@ class Options:
     ttl: int = ONE_DAY
     result_ttl: int = ONE_MINUTE
     failure_ttl: int = ONE_MINUTE
+    evaluate: bool = True
 
     # Queue options
     distributed: bool = True
@@ -47,6 +48,13 @@ class Options:
             ttl=self.ttl,
             result_ttl=self.result_ttl,
             failure_ttl=self.failure_ttl,
+        )
+
+    @property
+    def task_args(self: "Options") -> Mapping[str, Any]:
+        """Return a dictionary of arguments for dag.task()."""
+        return dict(
+            evaluate=self.evaluate,
         )
 
     @property

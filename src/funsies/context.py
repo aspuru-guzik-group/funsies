@@ -72,6 +72,7 @@ def Fun(
             "Check your Redis connection setup."
         )
         rq.connections.pop_connection()
+        _ = _options_stack.pop()
 
 
 def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:

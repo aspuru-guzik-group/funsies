@@ -76,7 +76,7 @@ def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
 
 
 def run_op(  # noqa:C901
-    db: Redis[bytes], op: Union[Operation, hash_t], check_only: bool = False
+    db: Redis[bytes], op: Union[Operation, hash_t], evaluate: bool = True
 ) -> RunStatus:
     """Run an Operation from its hash address."""
     # Compatibility feature
@@ -93,8 +93,8 @@ def run_op(  # noqa:C901
         logger.success("DONE: using cached data.")
         return RunStatus.using_cached
 
-    if check_only:
-        raise RuntimeError("Attempting to run an operation, but check_only is set.")
+    if not evaluate:
+        raise RuntimeError("Attempting to run an operation, but evaluate = False.")
 
     # # Then we check if all the inputs are ready to be processed.
     if not dependencies_are_met(db, op):

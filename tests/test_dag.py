@@ -3,6 +3,7 @@
 
 # external
 from fakeredis import FakeStrictRedis as Redis
+import pytest
 
 # module
 from funsies import dag, execute, Fun, morph, options, put, shell, take
@@ -54,20 +55,37 @@ def test_dag_efficient() -> None:
 
 
 def test_dag_cached() -> None:
-    """Test that DAG caching."""
-    with Fun(Redis(), options(distributed=False)):
+    """Test that DAG caching works."""
+    db = Redis()
+    with Fun(db, options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
-        step2 = shell(
-            "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
-        )
         step2b = shell("echo 'not'", inp=dict(file1=step1))
-        output = step2.stdout
         merge = shell(
             "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
         )
         execute(merge)
-        execute(output)
+
+    with Fun(db, options(distributed=False, evaluate=False)):
+        # Same as above, should run through with no evaluation
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2b = shell("echo 'not'", inp=dict(file1=step1))
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+        execute(merge)
+
+    with Fun(db, options(distributed=False, evaluate=False)):
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        # DIFFERENT HERE: Trigger re-evaluation and raise
+        step2b = shell("echo 'knot'", inp=dict(file1=step1))
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+        with pytest.raises(RuntimeError):
+            execute(merge)
 
 
 def test_dag_execute() -> None:
