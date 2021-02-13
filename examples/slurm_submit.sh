@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --cpus-per-task 20
+#SBATCH --nodes=4
 #SBATCH --ntasks 8
 #SBATCH --time=00:30:00
 #SBATCH --job-name NAME

@@ -184,45 +184,5 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
                 logger.success(f"{type(el)} -> {output2 + el.hash}")
 
 
-@main.command()
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(exists=False, writable=True),
-    help="Output location (defaults to first characters of hash).",
-)
-@click.argument(
-    "hash",
-    type=str,
-)
-@click.pass_context
-def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
-    """Extract data related to a given hash value."""
-    logger.info(f"extracting {hash}")
-    db = ctx.obj
-    if output is None:
-        output = hash
-        output2 = ""
-    else:
-        output2 = output + "_"
-
-    with funsies.context.Fun(db):
-        things = funsies.get(hash)
-        if len(things) == 0:
-            logger.error(f"{hash} does not correspond to anything!")
-        elif len(things) == 1:
-            logger.info(f"got {type(things[0])}")
-            funsies.debug.anything(things[0], output)
-            logger.success(f"saved to {output}")
-
-        else:
-            logger.warning(f"got {len(things)} objects")
-            funsies.debug.anything(things[0], output)
-            logger.success(f"{type(things[0])} -> {output}")
-            for el in things[1:]:
-                funsies.debug.anything(el, output2 + el.hash)
-                logger.success(f"{type(el)} -> {output2 + el.hash}")
-
-
 if __name__ == "__main__":
     main()
