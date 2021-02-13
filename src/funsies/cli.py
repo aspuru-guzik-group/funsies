@@ -4,8 +4,8 @@ from __future__ import annotations
 
 # std
 import sys
-from typing import Optional
 import time
+from typing import Optional
 
 # external
 import click
@@ -195,7 +195,9 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 )
 @click.option("-t", "--timeout", type=float, help="Timeout in seconds.")
 @click.pass_context
-def wait(ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]) -> None:
+def wait(  # noqa:C901
+    ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]
+) -> None:
     """Wait until redis database or certain hashes are ready."""
     db = ctx.obj
     if timeout is not None:
@@ -242,6 +244,28 @@ def wait(ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]) 
                 if t1 > tmax:
                     logger.error("timeout exceeded")
                     raise SystemExit(2)
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.pass_context
+def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+    """Enqueue execution of hashes."""
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                    funsies.execute(t)
+                else:
+                    logger.warning(f"object with hash {hash} of type {type(t)}")
 
 
 if __name__ == "__main__":
