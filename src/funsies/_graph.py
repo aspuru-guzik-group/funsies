@@ -19,12 +19,12 @@ from .config import Options
 from .constants import (
     ARTEFACTS,
     BLOCK_SIZE,
+    DAG_CHILDREN,
+    DAG_PARENTS,
     DATA_STATUS,
     hash_t,
     OPERATIONS,
     OPTIONS,
-    SREADY,
-    SRUNNING,
     STORE,
     TAGS,
     TAGS_SET,
@@ -320,7 +320,6 @@ def make_op(
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
-    dependencies = set()
     for key in inp:
         if key not in funsie.inp:
             raise AttributeError(f"Extra key {key} passed to funsie.")
@@ -330,7 +329,6 @@ def make_op(
             raise AttributeError(f"Missing {key} from inputs required by funsie.")
         else:
             inp_art[key] = inp[key].hash
-            dependencies.add(inp[key].parent)
 
     # Setup a buffered command pipeline for performance
     pipe: Pipeline = store.pipeline(transaction=False)
@@ -372,12 +370,22 @@ def make_op(
         ophash,
         node.pack(),
     )
+
+    # Save the hash in the quickhash db
     hash_save(pipe, ophash)
 
-    # Add to the ready list and remove from the running list if it was
-    # previously aborted.
-    pipe.srem(SRUNNING, ophash)
-    pipe.sadd(SREADY, ophash)
+    # Add parents
+    root = True
+    for k in inp_art.keys():
+        v = inp[k]
+        if v.parent != "root":
+            pipe.sadd(DAG_PARENTS + ophash, v.parent)
+            pipe.sadd(DAG_CHILDREN + v.parent, ophash)
+            root = False
+    if root:
+        # This dag has no dependencies
+        pipe.sadd(DAG_PARENTS + ophash, "root")
+        pipe.sadd(DAG_CHILDREN + "root", ophash)
 
     # Execute the full transaction
     pipe.execute()
@@ -402,15 +410,3 @@ def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
 
     return Options.unpack(out)
-
-
-def reset_locks(db: Redis[bytes]) -> None:
-    """Reset all the operation locks."""
-    # store the node
-    keys = db.hkeys(OPERATIONS)
-    pipe = db.pipeline(transaction=True)
-    for key in keys:
-        # Add to the ready list and remove from the running list if it was
-        # previously aborted.
-        pipe.srem(SRUNNING, key)
-        pipe.sadd(SREADY, key)
