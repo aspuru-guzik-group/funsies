@@ -31,7 +31,6 @@ def set_level(level: str) -> None:
 # Default level
 set_level("INFO")
 
-
 # Error logger for operations
 worker_format = " op:<green>{extra[op]}</green> |" + " <level>{message}</level>"
 logger.add(
