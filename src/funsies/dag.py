@@ -154,3 +154,37 @@ def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
             kwargs=options.task_args,
             **options.job_args,
         )
+
+
+def dot(db: Redis[bytes], address: hash_t) -> str:
+    """Output a DAG in dot format for graphviz."""
+
+    def __dot(h: hash_t) -> str:
+        out = ""
+        for h1 in _dag_dependents(db, address, h):
+            out += f"task{h} -> task{h1};\n"
+            out += __dot(h1)
+        return out
+
+    if (DAG_STORE + address).encode() not in db.smembers(DAG_INDEX):
+        logger.error(
+            f"attempted to print dag for {address}, but it has not been generated"
+        )
+        return ""
+
+    # build the graph part
+    graph = ""
+    for element in _dag_dependents(db, address, hash_t("root")):
+        graph += __dot(element)
+
+    # add node data
+    nodes = ""
+    for element in db.smembers(DAG_STORE + address):
+        # all the operations
+        h = hash_t(element.decode())
+        # op = get_op(db, h)
+        nodes += f'task{h} [label="hash {h[:6]}\n"];\n'
+
+    props = " rankdir=LR;\n"
+    out = f"digraph dag{address[:6]}" + " {\n" + props + nodes + "\n" + graph + "\n }"
+    return out
