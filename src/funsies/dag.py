@@ -1,6 +1,9 @@
 """DAG related utilities."""
 from __future__ import annotations
 
+# std
+from typing import Optional
+
 # external
 from redis import Redis
 from redis.client import Pipeline
@@ -10,13 +13,13 @@ from rq.queue import Queue
 # module
 from ._graph import get_artefact, get_op, get_op_options
 from ._short_hash import shorten_hash
-from .constants import DAG_INDEX, DAG_STORE, hash_t
+from .constants import DAG_CHILDREN, DAG_INDEX, DAG_PARENTS, DAG_STORE, hash_t
 from .logging import logger
 from .run import run_op, RunStatus
 
 
-def __set_as_hashes(db: Redis[bytes], key: str) -> set[hash_t]:
-    mem = db.smembers(key)
+def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
+    mem = db.sinter(key1, key2)
     out = set()
     for k in mem:
         if isinstance(k, bytes):
@@ -28,26 +31,36 @@ def __set_as_hashes(db: Redis[bytes], key: str) -> set[hash_t]:
     return out
 
 
-def __dag_append(db: Redis[bytes], op_from: hash_t, op_to: hash_t) -> None:
-    """Append to a DAG."""
-    key = DAG_STORE + op_from
-    db.sadd(key, op_to)
-    db.sadd(DAG_INDEX, key)
-
-
-def _dag_dependents(db: Redis[bytes], op_from: hash_t) -> set[hash_t]:
-    """Get dependents of an op."""
-    key = DAG_STORE + op_from
-    return __set_as_hashes(db, key)
+def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
+    """Get dependents of an op within a given DAG."""
+    return __set_as_hashes(db, DAG_STORE + dag_of, DAG_CHILDREN + op_from)
 
 
 def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
-    for dag in __set_as_hashes(db, DAG_INDEX):
-        db.delete(dag)
+    for dag in db.smembers(DAG_INDEX):
+        db.delete(dag.decode())  # type:ignore
 
     # Remove old index
     db.delete(DAG_INDEX)
+
+
+def ancestors(db: Redis[bytes], address: hash_t) -> set[hash_t]:
+    """Get all ancestors of a given hash."""
+    queue = [address]
+    out = set()
+
+    while len(queue) > 0:
+        curr = queue.pop()
+        for el in db.smembers(DAG_PARENTS + curr):
+            if el == b"root":
+                continue
+
+            h = hash_t(el.decode())  # type:ignore
+            out.add(h)
+            if h not in queue:
+                queue.append(h)
+    return out
 
 
 def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
@@ -56,10 +69,12 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     art = None
     try:
         node = get_op(db, address)
+        logger.debug(f"building dag for op at {address[:6]}")
     except RuntimeError:
         # one possibility is that address is an artefact...
         try:
             art = get_artefact(db, address)
+            logger.debug(f"artefact at {address[:6]}")
         except RuntimeError:
             raise RuntimeError(
                 f"address {address} neither a valid operation nor a valid artefact."
@@ -68,33 +83,23 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     if art is not None:
         if art.parent == root:
             # We have basically just a single artefact as the network...
+            logger.debug(f"no dependencies to execute")
             return
         else:
             node = get_op(db, art.parent)
+            logger.debug(f"building dag for op at {node.hash[:6]}")
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
-    queue = [node]
-    pipe: Pipeline = db.pipeline(transaction=False)
-    while len(queue) != 0:
-        curr = queue.pop()
-        if len(curr.inp) == 0:
-            # DAG has no inputs or is cached.
-            __dag_append(pipe, hash_t("root"), curr.hash)
-        else:
-            only_root = True
-            for el in curr.inp.values():
-                art = get_artefact(db, el)
-                if art.parent != root:
-                    queue.append(get_op(db, art.parent))
-                    __dag_append(pipe, art.parent, curr.hash)
-                    only_root = False
+    ancs = ancestors(db, node.hash)
+    logger.debug(f"{node.hash[:6]} has {len(ancs)} ancestors")
 
-            if only_root:
-                # ONLY IF ALL THE PARENTS ARE ROOT DO WE ADD THIS DAG TO
-                # ROOT!! This is to avoid having root-dependent steps that get
-                # re-run over and over again.
-                __dag_append(pipe, hash_t("root"), curr.hash)
+    pipe = db.pipeline()
+    key = DAG_STORE + address
+    pipe.sadd(key, node.hash)  # need to run this at least
+    for k in ancs:
+        pipe.sadd(key, k)
+    pipe.sadd(DAG_INDEX, key)
     pipe.execute()
 
 
@@ -117,7 +122,7 @@ def task(
 
         if stat > 0:
             # Success! Let's enqueue dependents.
-            depen = _dag_dependents(db, current)
+            depen = _dag_dependents(db, dag_of, current)
             logger.info(f"enqueuing {len(depen)} dependents")
 
             for dependent in depen:
@@ -137,7 +142,7 @@ def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
     build_dag(db, data_output)
 
     # enqueue everything starting from root
-    for element in _dag_dependents(db, hash_t("root")):
+    for element in _dag_dependents(db, data_output, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
         queue.enqueue_call(task, args=(data_output, element), **options.job_args)

@@ -26,12 +26,12 @@ TAGS_SET = "funsies.tags"
 
 # job status repos
 DATA_STATUS = "funsies.data.status"
-SREADY = "funsies.jobs.ready."
-SRUNNING = "funsies.jobs.running."
 
-# job dags
-DAG_STORE = "funsies.dags."
+# DAGs
+DAG_STORE = "funsies.dags.run."
 DAG_INDEX = "funsies.dags.index"
+DAG_PARENTS = "funsies.dags.parents."
+DAG_CHILDREN = "funsies.dags.children."
 
 # Max size of continuous data
 BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB

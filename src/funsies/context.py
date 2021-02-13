@@ -17,7 +17,6 @@ import rq
 from rq.local import LocalStack
 
 # module
-from ._graph import reset_locks
 from .config import Options
 from .constants import _AnyPath
 from .dag import delete_all_dags
@@ -37,7 +36,6 @@ def cleanup_funsies(connection: Redis[bytes]) -> None:
 
     # Now we cleanup all the old dags that are lying around
     delete_all_dags(connection)
-    reset_locks(connection)
 
 
 # --------------------------------------------------------------------------------
@@ -73,7 +71,6 @@ def Fun(
             "Unexpected Redis connection was popped off the stack. "
             "Check your Redis connection setup."
         )
-        _options_stack.pop()  # also pop options, important
         rq.connections.pop_connection()
 
 
