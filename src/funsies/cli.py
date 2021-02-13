@@ -5,9 +5,11 @@ from __future__ import annotations
 # std
 import sys
 from typing import Optional
+import time
 
 # external
 import click
+import redis
 from redis import Redis
 from rq import command, Connection, Worker
 
@@ -16,6 +18,7 @@ import funsies, subprocess, msgpack, hashlib, loguru  # noqa
 
 # Local
 from . import __version__
+from ._graph import get_status
 from .logging import logger
 
 
@@ -182,6 +185,63 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
             for el in things[1:]:
                 funsies.debug.anything(el, output2 + el.hash)
                 logger.success(f"{type(el)} -> {output2 + el.hash}")
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.option("-t", "--timeout", type=float, help="Timeout in seconds.")
+@click.pass_context
+def wait(ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]) -> None:
+    """Wait until redis database or certain hashes are ready."""
+    db = ctx.obj
+    if timeout is not None:
+        tmax = time.time() + timeout
+
+    while True:
+        try:
+            db.ping()
+            break
+        except redis.exceptions.BusyLoadingError:
+            time.sleep(0.5)
+
+        if timeout is not None:
+            t1 = time.time()
+            if t1 > tmax:
+                logger.error("timeout exceeded")
+                raise SystemExit(2)
+
+    with funsies.context.Fun(db):
+        h = []
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Artefact):
+                    h += [t.hash]
+                    logger.info(f"waiting on artefact at {hash}")
+                elif isinstance(t, funsies.Operation):
+                    h += [next(iter(t.out.values()))]
+                    logger.info(f"waiting on operation at {hash}")
+                else:
+                    logger.warning(f"ignoring {type(t)} at {t.hash}")
+
+        while len(h) > 0:
+            stat = get_status(db, h[0])
+            if stat > 0:
+                h.pop(0)
+                logger.success(f"{len(h)} things left to wait for.")
+            time.sleep(0.5)
+
+            if timeout is not None:
+                t1 = time.time()
+                if t1 > tmax:
+                    logger.error("timeout exceeded")
+                    raise SystemExit(2)
 
 
 if __name__ == "__main__":
