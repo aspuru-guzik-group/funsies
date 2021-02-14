@@ -256,6 +256,40 @@ def wait(  # noqa:C901
     nargs=-1,
 )
 @click.pass_context
+def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+    """Print to stdout a DOT-formatted graph to visualize DAGs."""
+    import funsies.graphviz
+
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        all_data = []
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                    all_data += [t.hash]
+
+        if len(all_data):
+            logger.info(f"writing graph for {len(all_data)} objects")
+            out = funsies.graphviz.format_dot(
+                *funsies.graphviz.export(db, all_data), targets=all_data
+            )
+            sys.stdout.write(out)
+            logger.success("done")
+        else:
+            logger.error("No data points")
+            raise SystemExit(2)
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.pass_context
 def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Enqueue execution of hashes."""
     db = ctx.obj

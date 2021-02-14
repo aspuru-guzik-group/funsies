@@ -30,42 +30,43 @@ def __sanitize_command(lab: str) -> str:
 
 
 def export(
-    db: Redis[bytes], address: hash_t
+    db: Redis[bytes], addresses: list[hash_t]
 ) -> tuple[__node_type, __artefact_type, __label_type]:
     """Output a DAG in dot format for graphviz."""
-    if (DAG_STORE + address).encode() not in db.smembers(DAG_INDEX):
-        logger.warning(
-            f"attempted to print dag for {address}, but "
-            + "it has not been generated. building now."
-        )
-        build_dag(db, address)
-
     nodes: __node_type = {}
     labels: dict[str, str] = {}
     artefacts: __artefact_type = {}
 
-    # add node data
-    for element in db.smembers(DAG_STORE + address):
-        element = cast(bytes, element)
-        # all the operations
-        h = hash_t(element.decode())
-        nodes[h] = {}
-        obj = get_op(db, h)
-        funsie = get_funsie(db, obj.funsie)
+    for address in addresses:
+        if (DAG_STORE + address).encode() not in db.smembers(DAG_INDEX):
+            logger.warning(
+                f"attempted to print dag for {address}, but "
+                + "it has not been generated. building now."
+            )
+            build_dag(db, address)
 
-        if funsie.how == FunsieHow.shell:
-            labels[h] = __sanitize_command(";".join(unpackb(funsie.what)["cmds"]))
-        else:
-            labels[h] = __sanitize_command(funsie.what.decode())
+        # add node data
+        for element in db.smembers(DAG_STORE + address):
+            element = cast(bytes, element)
+            # all the operations
+            h = hash_t(element.decode())
+            nodes[h] = {}
+            obj = get_op(db, h)
+            funsie = get_funsie(db, obj.funsie)
 
-        if funsie.error_tolerant:
-            labels[h] += r"\n(tolerates err)"
+            if funsie.how == FunsieHow.shell:
+                labels[h] = __sanitize_command(";".join(unpackb(funsie.what)["cmds"]))
+            else:
+                labels[h] = __sanitize_command(funsie.what.decode())
 
-        nodes[h]["inputs"] = obj.inp
-        nodes[h]["outputs"] = obj.out
+            if funsie.error_tolerant:
+                labels[h] += r"\n(tolerates err)"
 
-        for k in itertools.chain(obj.inp.values(), obj.out.values()):
-            artefacts[k] = get_status(db, k)
+            nodes[h]["inputs"] = obj.inp
+            nodes[h]["outputs"] = obj.out
+
+            for k in itertools.chain(obj.inp.values(), obj.out.values()):
+                artefacts[k] = get_status(db, k)
 
     return nodes, artefacts, labels
 
@@ -123,10 +124,17 @@ def format_dot(  # noqa:C901
             if artefacts[v] == 2:
                 initials[v] = initials.get(v, []) + [n]
 
+        # if targets are artefacts, then we should always keep them
         for t in targets:
             if t in nodes[n]["outputs"].values():
                 keep[t] = []
                 finals[t] = n
+
+        # if targets are nodes, then we should always keep all the artefacts.
+        if n in targets:
+            for v in nodes[n]["outputs"].values():
+                keep[v] = keep.get(v, []) + [n]
+                finals[v] = n
 
     # write operation nodes
     nstring = ""
@@ -158,7 +166,7 @@ def format_dot(  # noqa:C901
         )
 
     # write artefact nodes
-    for k in keep:
+    for k in set(keep):
         nstring += (
             f"A{k}"
             + f'[shape=box,label="{shorten_hash(k)}"'

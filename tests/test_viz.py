@@ -29,7 +29,7 @@ def test_dag_dump() -> None:
         dag.build_dag(db, out.hash)
         execute(step2b)
 
-        nodes, artefacts, labels = graphviz.export(db, out.hash)
+        nodes, artefacts, labels = graphviz.export(db, [out.hash])
         dot = graphviz.format_dot(nodes, artefacts, labels, [out.hash])
         assert len(dot) > 0
 
