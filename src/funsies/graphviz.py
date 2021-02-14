@@ -95,7 +95,7 @@ def __style_node(i: ArtefactStatus) -> str:
     if i == 0:
         return "style=filled,color=7"
     if i == -2:
-        return "style=filled,color=7,fontcolor=5"
+        return "style=filled,color=7,fontcolor=6"
     if i == 2:
         return "color=white"
     elif i == 3:
@@ -197,13 +197,10 @@ def format_dot(  # noqa:C901
             init += [f"A{a}"]
     ranks = "{rank = same;" + ";".join(init) + ";}\n"
 
-    final = []
-    for t in targets:
-        if t in artefacts:
-            final += [f"A{t}"]
-        else:
-            final += [f"N{t}"]
-    ranks += "{rank = same;" + ";".join(final) + ";}\n"
+    rank_last = []
+    for t in finals.keys():
+        rank_last += [f"A{t}"]
+    ranks += "{rank = same;" + ";".join(rank_last) + ";}\n"
 
     footer = "\n}"
     return header + nstring + connect + ranks + footer
