@@ -7,8 +7,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._funsies import get_funsie, FunsieHow
-from ._graph import get_artefact, get_op, get_op_options, get_status
+from ._graph import get_artefact, get_op, get_op_options
 from ._short_hash import shorten_hash
 from .constants import DAG_CHILDREN, DAG_INDEX, DAG_PARENTS, DAG_STORE, hash_t
 from .logging import logger

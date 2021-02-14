@@ -42,6 +42,7 @@ MAX_VALUE_SIZE = 512 * MIB
 class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
+    deleted = -2
     no_data = 0
     # > absent  =  artefact has been computed
     done = 1

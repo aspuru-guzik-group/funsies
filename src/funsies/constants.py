@@ -1,4 +1,6 @@
 """Names of stuff in the key value store."""
+from __future__ import annotations
+
 from os import PathLike
 from typing import NewType, Union
 

@@ -1,21 +1,22 @@
 """Test of visualization routines."""
+from __future__ import annotations
+
 # std
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import dag, execute, Fun, morph, options, put, shell, take, utils, graphviz
-from funsies.constants import DAG_INDEX, DAG_STORE, hash_t
-from funsies.utils import concat
+from funsies import dag, execute, Fun, graphviz, morph, options, put, shell, utils
 
 
 def raises(k: bytes) -> bytes:
+    """A function that raises."""
     raise RuntimeError()
 
 
-def test_dag_build() -> None:
-    """Test simple DAG build."""
+def test_dag_dump() -> None:
+    """Test simple DAG dump to file."""
     with Fun(Redis(), options(distributed=False)) as db:
         dat = put("bla bla")
         dat2 = put("blaXbla")
@@ -27,11 +28,11 @@ def test_dag_build() -> None:
         out = utils.concat(step1, dat, step2.stdout, step3.stdout)
         dag.build_dag(db, out.hash)
         execute(step2b)
-        nodes, artefacts = graphviz.export(db, out.hash)
-        return nodes, artefacts, out.hash
 
+        nodes, artefacts, labels = graphviz.export(db, out.hash)
+        dot = graphviz.format_dot(nodes, artefacts, labels, [out.hash])
+        assert len(dot) > 0
 
-nodes, artefacts, h = test_dag_build()
-o = graphviz.gvdraw(nodes, artefacts, [h])
-with open("g.dot", "w") as f:
-    f.write(o)
+        # TODO pass through dot for testing?
+        # with open("g.dot", "w") as f:
+        #     f.write(test_dag_dump())

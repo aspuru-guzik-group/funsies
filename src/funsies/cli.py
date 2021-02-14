@@ -130,7 +130,8 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 res = funsies.take(art, strict=False)
                 if isinstance(res, funsies.Error):
                     logger.warning(f"error at {hash}: {res.kind}")
-                    sys.stderr.buffer.write(res.details.encode())
+                    if res.details is not None:
+                        sys.stderr.buffer.write(res.details.encode())
                     logger.warning(f"error source: {res.source}")
                 else:
                     sys.stdout.buffer.write(res)
