@@ -22,6 +22,11 @@ __node_type = Dict[hash_t, Dict[str, Dict[str, hash_t]]]
 __artefact_type = Dict[str, ArtefactStatus]
 __label_type = Dict[str, str]
 
+# Watch out: nasty code ahead. This functionality is quite secondary to the
+# program, so it's not written with the most care. Likely, the following will
+# basically need a full rewrite eventually. If it breaks... maybe we just
+# chuck it.
+
 
 def __sanitize_command(lab: str) -> str:
     if ".<locals>" in lab:
@@ -74,7 +79,7 @@ def export(
 def __style_line(i: ArtefactStatus) -> str:
     if i == 1:
         return "color=2,penwidth=3.0"
-    elif i == 0:
+    elif i <= 0:
         return "color=8,penwidth=3.0"
     elif i == 2:
         return "color=black,penwidth=1.0"
@@ -89,6 +94,8 @@ def __style_node(i: ArtefactStatus) -> str:
         return "style=filled,color=1"
     if i == 0:
         return "style=filled,color=7"
+    if i == -2:
+        return "style=filled,color=7,fontcolor=5"
     if i == 2:
         return "color=white"
     elif i == 3:

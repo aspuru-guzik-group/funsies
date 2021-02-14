@@ -20,8 +20,10 @@ from redis import Redis
 from ._graph import (
     Artefact,
     constant_artefact,
+    delete_artefact,
     get_artefact,
     get_data,
+    get_op,
     get_status,
     make_op,
     Operation,
@@ -33,7 +35,7 @@ from ._short_hash import shorten_hash
 from .config import Options
 from .constants import _AnyPath, hash_t
 from .context import get_db, get_options
-from .dag import start_dag_execution
+from .dag import descendants, start_dag_execution
 from .errors import Error, Result, unwrap
 from .logging import logger
 
@@ -328,6 +330,36 @@ def wait_for(
 
         # avoids hitting the DB way too often
         time.sleep(0.3)
+
+
+# object tags
+def reset(
+    what: Union[ShellOutput, Operation, Artefact],
+    *,
+    recursive: bool = True,
+    connection: Optional[Redis[bytes]] = None,
+) -> None:
+    """Delete an artefact and its dependents."""
+    db = get_db(connection)
+    if isinstance(what, Artefact):
+        h = what.parent
+        if h == "root":
+            logger.error("attempted to delete const artefact.")
+            return
+    else:
+        h = what.hash
+
+    # Delete everything from the operation
+    op = get_op(db, h)
+    for art in op.out.values():
+        delete_artefact(db, art)
+
+    if recursive:
+        # and its dependencies
+        for el in descendants(db, h):
+            op = get_op(db, el)
+            for art in op.out.values():
+                delete_artefact(db, art)
 
 
 # object tags

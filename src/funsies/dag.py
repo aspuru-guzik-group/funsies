@@ -59,6 +59,21 @@ def ancestors(db: Redis[bytes], address: hash_t) -> set[hash_t]:
     return out
 
 
+def descendants(db: Redis[bytes], address: hash_t) -> set[hash_t]:
+    """Get all descendants of a given hash."""
+    queue = [address]
+    out = set()
+
+    while len(queue) > 0:
+        curr = queue.pop()
+        for el in db.smembers(DAG_CHILDREN + curr):
+            h = hash_t(el.decode())  # type:ignore
+            out.add(h)
+            if h not in queue:
+                queue.append(h)
+    return out
+
+
 def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
     root = "root"

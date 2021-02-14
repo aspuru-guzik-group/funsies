@@ -8,7 +8,7 @@ from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _graph, Fun, run_op, ui
+from funsies import _graph, Fun, options, run_op, ui, UnwrapError
 
 
 def test_shell_run() -> None:
@@ -48,25 +48,34 @@ def test_store_cache() -> None:
         assert ui.take(s) == b"bla bla"
 
 
-# def test_rm() -> None:
-#     """Test rm."""
-#     with Fun(Redis()) as db:
-#         dat = ui.put("bla bla")
-#         with pytest.raises(TypeError):
-#             ui.rm(dat)
+def test_rm() -> None:
+    """Test rm."""
+    with Fun(Redis(), options(distributed=False)):
+        dat = ui.put("bla bla")
+        # no error because const dat are not removable
+        ui.reset(dat)
+        ui.take(dat)
 
-#         morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
-#         run_op(db, morph.parent)
-#         assert ui.take(morph) == b"BLA BLA"
+        def upper(x: bytes) -> bytes:
+            return x.decode().upper().encode()
 
-#         ui.rm(morph)
-#         with pytest.raises(UnwrapError):
-#             # deletion works
-#             assert ui.take(morph) == b"BLA BLA"
+        m1 = ui.morph(upper, dat)
+        m2 = ui.morph(lambda x: x + x, m1)
+        ui.execute(m2)
+        assert ui.take(m2) == b"BLA BLABLA BLA"
 
-#         # re run
-#         run_op(db, morph.parent)
-#         assert ui.take(morph) == b"BLA BLA"
+        ui.reset(m1)
+        with pytest.raises(UnwrapError):
+            # deletion works
+            ui.take(m1)
+
+        with pytest.raises(UnwrapError):
+            # and it's recursive
+            ui.take(m2)
+
+        # re run
+        ui.execute(m2)
+        assert ui.take(m2) == b"BLA BLABLA BLA"
 
 
 def test_morph() -> None:

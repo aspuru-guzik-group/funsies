@@ -94,16 +94,6 @@ def mark_done(db: Redis[bytes], address: hash_t) -> None:
         _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
 
 
-def mark_deleted(db: Redis[bytes], address: hash_t) -> None:
-    """Set the status of a given operation or artefact."""
-    assert is_artefact(db, address)
-    old = get_status(db, address)
-    if old == ArtefactStatus.const:
-        logger.error("attempted to mark deleted a const artefact.")
-    else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
-
-
 def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     """Set the status of a given operation or artefact."""
     assert is_artefact(db, address)
@@ -120,6 +110,32 @@ def tag_artefact(db: Redis[bytes], address: hash_t, tag: str) -> None:
     """Set the status of a given operation or artefact."""
     _ = db.sadd(TAGS + tag, address)
     _ = db.sadd(TAGS_SET, tag)
+
+
+# Delete artefact
+def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
+    """Set the status of a given operation or artefact."""
+    assert is_artefact(db, address)
+    old = get_status(db, address)
+    if old == ArtefactStatus.const:
+        logger.error(f"attempted to delete const artefact {address[:6]}.")
+        logger.error("you should set it to a different value instead")
+        return
+
+    # mark as deleted
+    _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
+
+    # delete previous data
+    count = 0
+    while True:
+        if count > 0:
+            where = address + f"_{count}"
+        else:
+            where = address
+        i = db.hdel(STORE, where)
+        if not i:
+            break
+        count += 1
 
 
 def _set_block_size(n: int) -> None:

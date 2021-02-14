@@ -30,6 +30,9 @@ def test_dag_build() -> None:
         dag.build_dag(db, step1.hash)
         assert len(db.smembers(DAG_STORE + step1.hash)) == 1
 
+        assert len(dag.descendants(db, step1.parent)) == 1
+        # assert len(dag.descendants(db, step1.hash)) == 1
+
 
 def test_dag_efficient() -> None:
     """Test that DAG building doesn't do extra work."""
