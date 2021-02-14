@@ -34,7 +34,7 @@ set_level("INFO")
 # Error logger for operations
 worker_format = " op:<green>{extra[op]}</green> |" + " <level>{message}</level>"
 logger.add(
-    sys.stdout,
+    sys.stderr,
     format=worker_format,
     filter=lambda record: "op" in record["extra"],
     level="INFO",
