@@ -25,4 +25,6 @@ def test_dag_build() -> None:
 
 
 nodes, artefacts, h = test_dag_build()
-graphviz.gvdraw(nodes, artefacts, h)
+o = graphviz.gvdraw(nodes, artefacts, [h])
+with open("g.dot", "w") as f:
+    f.write(o)
