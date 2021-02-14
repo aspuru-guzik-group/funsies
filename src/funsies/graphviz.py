@@ -52,17 +52,30 @@ def export(db: Redis[bytes], address: hash_t) -> str:
     return nodes, artefacts
 
 
-def colors(i):
+def style_line(i):
     if i == 1:
-        return "green"
+        return "color=royalblue2,penwidth=3.0"
     elif i == 0:
-        return "gray"
+        return "color=gray60,penwidth=3.0"
     elif i == 2:
-        return "blue"
+        return "color=gray10,penwidth=1.0"
     elif i == 3:
-        return "red"
+        return "color=brown3,penwidth=3.0"
     else:
-        return "white"
+        return "color=white"
+
+
+def style_node(i):
+    if i == 1:
+        return "style=filled,color=powderblue"
+    if i == 0:
+        return "style=filled,color=gray85"
+    if i == 2:
+        return "style=filled,color=gray95"
+    elif i == 3:
+        return "style=filled,color=salmon"
+    else:
+        return ""
 
 
 def sanitize_command(lab):
@@ -110,37 +123,41 @@ def gvdraw(nodes, artefacts, targets):
             + "{{"
             + f"{inps}"
             + "}|"
-            + f"{n[:6]} \\n {sanitize_command(nodes[n]['label'])}"
+            + f" {n[:6]} \\n{sanitize_command(nodes[n]['label'])}"
             + "|{"
             + f"{outs}"
             + "}}"
             + '"];\n'
         )
 
-    # Initial data
-    for k in initials:
-        nstring += f'I{k} [label="{k[:6]}"];\n'
-
-    for k in finals:
-        nstring += f'F{k} [label="{k[:6]}"];\n'
+    # Artefact data
+    for k in keep:
+        nstring += f'A{k} [shape=box,label="{k[:6]}",{style_node(artefacts[k])}];\n'
 
     connect = ""
     for n in nodes:
-        for k, v in nodes[n]["outputs"].items():
-            for n2 in keep.get(v, []):
-                connect += (
-                    f"N{n}:A{v} -> N{n2}:A{v} "
-                    + f'[label="{v[:6]}",'
-                    + f" color={colors(artefacts[v])}];\n"
-                )
+        for _, v in nodes[n]["outputs"].items():
+            if v in keep:
+                connect += f"N{n}:A{v} -> A{v} [{style_line(artefacts[v])}];\n"
 
-    for k, values in initials.items():
-        for v in values:
-            connect += f"I{k} -> N{v}:A{k};\n"
+        for _, v in nodes[n]["inputs"].items():
+            if v in keep:
+                connect += f"A{v} -> N{n}:A{v} [{style_line(artefacts[v])}];\n"
 
-    for k, v in finals.items():
-        connect += f"N{v}:A{k} -> F{k};\n"
+    init = []
+    for a in artefacts:
+        if artefacts[a] == 2:
+            init += [f"A{a}"]
+    ranks = "{rank = same;" + ";".join(init) + ";}\n"
+
+    final = []
+    for t in targets:
+        if t in artefacts:
+            final += [f"A{t}"]
+        else:
+            final += [f"N{t}"]
+    ranks += "{rank = same;" + ";".join(final) + ";}\n"
 
     header = "digraph G {\nrankdir=LR;\n"
     footer = "\n}"
-    return header + nstring + connect + footer
+    return header + nstring + connect + ranks + footer
