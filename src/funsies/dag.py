@@ -35,7 +35,7 @@ def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[ha
 def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in db.smembers(DAG_INDEX):
-        db.delete(dag.decode())  # type:ignore
+        db.delete(DAG_STORE + dag.decode())  # type:ignore
 
     # Remove old index
     db.delete(DAG_INDEX)
@@ -110,7 +110,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     pipe.sadd(key, node.hash)  # need to run this at least
     for k in ancs:
         pipe.sadd(key, k)
-    pipe.sadd(DAG_INDEX, key)
+    pipe.sadd(DAG_INDEX, address)
     pipe.execute()
 
 

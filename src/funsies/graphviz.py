@@ -43,7 +43,7 @@ def export(
     artefacts: __artefact_type = {}
 
     for address in addresses:
-        if (DAG_STORE + address).encode() not in db.smembers(DAG_INDEX):
+        if address.encode() not in db.smembers(DAG_INDEX):
             logger.warning(
                 f"attempted to print dag for {address}, but "
                 + "it has not been generated. building now."

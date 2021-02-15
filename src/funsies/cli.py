@@ -192,6 +192,36 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 
 @main.command()
 @click.argument(
+    "hash",
+    type=str,
+    nargs=-1,
+)
+@click.pass_context
+def reset(ctx: click.Context, hash: str) -> None:
+    """Enqueue execution of hashes."""
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        things = funsies.get(hash)
+        if len(things) == 0:
+            logger.warning(f"no object with hash {hash}")
+            raise SystemExit(2)
+        if len(things) > 1:
+            logger.error(f"more than object with hash starting with {hash}")
+            logger.error("which one do you mean of :")
+            for t in things:
+                logger.error(f"\t{t.hash}")
+            raise SystemExit(2)
+        else:
+            if isinstance(things[0], funsies.Artefact) or isinstance(
+                things[0], funsies.Operation
+            ):
+                funsies.ui.reset(things[0])
+            else:
+                logger.error(f"object {hash} is neither an operation or an artefact")
+
+
+@main.command()
+@click.argument(
     "hashes",
     type=str,
     nargs=-1,
@@ -262,6 +292,12 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 
     db = ctx.obj
     with funsies.context.Fun(db):
+        if len(hashes) == 0:
+            # If no hashes are passed, we graph all the DAGs on index
+            hashes = tuple(
+                [dag.decode for dag in db.smembers(funsies.constants.DAG_INDEX)]
+            )
+
         all_data = []
         for hash in hashes:
             things = funsies.get(hash)
