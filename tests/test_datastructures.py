@@ -14,20 +14,6 @@ def test_instantiate() -> None:
     assert out is not None
 
 
-def test_pack_unpack() -> None:
-    """Test the packing of a Funsie class."""
-    out = f.Funsie(
-        how=f.FunsieHow.shell,
-        what=b"cat",
-        inp=["infile"],
-        out=["stdout"],
-    )
-
-    b = out.pack()
-    out2 = f.Funsie.unpack(b)
-    assert out == out2
-
-
 def test_str() -> None:
     """Test funsies to string."""
     out = f.Funsie(

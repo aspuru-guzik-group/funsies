@@ -10,7 +10,7 @@ from typing import Union
 from redis import Redis, WatchError
 
 # module
-from ._funsies import FunsieHow, get_funsie
+from ._funsies import FunsieHow, Funsie
 from ._graph import (
     ArtefactStatus,
     get_artefact,
@@ -101,7 +101,7 @@ def run_op(  # noqa:C901
         return RunStatus.unmet_dependencies
 
     # load the funsie
-    funsie = get_funsie(db, op.funsie)
+    funsie = Funsie.grab(db, op.funsie)
     runner = RUNNERS[funsie.how]
 
     # load input files

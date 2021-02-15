@@ -13,7 +13,7 @@ from msgpack import unpackb
 from redis import Redis
 
 # module
-from ._funsies import Funsie, FunsieHow, get_funsie
+from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, get_artefact, get_data, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath
@@ -83,7 +83,7 @@ def shell(  # noqa:C901
     with open(os.path.join(directory, "operation.json"), "w") as f:
         f.write(json.dumps(asdict(shell_output.op), sort_keys=True, indent=2))
 
-    what = unpackb(get_funsie(db, shell_output.op.funsie).what)
+    what = unpackb(Funsie.grab(db, shell_output.op.funsie).what)
     with open(os.path.join(directory, "op.sh"), "w") as f:
         f.write("\n".join(what["cmds"]))
         f.write("\n")
@@ -137,7 +137,7 @@ def python(
             raise RuntimeError(f"Operation not found at {target.parent}")
 
     os.makedirs(directory, exist_ok=True)
-    funsie = get_funsie(db, target.funsie)
+    funsie = Funsie.grab(db, target.funsie)
     inp = os.path.join(directory, "inputs")
     out = os.path.join(directory, "outputs")
     errors = {}
@@ -198,7 +198,7 @@ def anything(
     """Debug anything really."""
     db = get_db(connection)
     if isinstance(obj, Operation):
-        funsie = get_funsie(db, obj.funsie)
+        funsie = Funsie.grab(db, obj.funsie)
         if funsie.how == FunsieHow.shell:
             shell_output = ShellOutput(db, obj)
             shell(shell_output, output, db)

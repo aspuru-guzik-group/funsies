@@ -13,9 +13,16 @@ from redis import Redis
 
 # module
 from ._short_hash import hash_save
-from .constants import FUNSIES, hash_t
+from .constants import FUNSIES, hash_t, join
 from .errors import Error, ErrorKind, Result
 from .logging import logger
+
+
+def _to_list(inp: dict[bytes, bytes]) -> list[str]:
+    out = []
+    for i in range(len(inp)):
+        out += [inp[f"{i}".encode()].decode()]
+    return out
 
 
 # --------------------------------------------------------------------------------
@@ -47,10 +54,51 @@ class Funsie:
 
     how: FunsieHow
     what: bytes
-    inp: List[str]
-    out: List[str]
-    aux: Optional[bytes] = None
+    inp: list[str]
+    out: list[str]
+    aux: bytes = b""
     error_tolerant: bool = False
+
+    def put(self: "Funsie", db: Redis[bytes]):
+        """Save a Funsie to Redis."""
+        db.hset(  # type:ignore
+            join(FUNSIES, self.hash),
+            mapping={
+                "how": int(self.how),
+                "what": self.what,
+                "aux": self.aux,
+                "error_tolerant": bytes(self.error_tolerant),
+            },
+        )
+        if self.inp:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, "inp"), mapping=dict(list(enumerate(self.inp)))
+            )
+        if self.out:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, "out"), mapping=dict(list(enumerate(self.out)))
+            )
+
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
+
+    @classmethod
+    def grab(cls: Type["Funsie"], db: Redis[bytes], hash: hash_t) -> "Funsie":
+        """Grab a Funsie from the Redis store."""
+        if not db.exists(join(FUNSIES, hash)):
+            raise RuntimeError(f"No funsie at {hash}")
+
+        metadata = db.hgetall(join(FUNSIES, hash))
+        inp = db.hgetall(join(FUNSIES, hash, "inp"))
+        out = db.hgetall(join(FUNSIES, hash, "out"))
+        return Funsie(
+            how=FunsieHow(int(metadata[b"how"].decode())),
+            what=metadata[b"what"],
+            aux=metadata[b"aux"],
+            error_tolerant=bool(metadata[b"error_tolerant"]),
+            inp=_to_list(inp),
+            out=_to_list(out),
+        )
 
     def __str__(self: "Funsie") -> str:
         """Get the string representation of a funsie."""
@@ -66,14 +114,10 @@ class Funsie:
         for key in sorted(self.out):
             out += f"    {key}\n"
 
-        if self.error_tolerant:
-            out += "  ERROR TOLERANT\n"
+        out += f"    error tolerant: {self.error_tolerant}\n"
+        out += "  ]"
         # ==============================================================
-        return out + "  ]"
-
-    def pack(self: "Funsie") -> bytes:
-        """Pack a Funsie to a bytestring."""
-        return packb(asdict(self))
+        return out
 
     def check_inputs(
         self: "Funsie", actual: Mapping[str, Result[bytes]]
@@ -120,22 +164,3 @@ class Funsie:
         m.update(str(self).encode())
         return hash_t(m.hexdigest())
         # ==============================================================
-
-    @classmethod
-    def unpack(cls: Type["Funsie"], data: bytes) -> "Funsie":
-        """Unpack a Funsie from a byte string."""
-        return Funsie(**unpackb(data))
-
-
-def store_funsie(store: Redis[bytes], funsie: Funsie) -> None:
-    """Store a funsie in Redis store."""
-    _ = store.hset(FUNSIES, funsie.hash, funsie.pack())
-    hash_save(store, funsie.hash)
-
-
-def get_funsie(store: Redis[bytes], hash: str) -> Funsie:
-    """Pull a funsie from the Redis store."""
-    out = store.hget(FUNSIES, hash)
-    if out is None:
-        raise RuntimeError(f"Funsie at {hash} could not be found.")
-    return Funsie.unpack(out)

@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from . import constants as c
-from ._funsies import Funsie, get_funsie
+from ._funsies import Funsie
 from ._graph import Artefact, get_artefact, Operation
 from ._short_hash import hash_load
 from .context import get_db
@@ -29,9 +29,9 @@ def get(
             logger.debug(f"{h} is Artefact")
             # Load artefact
             out += [get_artefact(db, h)]
-        elif db.hexists(c.FUNSIES, h):
+        elif db.exists(c.join(c.FUNSIES, h)):
             logger.debug(f"{h} is Funsie")
-            out += [get_funsie(db, h)]
+            out += [Funsie.grab(db, h)]
         elif db.exists(c.join(c.OPERATIONS, h)):
             logger.debug(f"{h} is Operation")
             out += [Operation.grab(db, h)]

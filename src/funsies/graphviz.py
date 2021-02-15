@@ -11,7 +11,7 @@ from msgpack import unpackb
 from redis import Redis
 
 # module
-from ._funsies import FunsieHow, get_funsie
+from ._funsies import Funsie, FunsieHow
 from ._graph import ArtefactStatus, Operation, get_status
 from ._short_hash import shorten_hash
 from .constants import DAG_INDEX, DAG_STORE, hash_t
@@ -57,7 +57,7 @@ def export(
             h = hash_t(element.decode())
             nodes[h] = {}
             obj = Operation.grab(db, h)
-            funsie = get_funsie(db, obj.funsie)
+            funsie = Funsie.grab(db, obj.funsie)
 
             if funsie.how == FunsieHow.shell:
                 labels[h] = __sanitize_command(";".join(unpackb(funsie.what)["cmds"]))

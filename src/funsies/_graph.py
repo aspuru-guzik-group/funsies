@@ -13,7 +13,7 @@ from redis import Redis
 from redis.client import Pipeline
 
 # module
-from ._funsies import Funsie, store_funsie
+from ._funsies import Funsie
 from ._short_hash import hash_save
 from .config import Options
 from .constants import (
@@ -327,11 +327,13 @@ class Operation:
             db.hset(join(OPERATIONS, self.hash, "inp"), mapping=self.inp)  # type:ignore
         if self.out:
             db.hset(join(OPERATIONS, self.hash, "out"), mapping=self.out)  # type:ignore
-        db.hset(
-            join(OPERATIONS, self.hash, "metadata"),
+        db.hset(  # type:ignore
+            join(OPERATIONS, self.hash),
             mapping={"funsie": self.funsie, "hash": self.hash},
         )
-        db.set(join(OPERATIONS, self.hash), "1")
+
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
 
     @classmethod
     def grab(cls: Type["Operation"], db: Redis[bytes], hash: hash_t) -> "Operation":
@@ -339,7 +341,7 @@ class Operation:
         if not db.exists(join(OPERATIONS, hash)):
             raise RuntimeError(f"No operation at {hash}")
 
-        metadata = db.hgetall(join(OPERATIONS, hash, "metadata"))
+        metadata = db.hgetall(join(OPERATIONS, hash))
         inp = db.hgetall(join(OPERATIONS, hash, "inp"))
         out = db.hgetall(join(OPERATIONS, hash, "out"))
         return Operation(
@@ -370,7 +372,7 @@ def make_op(
     pipe: Pipeline = store.pipeline(transaction=False)
 
     # save funsie
-    store_funsie(pipe, funsie)
+    funsie.put(pipe)
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -402,9 +404,6 @@ def make_op(
 
     # store the node
     node.put(pipe)
-
-    # Save the hash in the quickhash db
-    hash_save(pipe, ophash)
 
     # Add parents
     root = True
