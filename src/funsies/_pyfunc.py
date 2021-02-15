@@ -1,4 +1,6 @@
 """Run shell commands using funsies."""
+from __future__ import annotations
+
 # std
 import time
 from typing import Callable, Dict, Literal, Mapping, Optional, overload, Sequence, Union
@@ -14,6 +16,7 @@ from .logging import logger
 # types
 pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
 pyfunc_opt_t = Callable[[Dict[str, Result[bytes]]], Dict[str, bytes]]
+pyfunc_opt_map_t = Callable[[Mapping[str, Result[bytes]]], Dict[str, bytes]]
 
 
 # strict overload
@@ -40,7 +43,7 @@ def python_funsie(
 
     The callable should have the following signature:
 
-        f(Dict[str, bytes or Option]) -> Dict[str, bytes]
+        f(dict[str, bytes or Option]) -> dict[str, bytes]
 
     This is done like this because there is no way to ensure that a python
     function will return a specific number of arguments at runtime. This
@@ -78,20 +81,20 @@ def python_funsie(
 
 def run_python_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> Dict[str, Optional[bytes]]:
+) -> dict[str, Optional[bytes]]:
     """Execute a python function."""
     logger.info("python function")
-    fun: pyfunc_t = cloudpickle.loads(funsie.extra["pickled function"])
+    fun: pyfunc_opt_map_t = cloudpickle.loads(funsie.extra["pickled function"])
     name = funsie.what
-    inps, errs = funsie.check_inputs(input_values)
-    inps.update(errs)  # type:ignore
-
     logger.info(f"$> {name}(*args)")
+
+    # run
     t1 = time.time()
-    outfun = fun(inps)
+    outfun = fun(input_values)
     t2 = time.time()
+
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
-    out: Dict[str, Optional[bytes]] = {}
+    out: dict[str, Optional[bytes]] = {}
     for output in funsie.out:
         if output in outfun:
             out[output] = outfun[output]

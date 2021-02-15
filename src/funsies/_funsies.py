@@ -122,36 +122,6 @@ class Funsie:
         # ==============================================================
         return out
 
-    def check_inputs(
-        self: "Funsie", actual: Mapping[str, Result[bytes]]
-    ) -> Tuple[Dict[str, bytes], Dict[str, Error]]:
-        """Match actual inputs of funsie with expected inputs."""
-        output = {}
-        errors = {}
-        for key in self.inp:
-            if key in actual:
-                val = actual[key]
-                if isinstance(val, Error):
-                    if self.error_tolerant:
-                        errors[key] = val
-                    else:
-                        logger.error(f"{key} is in error.")
-                        raise RuntimeError()
-                else:
-                    # all good: value exists, and is not Error
-                    output[key] = val
-            else:
-                logger.error(f"{key} not found.")
-                if self.error_tolerant:
-                    errors[key] = Error(
-                        kind=ErrorKind.MissingInput,
-                        source=self.hash,
-                        details="missing input in funsie.",
-                    )
-                else:
-                    raise RuntimeError()
-        return output, errors
-
     def __post_init__(self: "Funsie") -> None:
         """Calculate the hash."""
         # ==============================================================

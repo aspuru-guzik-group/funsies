@@ -16,7 +16,7 @@ from redis import Redis
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, get_artefact, Operation
 from .constants import hash_t
-from .errors import Result
+from .errors import Error, Result
 from .logging import logger
 
 # Special namespaced "files"
@@ -59,10 +59,12 @@ def run_shell_funsie(  # noqa:C901
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
-        incoming_files, _ = funsie.check_inputs(input_values)
-        for fn, val in incoming_files.items():
-            with open(os.path.join(dir, fn), "wb") as f:
-                f.write(val)
+        for fn, val in input_values.items():
+            if isinstance(val, Error):
+                pass
+            else:
+                with open(os.path.join(dir, fn), "wb") as f:
+                    f.write(val)
 
         cmds = unpackb(funsie.extra["cmds"])
         new_env = unpackb(funsie.extra["env"])
