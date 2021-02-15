@@ -38,7 +38,7 @@ def test_operation_pack() -> None:
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.constant_artefact(store, b"bla bla bla")
     fun = f.Funsie(
-        how=f.FunsieHow.shell, what=b"cat", inp=["infile"], out=["out"], extra={}
+        how=f.FunsieHow.shell, what="cat infile", inp=["infile"], out=["out"], extra={}
     )
     op = _graph.make_op(store, fun, {"infile": a}, opt)
     op2 = _graph.Operation.grab(store, op.hash)
