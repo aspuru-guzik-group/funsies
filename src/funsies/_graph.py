@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
-from typing import Dict, Optional, Type
+from typing import cast, Optional, Type
 
 # external
 from msgpack import packb, unpackb
@@ -28,6 +28,7 @@ from .constants import (
     STORE,
     TAGS,
     TAGS_SET,
+    join,
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
 from .logging import logger
@@ -317,21 +318,40 @@ class Operation:
 
     hash: hash_t
     funsie: hash_t
-    inp: Dict[str, hash_t]
-    out: Dict[str, hash_t]
+    inp: dict[str, hash_t]
+    out: dict[str, hash_t]
 
-    def pack(self: "Operation") -> bytes:
-        """Pack an Operation to a bytestring."""
-        return packb(asdict(self))
+    def put(self: "Operation", db: Redis[bytes]):
+        """Save an operation to Redis."""
+        if self.inp:
+            db.hset(join(OPERATIONS, self.hash, "inp"), mapping=self.inp)  # type:ignore
+        if self.out:
+            db.hset(join(OPERATIONS, self.hash, "out"), mapping=self.out)  # type:ignore
+        db.hset(
+            join(OPERATIONS, self.hash, "metadata"),
+            mapping={"funsie": self.funsie, "hash": self.hash},
+        )
+        db.set(join(OPERATIONS, self.hash), "1")
 
     @classmethod
-    def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
-        """Unpack an Operation from a byte string."""
-        return Operation(**unpackb(data))
+    def grab(cls: Type["Operation"], db: Redis[bytes], hash: hash_t) -> "Operation":
+        """Grab an operation from the Redis store."""
+        if not db.exists(join(OPERATIONS, hash)):
+            raise RuntimeError(f"No operation at {hash}")
+
+        metadata = db.hgetall(join(OPERATIONS, hash, "metadata"))
+        inp = db.hgetall(join(OPERATIONS, hash, "inp"))
+        out = db.hgetall(join(OPERATIONS, hash, "out"))
+        return Operation(
+            hash=hash_t(metadata[b"hash"].decode()),
+            funsie=hash_t(metadata[b"funsie"].decode()),
+            inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
+            out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
+        )
 
 
 def make_op(
-    store: Redis[bytes], funsie: Funsie, inp: Dict[str, Artefact], opt: Options
+    store: Redis[bytes], funsie: Funsie, inp: dict[str, Artefact], opt: Options
 ) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
@@ -381,11 +401,7 @@ def make_op(
     )
 
     # store the node
-    pipe.hset(
-        OPERATIONS,
-        ophash,
-        node.pack(),
-    )
+    node.put(pipe)
 
     # Save the hash in the quickhash db
     hash_save(pipe, ophash)
@@ -406,16 +422,6 @@ def make_op(
     # Execute the full transaction
     pipe.execute()
     return node
-
-
-def get_op(store: Redis[bytes], hash: hash_t) -> Operation:
-    """Load an operation from Redis store."""
-    # store the artefact
-    out = store.hget(OPERATIONS, hash)
-    if out is None:
-        raise RuntimeError(f"Operation at {hash} could not be found.")
-
-    return Operation.unpack(out)
 
 
 def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:

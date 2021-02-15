@@ -23,7 +23,6 @@ from ._graph import (
     delete_artefact,
     get_artefact,
     get_data,
-    get_op,
     get_status,
     make_op,
     Operation,
@@ -350,14 +349,14 @@ def reset(
         h = what.hash
 
     # Delete everything from the operation
-    op = get_op(db, h)
+    op = Operation.grab(db, h)
     for art in op.out.values():
         delete_artefact(db, art)
 
     if recursive:
         # and its dependencies
         for el in descendants(db, h):
-            op = get_op(db, el)
+            op = Operation.grab(db, el)
             for art in op.out.values():
                 delete_artefact(db, art)
 

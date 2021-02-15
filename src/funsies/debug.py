@@ -14,7 +14,7 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, FunsieHow, get_funsie
-from ._graph import Artefact, get_artefact, get_data, get_op, Operation
+from ._graph import Artefact, get_artefact, get_data, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath
 from .context import get_db
@@ -132,7 +132,7 @@ def python(
 
     if isinstance(target, Artefact):
         # Get the corresponding operation
-        target = get_op(db, target.parent)
+        target = Operation.grab(db, target.parent)
         if target is None:
             raise RuntimeError(f"Operation not found at {target.parent}")
 

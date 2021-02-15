@@ -15,7 +15,6 @@ from ._graph import (
     ArtefactStatus,
     get_artefact,
     get_data,
-    get_op,
     get_status,
     mark_error,
     Operation,
@@ -81,7 +80,7 @@ def run_op(  # noqa:C901
     """Run an Operation from its hash address."""
     # Compatibility feature
     if not isinstance(op, Operation):
-        op = get_op(db, op)
+        op = Operation.grab(db, op)
 
     logger.info(f"=== {op.hash} ===")
     logger.info("evaluating...")

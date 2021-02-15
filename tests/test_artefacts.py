@@ -44,7 +44,7 @@ def test_operation_pack() -> None:
         out=["out"],
     )
     op = _graph.make_op(store, fun, {"infile": a}, opt)
-    op2 = _graph.get_op(store, op.hash)
+    op2 = _graph.Operation.grab(store, op.hash)
     assert op == op2
 
     with pytest.raises(AttributeError):
@@ -59,4 +59,4 @@ def test_operation_pack() -> None:
         op = _graph.make_op(store, fun, {"infile": a, "infile2": b}, opt)
 
     with pytest.raises(RuntimeError):
-        op = _graph.get_op(store, hash_t("b"))
+        op = _graph.Operation.grab(store, hash_t("b"))

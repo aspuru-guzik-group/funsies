@@ -12,7 +12,7 @@ from redis import Redis
 
 # module
 from ._funsies import FunsieHow, get_funsie
-from ._graph import ArtefactStatus, get_op, get_status
+from ._graph import ArtefactStatus, Operation, get_status
 from ._short_hash import shorten_hash
 from .constants import DAG_INDEX, DAG_STORE, hash_t
 from .dag import build_dag
@@ -56,7 +56,7 @@ def export(
             # all the operations
             h = hash_t(element.decode())
             nodes[h] = {}
-            obj = get_op(db, h)
+            obj = Operation.grab(db, h)
             funsie = get_funsie(db, obj.funsie)
 
             if funsie.how == FunsieHow.shell:

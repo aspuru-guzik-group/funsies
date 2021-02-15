@@ -7,7 +7,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import get_artefact, get_op, get_op_options
+from ._graph import get_artefact, get_op_options, Operation
 from ._short_hash import shorten_hash
 from .constants import DAG_CHILDREN, DAG_INDEX, DAG_PARENTS, DAG_STORE, hash_t
 from .logging import logger
@@ -79,7 +79,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     root = "root"
     art = None
     try:
-        node = get_op(db, address)
+        node = Operation.grab(db, address)
         logger.debug(f"building dag for op at {address[:6]}")
     except RuntimeError:
         # one possibility is that address is an artefact...
@@ -97,7 +97,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
             logger.debug("no dependencies to execute")
             return
         else:
-            node = get_op(db, art.parent)
+            node = Operation.grab(db, art.parent)
             logger.debug(f"building dag for op at {node.hash[:6]}")
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
@@ -127,7 +127,7 @@ def task(
     db: Redis[bytes] = job.connection
 
     # Load operation
-    op = get_op(db, current)
+    op = Operation.grab(db, current)
 
     with logger.contextualize(op=shorten_hash(op.hash)):
         # Now we run the job

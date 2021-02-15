@@ -5,6 +5,17 @@ from os import PathLike
 from typing import NewType, Union
 
 
+def join(*args: Union[str, bytes]) -> str:
+    """Join identifiers with colons."""
+    out = []
+    for a in args:
+        if isinstance(a, bytes):
+            out += [a.decode()]
+        else:
+            out += [a]
+    return ":".join(out)
+
+
 # Some types
 _AnyPath = Union[str, PathLike]
 hash_t = NewType("hash_t", str)
