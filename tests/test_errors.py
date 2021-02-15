@@ -88,6 +88,7 @@ def test_error_propagation_morph() -> None:
         assert isinstance(out, funsies.Error)
         assert out.source == s1.op.hash
 
+        print(s3.parent)
         funsies.run_op(db, s3.parent)
         out = funsies.take(s3, strict=False)
         assert isinstance(out, funsies.Error)

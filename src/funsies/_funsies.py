@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # std
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import IntEnum
 import hashlib
 from typing import Dict, List, Mapping, Optional, Tuple, Type
@@ -42,32 +42,33 @@ class Funsie:
     """A funsie is a wrapped command that can be backed up to the KV store.
 
     A Funsie has a "how" (an integer that defines how it is to be executed), a
-    "what" (a bytestring that identifies the funsie, such as a function name
-    or packed shell commands) and input and output artefact names. All of
+    "what" (a string that identifies the funsie, such as a function name
+    or shell commands) and input and output artefact names. All of
     these are used to generate the hash of the Funsie instance.
 
-    Funsies also have an aux field that include auxiliary data that is not to
-    be used in key-ing the funsie, but is useful for executing it, such as a
-    cloudpickled python function.
+    Funsies also have an "extra" field that include auxiliary data that is not
+    to be used in hashing the funsie, but is useful for executing it, such as
+    a cloudpickled python function.
 
     """
 
     how: FunsieHow
-    what: bytes
+    what: str
     inp: list[str]
     out: list[str]
-    aux: bytes = b""
-    error_tolerant: bool = False
+    extra: dict[str, bytes]
+    error_tolerant: int = 0
+    hash: hash_t = field(init=False)
 
     def put(self: "Funsie", db: Redis[bytes]):
         """Save a Funsie to Redis."""
         db.hset(  # type:ignore
             join(FUNSIES, self.hash),
             mapping={
+                "hash": self.hash,
                 "how": int(self.how),
                 "what": self.what,
-                "aux": self.aux,
-                "error_tolerant": bytes(self.error_tolerant),
+                "error_tolerant": self.error_tolerant,
             },
         )
         if self.inp:
@@ -77,6 +78,10 @@ class Funsie:
         if self.out:
             db.hset(  # type:ignore
                 join(FUNSIES, self.hash, "out"), mapping=dict(list(enumerate(self.out)))
+            )
+        if self.extra:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, "extra"), mapping=self.extra  # type:ignore
             )
 
         # Save the hash in the quickhash db
@@ -91,13 +96,14 @@ class Funsie:
         metadata = db.hgetall(join(FUNSIES, hash))
         inp = db.hgetall(join(FUNSIES, hash, "inp"))
         out = db.hgetall(join(FUNSIES, hash, "out"))
+        extra = db.hgetall(join(FUNSIES, hash, "extra"))
         return Funsie(
             how=FunsieHow(int(metadata[b"how"].decode())),
-            what=metadata[b"what"],
-            aux=metadata[b"aux"],
-            error_tolerant=bool(metadata[b"error_tolerant"]),
+            what=metadata[b"what"].decode(),
+            error_tolerant=int(metadata[b"error_tolerant"].decode()),
             inp=_to_list(inp),
             out=_to_list(out),
+            extra=dict([(k.decode(), v) for k, v in extra.items()]),
         )
 
     def __str__(self: "Funsie") -> str:
@@ -107,15 +113,12 @@ class Funsie:
         # --------------------------------------------------------------
         # When hashes change, previous databases become deprecated. This
         # (will) require a change in version number!
-        out = f"Funsie[\n  how={self.how}" + f"\n  what={self.what!r}" + "\n  inputs\n"
+        out = f"how={self.how}\n" + f"what={self.what}\n"
         for key in sorted(self.inp):
-            out += f"    {key}\n"
-        out += "  outputs\n"
+            out += f"input:{key}\n"
         for key in sorted(self.out):
-            out += f"    {key}\n"
-
-        out += f"    error tolerant: {self.error_tolerant}\n"
-        out += "  ]"
+            out += f"output:{key}\n"
+        out += f"error tolerant:{self.error_tolerant}\n"
         # ==============================================================
         return out
 
@@ -149,9 +152,8 @@ class Funsie:
                     raise RuntimeError()
         return output, errors
 
-    @property
-    def hash(self: "Funsie") -> hash_t:
-        """Hash of a funsie."""
+    def __post_init__(self: "Funsie") -> None:
+        """Calculate the hash."""
         # ==============================================================
         #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
         # --------------------------------------------------------------
@@ -162,5 +164,5 @@ class Funsie:
         m.update(b"funsie")
         # funsie
         m.update(str(self).encode())
-        return hash_t(m.hexdigest())
+        self.hash = hash_t(m.hexdigest())
         # ==============================================================

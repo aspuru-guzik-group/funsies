@@ -60,9 +60,9 @@ def export(
             funsie = Funsie.grab(db, obj.funsie)
 
             if funsie.how == FunsieHow.shell:
-                labels[h] = __sanitize_command(";".join(unpackb(funsie.what)["cmds"]))
+                labels[h] = __sanitize_command(funsie.what)
             else:
-                labels[h] = __sanitize_command(funsie.what.decode())
+                labels[h] = __sanitize_command(funsie.what)
 
             if funsie.error_tolerant:
                 labels[h] += r"\n(tolerates err)"

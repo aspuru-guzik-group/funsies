@@ -38,12 +38,17 @@ def shell_funsie(
     for k in range(len(cmds)):
         out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
 
+    ierr = 1
+    if strict:
+        ierr = 0
+
     return Funsie(
         how=FunsieHow.shell,
-        what=packb({"cmds": cmds, "env": env}),
+        what=";".join(cmds),
         inp=list(input_files),
         out=out,
-        error_tolerant=not strict,
+        error_tolerant=ierr,
+        extra=dict(cmds=packb(list(cmds)), env=packb(env)),
     )
 
 
@@ -59,13 +64,9 @@ def run_shell_funsie(  # noqa:C901
             with open(os.path.join(dir, fn), "wb") as f:
                 f.write(val)
 
-        shell = unpackb(funsie.what)
+        cmds = unpackb(funsie.extra["cmds"])
+        new_env = unpackb(funsie.extra["env"])
 
-        # goto shell funsie above for definitions of those.
-        cmds = shell["cmds"]
-
-        # Just update env variables with the new values, do not erase them.
-        new_env = shell["env"]
         env: Optional[dict[str, str]] = None
         if new_env is not None:
             env = os.environ.copy()

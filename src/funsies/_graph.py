@@ -21,7 +21,6 @@ from .constants import (
     BLOCK_SIZE,
     DAG_CHILDREN,
     DAG_PARENTS,
-    DATA_STATUS,
     hash_t,
     OPERATIONS,
     OPTIONS,
@@ -53,7 +52,7 @@ class ArtefactStatus(IntEnum):
 
 def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
     """Get the status of a given operation or artefact."""
-    val = db.hget(DATA_STATUS, address)
+    val = db.get(join(ARTEFACTS, address, "status"))
     if val is None:
         return ArtefactStatus.no_data
     else:
@@ -92,7 +91,7 @@ def mark_done(db: Redis[bytes], address: hash_t) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark done a const artefact.")
     else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
+        _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.done))
 
 
 def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
@@ -102,7 +101,7 @@ def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark in error a const artefact.")
     else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
+        _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.error))
         set_error(db, address, error)
 
 
@@ -124,7 +123,7 @@ def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
         return
 
     # mark as deleted
-    _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
+    _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.deleted))
 
     # delete previous data
     count = 0
@@ -265,7 +264,7 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
         value,
     )
     # mark the artefact as const
-    _ = pipe.hset(DATA_STATUS, h, int(ArtefactStatus.const))
+    _ = pipe.set(join(ARTEFACTS, h, "status"), int(ArtefactStatus.const))
     pipe.execute()
     return node
 

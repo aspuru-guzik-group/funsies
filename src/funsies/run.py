@@ -22,7 +22,7 @@ from ._graph import (
 )
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
-from .constants import DATA_STATUS, hash_t
+from .constants import hash_t
 from .errors import Error, ErrorKind, Result
 from .logging import logger
 
@@ -51,7 +51,8 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     cached = True
     while True:
         try:
-            pipe.watch(DATA_STATUS)
+            # TODO
+            # pipe.watch(DATA_STATUS)
             for val in op.out.values():
                 stat = get_status(db, val)
                 if stat <= ArtefactStatus.no_data:

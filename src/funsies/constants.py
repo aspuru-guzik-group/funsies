@@ -37,9 +37,6 @@ ERRORS = "funsies.errors"
 TAGS = "funsies.tags."
 TAGS_SET = "funsies.tags"
 
-# job status repos
-DATA_STATUS = "funsies.data.status"
-
 # DAGs
 DAG_STORE = "funsies.dags.run."
 DAG_INDEX = "funsies.dags.index"

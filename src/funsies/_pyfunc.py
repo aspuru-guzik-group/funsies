@@ -62,13 +62,17 @@ def python_funsie(
     if name is None:
         name = callable.__qualname__
 
+    ierr = 1
+    if strict:
+        ierr = 0
+
     return Funsie(
         how=FunsieHow.python,
-        what=name.encode(),
+        what=name,
         inp=list(inputs),
         out=list(outputs),
-        aux=cloudpickle.dumps(fun),
-        error_tolerant=not strict,
+        error_tolerant=ierr,
+        extra={"pickled function": cloudpickle.dumps(fun)},
     )
 
 
@@ -77,8 +81,8 @@ def run_python_funsie(
 ) -> Dict[str, Optional[bytes]]:
     """Execute a python function."""
     logger.info("python function")
-    fun: pyfunc_t = cloudpickle.loads(funsie.aux)
-    name = funsie.what.decode()
+    fun: pyfunc_t = cloudpickle.loads(funsie.extra["pickled function"])
+    name = funsie.what
     inps, errs = funsie.check_inputs(input_values)
     inps.update(errs)  # type:ignore
 

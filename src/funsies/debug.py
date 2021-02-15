@@ -83,14 +83,16 @@ def shell(  # noqa:C901
     with open(os.path.join(directory, "operation.json"), "w") as f:
         f.write(json.dumps(asdict(shell_output.op), sort_keys=True, indent=2))
 
-    what = unpackb(Funsie.grab(db, shell_output.op.funsie).what)
+    extra = Funsie.grab(db, shell_output.op.funsie).extra
+    cmds = unpackb(extra["cmds"])
+    env = unpackb(extra["env"])
     with open(os.path.join(directory, "op.sh"), "w") as f:
-        f.write("\n".join(what["cmds"]))
+        f.write("\n".join(cmds))
         f.write("\n")
 
-    if what["env"] is not None:
+    if env is not None:
         with open(os.path.join(directory, "op.env"), "w") as f:
-            for key, val in what["env"].items():
+            for key, val in env.items():
                 f.write(f"{key}={val}\n")
 
 
@@ -172,7 +174,7 @@ def python(
         )
 
     meta = {
-        "what": funsie.what.decode(),
+        "what": funsie.what,
         "inp": funsie.inp,
         "out": funsie.out,
         "error_tolerant": funsie.error_tolerant,
@@ -183,9 +185,10 @@ def python(
     with open(os.path.join(directory, "operation.json"), "w") as f:
         f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
 
-    with open(os.path.join(directory, "function.pkl"), "wb") as f:
-        assert funsie.aux is not None
-        f.write(funsie.aux)
+    # TODO
+    # with open(os.path.join(directory, "function.pkl"), "wb") as f:
+    #     assert funsie.aux is not None
+    #     f.write(funsie.aux)
 
 
 # --------------
