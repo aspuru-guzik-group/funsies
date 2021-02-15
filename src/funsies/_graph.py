@@ -238,7 +238,7 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"artefact\n")
     m.update(b"explicit\n")
     m.update(value)
@@ -276,7 +276,7 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"artefact\n")
     m.update(b"generated\n")
     m.update(f"parent:{parent_hash}\n".encode())
@@ -378,7 +378,7 @@ def make_op(
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"op")
     m.update(funsie.hash.encode())
     for key, val in sorted(inp.items(), key=lambda x: x[0]):

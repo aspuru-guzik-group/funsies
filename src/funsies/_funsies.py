@@ -129,7 +129,7 @@ class Funsie:
         # --------------------------------------------------------------
         # When hashes change, previous databases become deprecated. This
         # (will) require a change in version number!
-        m = hashlib.sha256()
+        m = hashlib.sha1()
         # header
         m.update(b"funsie")
         # funsie
