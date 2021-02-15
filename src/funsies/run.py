@@ -12,8 +12,8 @@ from redis import Redis, WatchError
 # module
 from ._funsies import FunsieHow, Funsie
 from ._graph import (
+    Artefact,
     ArtefactStatus,
-    get_artefact,
     get_data,
     get_status,
     mark_error,
@@ -108,7 +108,7 @@ def run_op(  # noqa:C901
     # load input files
     input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
-        artefact = get_artefact(db, val)
+        artefact = Artefact.grab(db, val)
         dat = get_data(db, artefact, source=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
@@ -144,7 +144,7 @@ def run_op(  # noqa:C901
         return RunStatus.executed
 
     for key, val in out_data.items():
-        artefact = get_artefact(db, op.out[key])
+        artefact = Artefact.grab(db, op.out[key])
         if val is None:
             logger.warning(f"no output data for {key}")
             mark_error(

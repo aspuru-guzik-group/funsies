@@ -17,7 +17,6 @@ from funsies import (
     reduce,
     Result,
     shell,
-    tag,
     take,
     utils,
     wait_for,
@@ -58,7 +57,6 @@ ref_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_d
 #             inp=dict(file1=step1, file2=dat),
 #             out=["file2", "file3"],
 #         )
-#         tag("a tagged file", step2.out["file3"])
 #         echo = shell("sleep 1", "date")
 #         merge = reduce(
 #             join_bytes,

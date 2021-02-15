@@ -5,15 +5,9 @@ from os import PathLike
 from typing import NewType, Union
 
 
-def join(*args: Union[str, bytes]) -> str:
-    """Join identifiers with colons."""
-    out = []
-    for a in args:
-        if isinstance(a, bytes):
-            out += [a.decode()]
-        else:
-            out += [a]
-    return ":".join(out)
+def join(prefix: str, address: hash_t, *suffix: str) -> str:
+    """Make a redis identifier."""
+    return ":".join([prefix, str(address)] + list(suffix))
 
 
 # Some types
@@ -33,9 +27,6 @@ OPTIONS = "funsies.runtime_options"
 # Data associated with artefacts
 STORE = "funsies.store"
 ERRORS = "funsies.errors"
-
-TAGS = "funsies.tags."
-TAGS_SET = "funsies.tags"
 
 # DAGs
 DAG_STORE = "funsies.dags.run."

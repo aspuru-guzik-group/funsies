@@ -14,7 +14,7 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, FunsieHow
-from ._graph import Artefact, get_artefact, Operation
+from ._graph import Artefact, Operation
 from .constants import hash_t
 from .errors import Error, Result
 from .logging import logger
@@ -129,19 +129,19 @@ class ShellOutput:
                 if RETURNCODE in key:
                     self.n += 1  # count the number of commands
             else:
-                self.out[key] = get_artefact(store, val)
+                self.out[key] = Artefact.grab(store, val)
 
         self.inp = {}
         for key, val in op.inp.items():
-            self.inp[key] = get_artefact(store, val)
+            self.inp[key] = Artefact.grab(store, val)
 
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
         for i in range(self.n):
-            self.stdouts += [get_artefact(store, op.out[f"{STDOUT}{i}"])]
-            self.stderrs += [get_artefact(store, op.out[f"{STDERR}{i}"])]
-            self.returncodes += [get_artefact(store, op.out[f"{RETURNCODE}{i}"])]
+            self.stdouts += [Artefact.grab(store, op.out[f"{STDOUT}{i}"])]
+            self.stderrs += [Artefact.grab(store, op.out[f"{STDERR}{i}"])]
+            self.returncodes += [Artefact.grab(store, op.out[f"{RETURNCODE}{i}"])]
 
     def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:

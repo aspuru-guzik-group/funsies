@@ -14,7 +14,7 @@ def test_artefact_add() -> None:
     """Test adding const artefacts."""
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.get_artefact(store, a.hash)
+    b = _graph.Artefact.grab(store, a.hash)
     assert b is not None
     assert a == b
 
@@ -23,7 +23,7 @@ def test_artefact_load_errors() -> None:
     """Test loading artefact errors."""
     store = Redis()
     with pytest.raises(RuntimeError):
-        _ = _graph.get_artefact(store, "bla")  # type:ignore
+        _ = _graph.Artefact.grab(store, "bla")  # type:ignore
 
     # TODO check that warnings are logged?
     _graph.constant_artefact(store, b"bla bla")

@@ -25,8 +25,6 @@ from .constants import (
     OPERATIONS,
     OPTIONS,
     STORE,
-    TAGS,
-    TAGS_SET,
     join,
 )
 from .errors import Error, ErrorKind, get_error, Result, set_error
@@ -43,6 +41,7 @@ class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
     deleted = -2
+    not_found = -1
     no_data = 0
     # > absent  =  artefact has been computed
     done = 1
@@ -51,12 +50,22 @@ class ArtefactStatus(IntEnum):
 
 
 def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
-    """Get the status of a given operation or artefact."""
-    val = db.get(join(ARTEFACTS, address, "status"))
+    """Get the status of an artefact."""
+    val = db.get(join(ARTEFACTS, address, "status"))  # type:ignore
     if val is None:
-        return ArtefactStatus.no_data
+        return ArtefactStatus.not_found
     else:
         return ArtefactStatus(int(val))
+
+
+def set_status(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
+    """Set the status of an artefact."""
+    _ = db.set(join(ARTEFACTS, address, "status"), int(stat))  # type:ignore
+
+
+def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
+    """Set the status of an artefact iff it has no status."""
+    _ = db.setnx(join(ARTEFACTS, address, "status"), int(stat))  # type:ignore
 
 
 # --------------------------------------------------------------------------------
@@ -68,19 +77,32 @@ class Artefact:
     hash: hash_t
     parent: hash_t
 
-    def pack(self: "Artefact") -> bytes:
-        """Pack an Artefact to a bytestring."""
-        return packb(asdict(self))
+    def put(self: "Artefact", db: Redis[bytes]) -> None:
+        """Save an artefact to Redis."""
+        data = dict(hash=self.hash, parent=self.parent)
+        db.hset(  # type:ignore
+            join(ARTEFACTS, self.hash),
+            mapping=data,  # type:ignore
+        )
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
 
     @classmethod
-    def unpack(cls: Type["Artefact"], data: bytes) -> "Artefact":
-        """Unpack an Artefact from a byte string."""
-        return Artefact(**unpackb(data))
+    def grab(cls: Type["Artefact"], db: Redis[bytes], hash: hash_t) -> "Artefact":
+        """Grab an operation from the Redis store."""
+        if not db.exists(join(ARTEFACTS, hash)):
+            raise RuntimeError(f"No artefact at {hash}")
+
+        data = db.hgetall(join(ARTEFACTS, hash))
+        return Artefact(
+            hash=hash_t(data[b"hash"].decode()),
+            parent=hash_t(data[b"parent"].decode()),
+        )
 
 
 def is_artefact(db: Redis[bytes], address: hash_t) -> bool:
     """Check whether a hash corresponds to an artefact."""
-    return db.hexists(ARTEFACTS, address)
+    return db.exists(join(ARTEFACTS, address))
 
 
 # Mark artefacts
@@ -91,7 +113,7 @@ def mark_done(db: Redis[bytes], address: hash_t) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark done a const artefact.")
     else:
-        _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.done))
+        set_status(db, address, ArtefactStatus.done)
 
 
 def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
@@ -101,15 +123,8 @@ def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark in error a const artefact.")
     else:
-        _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.error))
+        set_status(db, address, ArtefactStatus.error)
         set_error(db, address, error)
-
-
-# Tag artefacts
-def tag_artefact(db: Redis[bytes], address: hash_t, tag: str) -> None:
-    """Set the status of a given operation or artefact."""
-    _ = db.sadd(TAGS + tag, address)
-    _ = db.sadd(TAGS_SET, tag)
 
 
 # Delete artefact
@@ -240,31 +255,22 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     # (will) require a change in version number!
     m = hashlib.sha1()
     m.update(b"artefact\n")
-    m.update(b"explicit\n")
+    m.update(b"constant\n")
     m.update(value)
     h = hash_t(m.hexdigest())
     # ==============================================================
 
     node = Artefact(hash=h, parent=hash_t("root"))
-
     pipe: Pipeline = store.pipeline(transaction=False)
-    # store the artefact
-    val = pipe.hset(
-        ARTEFACTS,
-        h,
-        node.pack(),
-    )
-    hash_save(pipe, h)
-    if val != 1:
-        logger.debug(f"Const artefact at {h} already exists.")
+    node.put(pipe)
+    # TODO
     # store the artefact data
     _ = pipe.hset(
         STORE,
         h,
         value,
     )
-    # mark the artefact as const
-    _ = pipe.set(join(ARTEFACTS, h, "status"), int(ArtefactStatus.const))
+    set_status(pipe, node.hash, ArtefactStatus.const)
     pipe.execute()
     return node
 
@@ -278,35 +284,17 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
     # (will) require a change in version number!
     m = hashlib.sha1()
     m.update(b"artefact\n")
-    m.update(b"generated\n")
+    m.update(b"variable\n")
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
     h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact(hash=h, parent=parent_hash)
-
-    # store the artefact
-    val = store.hset(
-        ARTEFACTS,
-        h,
-        node.pack(),
-    )
-    hash_save(store, h)
-
-    if val != 1:
-        logger.debug(
-            f'Artefact with parent {parent_hash} and name "{name}" already exists.'
-        )
+    pipe: Pipeline = store.pipeline(transaction=False)
+    node.put(pipe)
+    set_status_nx(pipe, node.hash, ArtefactStatus.no_data)
+    pipe.execute()
     return node
-
-
-def get_artefact(store: Redis[bytes], hash: hash_t) -> Artefact:
-    """Pull an artefact from the Redis store."""
-    # store the artefact
-    out = store.hget(ARTEFACTS, hash)
-    if out is None:
-        raise RuntimeError(f"Artefact at {hash} could not be found.")
-    return Artefact.unpack(out)
 
 
 # --------------------------------------------------------------------------------

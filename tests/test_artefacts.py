@@ -16,7 +16,7 @@ def test_artefact_add() -> None:
     options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.get_artefact(store, a.hash)
+    b = _graph.Artefact.grab(store, a.hash)
     assert b is not None
     assert a == b
 

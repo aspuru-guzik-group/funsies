@@ -14,7 +14,7 @@ from redis import Redis
 
 # module
 from ._funsies import Funsie, FunsieHow
-from ._graph import Artefact, get_artefact, get_data, Operation
+from ._graph import Artefact, get_data, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath
 from .context import get_db
@@ -147,7 +147,7 @@ def python(
         raise RuntimeError(f"Operation is of type {funsie.how}, not a python function.")
 
     for key, v in target.inp.items():
-        val = get_artefact(db, v)
+        val = Artefact.grab(db, v)
         try:
             p = os.path.join(inp, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -156,7 +156,7 @@ def python(
             errors[f"input:{key}"] = asdict(get_data(db, val))
 
     for key, v in target.out.items():
-        val = get_artefact(db, v)
+        val = Artefact.grab(db, v)
         try:
             p = os.path.join(out, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)

@@ -21,12 +21,10 @@ from ._graph import (
     Artefact,
     constant_artefact,
     delete_artefact,
-    get_artefact,
     get_data,
     get_status,
     make_op,
     Operation,
-    tag_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
@@ -201,7 +199,7 @@ def mapping(  # noqa:C901
         funsie = python_funsie(lax_map, arg_names, outputs, name=fun_name, strict=False)
 
     operation = make_op(db, funsie, inputs, opt)
-    return tuple([get_artefact(db, operation.out[o]) for o in outputs])
+    return tuple([Artefact.grab(db, operation.out[o]) for o in outputs])
 
 
 def morph(
@@ -331,7 +329,6 @@ def wait_for(
         time.sleep(0.3)
 
 
-# object tags
 def reset(
     what: Union[ShellOutput, Operation, Artefact],
     *,
@@ -359,15 +356,3 @@ def reset(
             op = Operation.grab(db, el)
             for art in op.out.values():
                 delete_artefact(db, art)
-
-
-# object tags
-def tag(
-    tag: str,
-    *artefacts: Artefact,
-    connection: Optional[Redis[bytes]] = None,
-) -> None:
-    """Tag artefacts in the database."""
-    db = get_db(connection)
-    for where in artefacts:
-        tag_artefact(db, where.hash, tag)

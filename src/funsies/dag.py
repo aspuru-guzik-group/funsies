@@ -7,7 +7,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import get_artefact, get_op_options, Operation
+from ._graph import Artefact, get_op_options, Operation
 from ._short_hash import shorten_hash
 from .constants import DAG_CHILDREN, DAG_INDEX, DAG_PARENTS, DAG_STORE, hash_t
 from .logging import logger
@@ -84,7 +84,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     except RuntimeError:
         # one possibility is that address is an artefact...
         try:
-            art = get_artefact(db, address)
+            art = Artefact.grab(db, address)
             logger.debug(f"artefact at {address[:6]}")
         except RuntimeError:
             raise RuntimeError(
