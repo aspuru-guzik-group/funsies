@@ -38,7 +38,7 @@ def test_artefact_update() -> None:
     store = Redis()
     art = _graph.constant_artefact(store, b"bla bla")
     with pytest.raises(TypeError):
-        _graph.set_data(store, art, b"b")
+        _graph.set_data(store, art.hash, b"b", _graph.ArtefactStatus.done)
 
 
 def test_not_generated() -> None:

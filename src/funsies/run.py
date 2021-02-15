@@ -16,6 +16,7 @@ from ._graph import (
     ArtefactStatus,
     get_data,
     get_status,
+    mark_done,
     mark_error,
     Operation,
     set_data,
@@ -109,7 +110,7 @@ def run_op(  # noqa:C901
     input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = Artefact.grab(db, val)
-        dat = get_data(db, artefact, source=op.hash)
+        dat = get_data(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -144,12 +145,11 @@ def run_op(  # noqa:C901
         return RunStatus.executed
 
     for key, val in out_data.items():
-        artefact = Artefact.grab(db, op.out[key])
         if val is None:
             logger.warning(f"no output data for {key}")
             mark_error(
                 db,
-                artefact.hash,
+                op.out[key],
                 error=Error(
                     kind=ErrorKind.MissingOutput,
                     source=op.hash,
@@ -159,7 +159,7 @@ def run_op(  # noqa:C901
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
         else:
-            set_data(db, artefact, val)
+            set_data(db, op.out[key], val, status=ArtefactStatus.done)
 
     logger.success("DONE: successful eval.")
     return RunStatus.executed

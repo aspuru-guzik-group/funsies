@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 import hashlib
-from typing import cast, Optional, Type
+import io
+from typing import cast, Optional, Type, Union
 
 # external
 from msgpack import packb, unpackb
@@ -51,7 +52,7 @@ class ArtefactStatus(IntEnum):
 
 def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
     """Get the status of an artefact."""
-    val = db.get(join(ARTEFACTS, address, "status"))  # type:ignore
+    val = db.get(join(ARTEFACTS, address, "status"))
     if val is None:
         return ArtefactStatus.not_found
     else:
@@ -60,7 +61,7 @@ def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
 
 def set_status(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
     """Set the status of an artefact."""
-    _ = db.set(join(ARTEFACTS, address, "status"), int(stat))  # type:ignore
+    _ = db.set(join(ARTEFACTS, address, "status"), int(stat))
 
 
 def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
@@ -102,7 +103,7 @@ class Artefact:
 
 def is_artefact(db: Redis[bytes], address: hash_t) -> bool:
     """Check whether a hash corresponds to an artefact."""
-    return db.exists(join(ARTEFACTS, address))
+    return bool(db.exists(join(ARTEFACTS, address)))
 
 
 # Mark artefacts
@@ -161,89 +162,71 @@ def _set_block_size(n: int) -> None:
 
 # Save and load artefacts
 def get_data(
-    store: Redis[bytes], artefact: Artefact, source: Optional[hash_t] = None
+    store: Redis[bytes],
+    where: Union[hash_t, Artefact],
+    carry_error: Optional[hash_t] = None,
 ) -> Result[bytes]:
     """Retrieve data corresponding to an artefact."""
-    # First check the status
-    stat = get_status(store, artefact.hash)
+    if isinstance(where, Artefact):
+        address = where.hash
+    else:
+        address = where
 
+    # First check the status
+    stat = get_status(store, address)
     if stat == ArtefactStatus.error:
-        return get_error(store, artefact.hash)
+        return get_error(store, address)
     elif stat <= ArtefactStatus.no_data:
         return Error(
             kind=ErrorKind.NotFound,
             details=f"No data associated with artefact: {stat}.",
-            source=source,
+            source=carry_error,
         )
     else:
-        valb = store.hget(STORE, artefact.hash)
-        if valb is None:
+        key = join(ARTEFACTS, address, "data")
+        if not store.exists(key):
             return Error(
                 kind=ErrorKind.Mismatch,
                 details="expected data was not found",
-                source=source,
+                source=carry_error,
             )
-
-        count = 1
-        while True:
-            # Load more data if it is split
-            nval = store.hget(STORE, artefact.hash + f"_{count}")
-            if nval is None:
-                break
-            else:
-                valb += nval
-                count = count + 1
-
-        return valb
+        else:
+            return b"".join(store.lrange(key, 0, -1))
 
 
-def set_data(store: Redis[bytes], artefact: Artefact, value: bytes) -> None:
+def set_data(
+    store: Redis[bytes],
+    address: hash_t,
+    value: Union[bytes, io.BytesIO],
+    status: ArtefactStatus,
+) -> None:
     """Update an artefact with a value."""
-    stat = get_status(store, artefact.hash)
-    if stat == ArtefactStatus.const:
-        raise TypeError("Attempted to set data to a const artefact.")
-
-    # delete previous data
-    count = 0
-    while True:
-        if count > 0:
-            where = artefact.hash + f"_{count}"
+    if get_status(store, address) == ArtefactStatus.const:
+        if status == ArtefactStatus.const:
+            pass
         else:
-            where = artefact.hash
-        i = store.hdel(STORE, where)
-        if not i:
-            break
-        count += 1
+            raise TypeError("Attempted to set data to a const artefact.")
 
-    count = 0
-    k = 0
-    # Split data in blocks if need be.
+    key = join(ARTEFACTS, address, "data")
+
+    if isinstance(value, bytes):
+        buf = io.BytesIO(value)
+    else:
+        buf = value
+
+    # write
+    first = True  # this workaround is to make sure that writing no data is ok.
+    pipe = store.pipeline(transaction=True)
+    pipe.delete(key)
     while True:
-        nextk = min(k + BLOCK_SIZE, len(value))
-        val = value[k:nextk]
-        if count > 0:
-            where = artefact.hash + f"_{count}"
-        else:
-            where = artefact.hash
-
-        if len(val) > MAX_VALUE_SIZE:
-            raise RuntimeError(
-                f"Data too large to save in db, size={len(val)/MIB} MiB."
-            )
-
-        _ = store.hset(
-            STORE,
-            where,
-            val,
-        )
-
-        count = count + 1
-        if nextk == len(value):
+        dat = buf.read(BLOCK_SIZE)
+        if len(dat) == 0 and not first:
             break
         else:
-            k = nextk
-
-    mark_done(store, artefact.hash)
+            pipe.lpush(key, dat)
+        first = False
+    set_status(pipe, address, status)
+    pipe.execute()
 
 
 def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
@@ -261,17 +244,8 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     # ==============================================================
 
     node = Artefact(hash=h, parent=hash_t("root"))
-    pipe: Pipeline = store.pipeline(transaction=False)
-    node.put(pipe)
-    # TODO
-    # store the artefact data
-    _ = pipe.hset(
-        STORE,
-        h,
-        value,
-    )
-    set_status(pipe, node.hash, ArtefactStatus.const)
-    pipe.execute()
+    node.put(store)
+    set_data(store, node.hash, value, status=ArtefactStatus.const)
     return node
 
 
