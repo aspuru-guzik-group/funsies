@@ -2,34 +2,28 @@
 from __future__ import annotations
 
 # std
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
-from typing import Dict, Optional, Type
+import io
+from typing import Optional, Type, Union
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 from redis.client import Pipeline
 
 # module
-from ._funsies import Funsie, store_funsie
+from ._funsies import Funsie
 from ._short_hash import hash_save
 from .config import Options
 from .constants import (
     ARTEFACTS,
     BLOCK_SIZE,
-    DATA_STATUS,
     hash_t,
+    join,
     OPERATIONS,
-    OPTIONS,
-    SREADY,
-    SRUNNING,
-    STORE,
-    TAGS,
-    TAGS_SET,
 )
-from .errors import Error, ErrorKind, get_error, Result, set_error
+from .errors import Error, ErrorKind, Result
 from .logging import logger
 
 # Max redis value size in bytes
@@ -42,7 +36,8 @@ MAX_VALUE_SIZE = 512 * MIB
 class ArtefactStatus(IntEnum):
     """Status of data associated with an artefact."""
 
-    deleted = -10
+    deleted = -2
+    not_found = -1
     no_data = 0
     # > absent  =  artefact has been computed
     done = 1
@@ -51,12 +46,22 @@ class ArtefactStatus(IntEnum):
 
 
 def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
-    """Get the status of a given operation or artefact."""
-    val = db.hget(DATA_STATUS, address)
+    """Get the status of an artefact."""
+    val = db.get(join(ARTEFACTS, address, "status"))
     if val is None:
-        return ArtefactStatus.no_data
+        return ArtefactStatus.not_found
     else:
         return ArtefactStatus(int(val))
+
+
+def set_status(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
+    """Set the status of an artefact."""
+    _ = db.set(join(ARTEFACTS, address, "status"), int(stat))
+
+
+def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
+    """Set the status of an artefact iff it has no status."""
+    _ = db.setnx(join(ARTEFACTS, address, "status"), int(stat))  # type:ignore
 
 
 # --------------------------------------------------------------------------------
@@ -68,19 +73,32 @@ class Artefact:
     hash: hash_t
     parent: hash_t
 
-    def pack(self: "Artefact") -> bytes:
-        """Pack an Artefact to a bytestring."""
-        return packb(asdict(self))
+    def put(self: "Artefact", db: Redis[bytes]) -> None:
+        """Save an artefact to Redis."""
+        data = dict(hash=self.hash, parent=self.parent)
+        db.hset(  # type:ignore
+            join(ARTEFACTS, self.hash),
+            mapping=data,  # type:ignore
+        )
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
 
     @classmethod
-    def unpack(cls: Type["Artefact"], data: bytes) -> "Artefact":
-        """Unpack an Artefact from a byte string."""
-        return Artefact(**unpackb(data))
+    def grab(cls: Type["Artefact"], db: Redis[bytes], hash: hash_t) -> "Artefact":
+        """Grab an artefact from the Redis store."""
+        if not db.exists(join(ARTEFACTS, hash)):
+            raise RuntimeError(f"No artefact at {hash}")
+
+        data = db.hgetall(join(ARTEFACTS, hash))
+        return Artefact(
+            hash=hash_t(data[b"hash"].decode()),
+            parent=hash_t(data[b"parent"].decode()),
+        )
 
 
 def is_artefact(db: Redis[bytes], address: hash_t) -> bool:
     """Check whether a hash corresponds to an artefact."""
-    return db.hexists(ARTEFACTS, address)
+    return bool(db.exists(join(ARTEFACTS, address)))
 
 
 # Mark artefacts
@@ -91,17 +109,7 @@ def mark_done(db: Redis[bytes], address: hash_t) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark done a const artefact.")
     else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.done))
-
-
-def mark_deleted(db: Redis[bytes], address: hash_t) -> None:
-    """Set the status of a given operation or artefact."""
-    assert is_artefact(db, address)
-    old = get_status(db, address)
-    if old == ArtefactStatus.const:
-        logger.error("attempted to mark deleted a const artefact.")
-    else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.deleted))
+        set_status(db, address, ArtefactStatus.done)
 
 
 def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
@@ -111,15 +119,25 @@ def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
     if old == ArtefactStatus.const:
         logger.error("attempted to mark in error a const artefact.")
     else:
-        _ = db.hset(DATA_STATUS, address, int(ArtefactStatus.error))
-        set_error(db, address, error)
+        set_status(db, address, ArtefactStatus.error)
+        error.put(db, address)
 
 
-# Tag artefacts
-def tag_artefact(db: Redis[bytes], address: hash_t, tag: str) -> None:
+# Delete artefact
+def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
     """Set the status of a given operation or artefact."""
-    _ = db.sadd(TAGS + tag, address)
-    _ = db.sadd(TAGS_SET, tag)
+    assert is_artefact(db, address)
+    old = get_status(db, address)
+    if old == ArtefactStatus.const:
+        logger.error(f"attempted to delete const artefact {address[:6]}.")
+        logger.error("you should set it to a different value instead")
+        return
+
+    # mark as deleted
+    set_status(db, address, ArtefactStatus.deleted)
+
+    # delete data
+    db.delete(join(ARTEFACTS, address, "data"))
 
 
 def _set_block_size(n: int) -> None:
@@ -130,89 +148,71 @@ def _set_block_size(n: int) -> None:
 
 # Save and load artefacts
 def get_data(
-    store: Redis[bytes], artefact: Artefact, source: Optional[hash_t] = None
+    store: Redis[bytes],
+    where: Union[hash_t, Artefact],
+    carry_error: Optional[hash_t] = None,
 ) -> Result[bytes]:
     """Retrieve data corresponding to an artefact."""
-    # First check the status
-    stat = get_status(store, artefact.hash)
+    if isinstance(where, Artefact):
+        address = where.hash
+    else:
+        address = where
 
+    # First check the status
+    stat = get_status(store, address)
     if stat == ArtefactStatus.error:
-        return get_error(store, artefact.hash)
+        return Error.grab(store, address)
     elif stat <= ArtefactStatus.no_data:
         return Error(
             kind=ErrorKind.NotFound,
             details=f"No data associated with artefact: {stat}.",
-            source=source,
+            source=carry_error,
         )
     else:
-        valb = store.hget(STORE, artefact.hash)
-        if valb is None:
+        key = join(ARTEFACTS, address, "data")
+        if not store.exists(key):
             return Error(
                 kind=ErrorKind.Mismatch,
                 details="expected data was not found",
-                source=source,
+                source=carry_error,
             )
-
-        count = 1
-        while True:
-            # Load more data if it is split
-            nval = store.hget(STORE, artefact.hash + f"_{count}")
-            if nval is None:
-                break
-            else:
-                valb += nval
-                count = count + 1
-
-        return valb
+        else:
+            return b"".join(store.lrange(key, 0, -1))
 
 
-def set_data(store: Redis[bytes], artefact: Artefact, value: bytes) -> None:
+def set_data(
+    store: Redis[bytes],
+    address: hash_t,
+    value: Union[bytes, io.BytesIO],
+    status: ArtefactStatus,
+) -> None:
     """Update an artefact with a value."""
-    stat = get_status(store, artefact.hash)
-    if stat == ArtefactStatus.const:
-        raise TypeError("Attempted to set data to a const artefact.")
-
-    # delete previous data
-    count = 0
-    while True:
-        if count > 0:
-            where = artefact.hash + f"_{count}"
+    if get_status(store, address) == ArtefactStatus.const:
+        if status == ArtefactStatus.const:
+            pass
         else:
-            where = artefact.hash
-        i = store.hdel(STORE, where)
-        if not i:
-            break
-        count += 1
+            raise TypeError("Attempted to set data to a const artefact.")
 
-    count = 0
-    k = 0
-    # Split data in blocks if need be.
+    key = join(ARTEFACTS, address, "data")
+
+    if isinstance(value, bytes):
+        buf = io.BytesIO(value)
+    else:
+        buf = value
+
+    # write
+    first = True  # this workaround is to make sure that writing no data is ok.
+    pipe = store.pipeline(transaction=True)
+    pipe.delete(key)
     while True:
-        nextk = min(k + BLOCK_SIZE, len(value))
-        val = value[k:nextk]
-        if count > 0:
-            where = artefact.hash + f"_{count}"
-        else:
-            where = artefact.hash
-
-        if len(val) > MAX_VALUE_SIZE:
-            raise RuntimeError(
-                f"Data too large to save in db, size={len(val)/MIB} MiB."
-            )
-
-        _ = store.hset(
-            STORE,
-            where,
-            val,
-        )
-
-        count = count + 1
-        if nextk == len(value):
+        dat = buf.read(BLOCK_SIZE)
+        if len(dat) == 0 and not first:
             break
         else:
-            k = nextk
-
-    mark_done(store, artefact.hash)
+            pipe.lpush(key, dat)
+        first = False
+    set_status(pipe, address, status)
+    pipe.execute()
 
 
 def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
@@ -222,34 +222,16 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"artefact\n")
-    m.update(b"explicit\n")
+    m.update(b"constant\n")
     m.update(value)
     h = hash_t(m.hexdigest())
     # ==============================================================
 
     node = Artefact(hash=h, parent=hash_t("root"))
-
-    pipe: Pipeline = store.pipeline(transaction=False)
-    # store the artefact
-    val = pipe.hset(
-        ARTEFACTS,
-        h,
-        node.pack(),
-    )
-    hash_save(pipe, h)
-    if val != 1:
-        logger.debug(f"Const artefact at {h} already exists.")
-    # store the artefact data
-    _ = pipe.hset(
-        STORE,
-        h,
-        value,
-    )
-    # mark the artefact as const
-    _ = pipe.hset(DATA_STATUS, h, int(ArtefactStatus.const))
-    pipe.execute()
+    node.put(store)
+    set_data(store, node.hash, value, status=ArtefactStatus.const)
     return node
 
 
@@ -260,67 +242,80 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"artefact\n")
-    m.update(b"generated\n")
+    m.update(b"variable\n")
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
     h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact(hash=h, parent=parent_hash)
-
-    # store the artefact
-    val = store.hset(
-        ARTEFACTS,
-        h,
-        node.pack(),
-    )
-    hash_save(store, h)
-
-    if val != 1:
-        logger.debug(
-            f'Artefact with parent {parent_hash} and name "{name}" already exists.'
-        )
+    pipe: Pipeline = store.pipeline(transaction=False)
+    node.put(pipe)
+    set_status_nx(pipe, node.hash, ArtefactStatus.no_data)
+    pipe.execute()
     return node
-
-
-def get_artefact(store: Redis[bytes], hash: hash_t) -> Artefact:
-    """Pull an artefact from the Redis store."""
-    # store the artefact
-    out = store.hget(ARTEFACTS, hash)
-    if out is None:
-        raise RuntimeError(f"Artefact at {hash} could not be found.")
-    return Artefact.unpack(out)
 
 
 # --------------------------------------------------------------------------------
 # Operations
 @dataclass(frozen=True)
 class Operation:
-    """An instantiated Funsie."""
+    """An operation on data in the graph."""
 
     hash: hash_t
     funsie: hash_t
-    inp: Dict[str, hash_t]
-    out: Dict[str, hash_t]
+    inp: dict[str, hash_t]
+    out: dict[str, hash_t]
+    options: Optional[Options] = None
 
-    def pack(self: "Operation") -> bytes:
-        """Pack an Operation to a bytestring."""
-        return packb(asdict(self))
+    def put(self: "Operation", db: Redis[bytes]) -> None:
+        """Save an operation to Redis."""
+        if self.inp:
+            db.hset(join(OPERATIONS, self.hash, "inp"), mapping=self.inp)  # type:ignore
+        if self.out:
+            db.hset(join(OPERATIONS, self.hash, "out"), mapping=self.out)  # type:ignore
+        if self.options:
+            db.set(join(OPERATIONS, self.hash, "options"), self.options.pack())
+        db.hset(  # type:ignore
+            join(OPERATIONS, self.hash),
+            mapping={"funsie": self.funsie, "hash": self.hash},
+        )
+
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
 
     @classmethod
-    def unpack(cls: Type["Operation"], data: bytes) -> "Operation":
-        """Unpack an Operation from a byte string."""
-        return Operation(**unpackb(data))
+    def grab(cls: Type["Operation"], db: Redis[bytes], hash: hash_t) -> "Operation":
+        """Grab an operation from the Redis store."""
+        if not db.exists(join(OPERATIONS, hash)):
+            raise RuntimeError(f"No operation at {hash}")
+
+        metadata = db.hgetall(join(OPERATIONS, hash))
+        inp = db.hgetall(join(OPERATIONS, hash, "inp"))
+        out = db.hgetall(join(OPERATIONS, hash, "out"))
+
+        tmp = db.get(join(OPERATIONS, hash, "options"))
+        if tmp is not None:
+            options: Optional[Options] = Options.unpack(tmp.decode())
+        else:
+            options = None
+
+        return Operation(
+            hash=hash_t(metadata[b"hash"].decode()),
+            funsie=hash_t(metadata[b"funsie"].decode()),
+            inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
+            out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
+            options=options,
+        )
 
 
 def make_op(
-    store: Redis[bytes], funsie: Funsie, inp: Dict[str, Artefact], opt: Options
+    store: Redis[bytes], funsie: Funsie, inp: dict[str, Artefact], opt: Options
 ) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
     inp_art = {}
-    dependencies = set()
     for key in inp:
         if key not in funsie.inp:
             raise AttributeError(f"Extra key {key} passed to funsie.")
@@ -330,20 +325,19 @@ def make_op(
             raise AttributeError(f"Missing {key} from inputs required by funsie.")
         else:
             inp_art[key] = inp[key].hash
-            dependencies.add(inp[key].parent)
 
     # Setup a buffered command pipeline for performance
     pipe: Pipeline = store.pipeline(transaction=False)
 
     # save funsie
-    store_funsie(pipe, funsie)
+    funsie.put(pipe)
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
     # --------------------------------------------------------------
     # When hashes change, previous databases become deprecated. This
     # (will) require a change in version number!
-    m = hashlib.sha256()
+    m = hashlib.sha1()
     m.update(b"op")
     m.update(funsie.hash.encode())
     for key, val in sorted(inp.items(), key=lambda x: x[0]):
@@ -357,60 +351,33 @@ def make_op(
         out_art[key] = variable_artefact(pipe, ophash, key).hash
 
     # Make the node
-    node = Operation(ophash, funsie.hash, inp_art, out_art)
-
-    # store the runtime options for the node
-    pipe.hset(
-        OPTIONS,
-        ophash,
-        opt.pack(),
-    )
+    node = Operation(ophash, funsie.hash, inp_art, out_art, opt)
 
     # store the node
-    pipe.hset(
-        OPERATIONS,
-        ophash,
-        node.pack(),
-    )
-    hash_save(pipe, ophash)
+    node.put(pipe)
 
-    # Add to the ready list and remove from the running list if it was
-    # previously aborted.
-    pipe.srem(SRUNNING, ophash)
-    pipe.sadd(SREADY, ophash)
+    # Add parents
+    root = True
+    for k in inp_art.keys():
+        v = inp[k]
+        if v.parent != "root":
+            pipe.sadd(join(OPERATIONS, ophash, "parents"), v.parent)
+            pipe.sadd(join(OPERATIONS, v.parent, "children"), ophash)
+            root = False
+    if root:
+        # This dag has no dependencies
+        pipe.sadd(join(OPERATIONS, ophash, "parents"), "root")
+        pipe.sadd(join(OPERATIONS, hash_t("root"), "children"), ophash)
 
     # Execute the full transaction
     pipe.execute()
     return node
 
 
-def get_op(store: Redis[bytes], hash: hash_t) -> Operation:
-    """Load an operation from Redis store."""
-    # store the artefact
-    out = store.hget(OPERATIONS, hash)
-    if out is None:
-        raise RuntimeError(f"Operation at {hash} could not be found.")
-
-    return Operation.unpack(out)
-
-
 def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:
     """Load an operation from Redis store."""
     # store the artefact
-    out = store.hget(OPTIONS, hash)
+    out = store.get(join(OPERATIONS, hash, "options"))
     if out is None:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
-
-    return Options.unpack(out)
-
-
-def reset_locks(db: Redis[bytes]) -> None:
-    """Reset all the operation locks."""
-    # store the node
-    keys = db.hkeys(OPERATIONS)
-    pipe = db.pipeline(transaction=True)
-    for key in keys:
-        # Add to the ready list and remove from the running list if it was
-        # previously aborted.
-        pipe.srem(SRUNNING, key)
-        pipe.sadd(SREADY, key)
+    return Options.unpack(out.decode())

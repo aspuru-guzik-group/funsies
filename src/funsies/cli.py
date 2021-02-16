@@ -4,18 +4,21 @@ from __future__ import annotations
 
 # std
 import sys
+import time
 from typing import Optional
 
 # external
 import click
+import redis
 from redis import Redis
 from rq import command, Connection, Worker
 
 # required funsies libraries loaded in advance
-import funsies, subprocess, msgpack, hashlib, loguru  # noqa
+import funsies, subprocess, hashlib, loguru  # noqa
 
 # Local
 from . import __version__
+from ._graph import get_status
 from .logging import logger
 
 
@@ -36,8 +39,9 @@ def main(ctx: click.Context, url: str) -> None:
     db = Redis.from_url(url)
     try:
         db.ping()
-    except Exception:
-        logger.critical("could not connect to server! exiting")
+    except Exception as e:
+        logger.error("could not connect to server! exiting")
+        logger.error(str(e))
         sys.exit(-1)
     logger.debug("connection sucessful")
     ctx.obj = db
@@ -105,6 +109,48 @@ def shutdown(ctx: click.Context, force: bool) -> None:
 
 
 @main.command()
+@click.argument("hashes", type=str, nargs=-1)
+@click.pass_context
+def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+    """Print artefacts to stdout."""
+    db = ctx.obj
+
+    with funsies.context.Fun(db):
+        for hash in hashes:
+            logger.info(f"extracting {hash}")
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.error("hash does not correspond to anything!")
+
+            if len(things) > 1:
+                logger.error(f"hash resolves to {len(things)} things.")
+
+            art = things[0]
+            if isinstance(art, funsies.Artefact):
+                res = funsies.take(art, strict=False)
+                if isinstance(res, funsies.Error):
+                    logger.warning(f"error at {hash}: {res.kind}")
+                    if res.details is not None:
+                        sys.stderr.buffer.write((res.details + "\n").encode())
+                    logger.warning(f"error source: {res.source}")
+                else:
+                    sys.stdout.buffer.write(res)
+                    logger.success(f"{hash} output to stdout")
+            elif isinstance(art, funsies.Operation):
+                logger.error("not an artefact")
+                logger.info("did you mean...")
+                sys.stderr.write("      INPUTS:\n")
+                for key, val in art.inp.items():
+                    sys.stderr.write(f"      {key:<30} -> {val[:8]}\n")
+                sys.stderr.write("      OUTPUTS:\n")
+                for key, val in art.out.items():
+                    sys.stderr.write(f"      {key:<30} -> {val[:8]}\n")
+            else:
+                logger.error("not an artefact:")
+                logger.error(f"{art}")
+
+
+@main.command()
 @click.option(
     "--output",
     "-o",
@@ -116,8 +162,8 @@ def shutdown(ctx: click.Context, force: bool) -> None:
     type=str,
 )
 @click.pass_context
-def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
-    """Extract data related to a given hash value."""
+def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
+    """Extract all data related to a given hash value."""
     logger.info(f"extracting {hash}")
     db = ctx.obj
     if output is None:
@@ -142,6 +188,156 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
             for el in things[1:]:
                 funsies.debug.anything(el, output2 + el.hash)
                 logger.success(f"{type(el)} -> {output2 + el.hash}")
+
+
+@main.command()
+@click.argument(
+    "hash",
+    type=str,
+)
+@click.pass_context
+def reset(ctx: click.Context, hash: str) -> None:
+    """Enqueue execution of hashes."""
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        things = funsies.get(hash)
+        if len(things) == 0:
+            logger.warning(f"no object with hash {hash}")
+            raise SystemExit(2)
+        if len(things) > 1:
+            logger.error(f"more than object with hash starting with {hash}")
+            logger.error("which one do you mean of :")
+            for t in things:
+                logger.error(f"\t{t.hash}")
+            raise SystemExit(2)
+        else:
+            if isinstance(things[0], funsies.Artefact) or isinstance(
+                things[0], funsies.Operation
+            ):
+                funsies.ui.reset(things[0])
+            else:
+                logger.error(f"object {hash} is neither an operation or an artefact")
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.option("-t", "--timeout", type=float, help="Timeout in seconds.")
+@click.pass_context
+def wait(  # noqa:C901
+    ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]
+) -> None:
+    """Wait until redis database or certain hashes are ready."""
+    db = ctx.obj
+    if timeout is not None:
+        tmax = time.time() + timeout
+
+    while True:
+        try:
+            db.ping()
+            break
+        except redis.exceptions.BusyLoadingError:
+            time.sleep(0.5)
+
+        if timeout is not None:
+            t1 = time.time()
+            if t1 > tmax:
+                logger.error("timeout exceeded")
+                raise SystemExit(2)
+
+    with funsies.context.Fun(db):
+        h = []
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Artefact):
+                    h += [t.hash]
+                    logger.info(f"waiting on artefact at {hash}")
+                elif isinstance(t, funsies.Operation):
+                    h += [next(iter(t.out.values()))]
+                    logger.info(f"waiting on operation at {hash}")
+                else:
+                    logger.warning(f"ignoring {type(t)} at {t.hash}")
+
+        while len(h) > 0:
+            stat = get_status(db, h[0])
+            if stat > 0:
+                h.pop(0)
+                logger.success(f"{len(h)} things left to wait for.")
+            time.sleep(0.5)
+
+            if timeout is not None:
+                t1 = time.time()
+                if t1 > tmax:
+                    logger.error("timeout exceeded")
+                    raise SystemExit(2)
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.pass_context
+def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+    """Print to stdout a DOT-formatted graph to visualize DAGs."""
+    import funsies.graphviz
+
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        if len(hashes) == 0:
+            # If no hashes are passed, we graph all the DAGs on index
+            hashes = tuple(
+                [dag.decode for dag in db.smembers(funsies.constants.DAG_INDEX)]
+            )
+
+        all_data = []
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                    all_data += [t.hash]
+
+        if len(all_data):
+            logger.info(f"writing graph for {len(all_data)} objects")
+            out = funsies.graphviz.format_dot(
+                *funsies.graphviz.export(db, all_data), targets=all_data
+            )
+            sys.stdout.write(out)
+            logger.success("done")
+        else:
+            logger.error("No data points")
+            raise SystemExit(2)
+
+
+@main.command()
+@click.argument(
+    "hashes",
+    type=str,
+    nargs=-1,
+)
+@click.pass_context
+def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+    """Enqueue execution of hashes."""
+    db = ctx.obj
+    with funsies.context.Fun(db):
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            for t in things:
+                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                    funsies.execute(t)
+                else:
+                    logger.warning(f"object with hash {hash} of type {type(t)}")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 
 # external
 from fakeredis import FakeStrictRedis as Redis
+import pytest
 
 # module
 from funsies import dag, execute, Fun, morph, options, put, shell, take
@@ -19,15 +20,18 @@ def test_dag_build() -> None:
         output = step2.stdout
 
         dag.build_dag(db, output.hash)
-        assert len(db.smembers(DAG_STORE + "root")) == 1
+        assert len(db.smembers(DAG_STORE + output.hash)) == 2
 
         # test deletion
         dag.delete_all_dags(db)
-        assert len(db.smembers(DAG_STORE + "root")) == 0
+        assert len(db.smembers(DAG_STORE + output.hash)) == 0
 
         # test new dag
         dag.build_dag(db, step1.hash)
-        assert len(db.smembers(DAG_STORE + "root")) == 1
+        assert len(db.smembers(DAG_STORE + step1.hash)) == 1
+
+        assert len(dag.descendants(db, step1.parent)) == 1
+        # assert len(dag.descendants(db, step1.hash)) == 1
 
 
 def test_dag_efficient() -> None:
@@ -39,36 +43,52 @@ def test_dag_efficient() -> None:
             "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
         )
         step2b = shell("echo 'not'", inp=dict(file1=step1))
-        output = step2.stdout
         merge = shell(
             "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
         )
 
-        dag.build_dag(db, output.hash)
-        # check that step2 only has stdout has dependent
-        assert len(dag._dag_dependents(db, step1.parent)) == 1
+        dag.build_dag(db, step2.stdout.hash)
+        # check that step2 only has stdout has no dependents
+        assert len(dag._dag_dependents(db, step2.stdout.hash, step2.hash)) == 0
+        assert len(dag._dag_dependents(db, step2.stdout.hash, step1.parent)) == 1
 
-        dag.delete_all_dags(db)
         dag.build_dag(db, merge.hash)
         # check that however, the merged one has two dependents for step1
-        assert len(dag._dag_dependents(db, step1.parent)) == 2
+        assert len(dag._dag_dependents(db, merge.hash, step1.parent)) == 2
 
 
 def test_dag_cached() -> None:
-    """Test that DAG caching."""
-    with Fun(Redis(), options(distributed=False)):
+    """Test that DAG caching works."""
+    db = Redis()
+    with Fun(db, options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
-        step2 = shell(
-            "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
-        )
         step2b = shell("echo 'not'", inp=dict(file1=step1))
-        output = step2.stdout
         merge = shell(
             "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
         )
         execute(merge)
-        execute(output)
+
+    with Fun(db, options(distributed=False, evaluate=False)):
+        # Same as above, should run through with no evaluation
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        step2b = shell("echo 'not'", inp=dict(file1=step1))
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+        execute(merge)
+
+    with Fun(db, options(distributed=False, evaluate=False)):
+        dat = put("bla bla")
+        step1 = morph(lambda x: x.decode().upper().encode(), dat)
+        # DIFFERENT HERE: Trigger re-evaluation and raise
+        step2b = shell("echo 'knot'", inp=dict(file1=step1))
+        merge = shell(
+            "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
+        )
+        with pytest.raises(RuntimeError):
+            execute(merge)
 
 
 def test_dag_execute() -> None:
@@ -132,7 +152,7 @@ def test_dag_cleanup() -> None:
         assert out == b"BLA BLAbla bla"
 
     with Fun(db, options(distributed=False), cleanup=False):
-        assert len(db.smembers(DAG_INDEX)) == 2
+        assert len(db.smembers(DAG_INDEX)) == 1
 
     with Fun(db, options(distributed=False), cleanup=True):
         assert len(db.smembers(DAG_INDEX)) == 0
@@ -154,4 +174,4 @@ def test_dag_large() -> None:
 
         final = concat(*outputs, join="\n")
         dag.build_dag(db, final.hash)
-        assert len(dag._dag_dependents(db, hash_t("root"))) == 100
+        assert len(dag._dag_dependents(db, final.hash, hash_t("root"))) == 100

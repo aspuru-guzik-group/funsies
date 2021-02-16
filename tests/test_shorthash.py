@@ -13,8 +13,8 @@ from funsies import hash_t
 
 def test_shorten_hash():
     """Test hash shortening."""
-    m = hashlib.sha256()
-    m.update("hi 👋 I am a sha 256 hash".encode())
+    m = hashlib.sha1()
+    m.update("hi 👋 I am a sha 1 hash".encode())
     val = m.hexdigest()
     h = hash_t(val)
     short_hash = sh.shorten_hash(h)
@@ -23,16 +23,19 @@ def test_shorten_hash():
 
 def test_get_short_hash():
     """Test short hash saving and loading."""
-    m = hashlib.sha256()
-    m.update("hi 👋 I am a sha 256 hash".encode())
+    m = hashlib.sha1()
+    m.update("hi 👋 I am a sha 1 hash".encode())
     val = m.hexdigest()
 
-    m = hashlib.sha256()
-    m.update("hi 👋 I am another sha 256 hash".encode())
+    m = hashlib.sha1()
+    m.update("hi 👋  am another sha 1 hash".encode())
     val2 = m.hexdigest()
 
     # set up a hash that collides with val
     val_collide = val[:6] + "b" * (len(val) - 6)
+    print(val)
+    print(val2)
+    print(val_collide)
 
     db = Redis()
     sh.hash_save(db, hash_t(val))

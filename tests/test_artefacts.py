@@ -16,7 +16,7 @@ def test_artefact_add() -> None:
     options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.get_artefact(store, a.hash)
+    b = _graph.Artefact.grab(store, a.hash)
     assert b is not None
     assert a == b
 
@@ -38,13 +38,10 @@ def test_operation_pack() -> None:
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.constant_artefact(store, b"bla bla bla")
     fun = f.Funsie(
-        how=f.FunsieHow.shell,
-        what=b"cat",
-        inp=["infile"],
-        out=["out"],
+        how=f.FunsieHow.shell, what="cat infile", inp=["infile"], out=["out"], extra={}
     )
     op = _graph.make_op(store, fun, {"infile": a}, opt)
-    op2 = _graph.get_op(store, op.hash)
+    op2 = _graph.Operation.grab(store, op.hash)
     assert op == op2
 
     with pytest.raises(AttributeError):
@@ -59,4 +56,4 @@ def test_operation_pack() -> None:
         op = _graph.make_op(store, fun, {"infile": a, "infile2": b}, opt)
 
     with pytest.raises(RuntimeError):
-        op = _graph.get_op(store, hash_t("b"))
+        op = _graph.Operation.grab(store, hash_t("b"))

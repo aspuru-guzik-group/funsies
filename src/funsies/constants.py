@@ -1,6 +1,13 @@
 """Names of stuff in the key value store."""
+from __future__ import annotations
+
 from os import PathLike
 from typing import NewType, Union
+
+
+def join(prefix: str, address: hash_t, *suffix: str) -> str:
+    """Make a redis identifier."""
+    return ":".join([prefix, str(address)] + list(suffix))
 
 
 # Some types
@@ -14,23 +21,8 @@ FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
 HASH_INDEX = "funsies.hash_index"
 
-# Data associated with operations
-OPTIONS = "funsies.runtime_options"
-
-# Data associated with artefacts
-STORE = "funsies.store"
-ERRORS = "funsies.errors"
-
-TAGS = "funsies.tags."
-TAGS_SET = "funsies.tags"
-
-# job status repos
-DATA_STATUS = "funsies.data.status"
-SREADY = "funsies.jobs.ready."
-SRUNNING = "funsies.jobs.running."
-
-# job dags
-DAG_STORE = "funsies.dags."
+# DAGs
+DAG_STORE = "funsies.dags.run."
 DAG_INDEX = "funsies.dags.index"
 
 # Max size of continuous data

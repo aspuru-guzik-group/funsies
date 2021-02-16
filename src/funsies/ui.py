@@ -20,12 +20,11 @@ from redis import Redis
 from ._graph import (
     Artefact,
     constant_artefact,
-    get_artefact,
+    delete_artefact,
     get_data,
     get_status,
     make_op,
     Operation,
-    tag_artefact,
 )
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
@@ -33,7 +32,7 @@ from ._short_hash import shorten_hash
 from .config import Options
 from .constants import _AnyPath, hash_t
 from .context import get_db, get_options
-from .dag import start_dag_execution
+from .dag import descendants, start_dag_execution
 from .errors import Error, Result, unwrap
 from .logging import logger
 
@@ -200,7 +199,7 @@ def mapping(  # noqa:C901
         funsie = python_funsie(lax_map, arg_names, outputs, name=fun_name, strict=False)
 
     operation = make_op(db, funsie, inputs, opt)
-    return tuple([get_artefact(db, operation.out[o]) for o in outputs])
+    return tuple([Artefact.grab(db, operation.out[o]) for o in outputs])
 
 
 def morph(
@@ -330,13 +329,30 @@ def wait_for(
         time.sleep(0.3)
 
 
-# object tags
-def tag(
-    tag: str,
-    *artefacts: Artefact,
+def reset(
+    what: Union[ShellOutput, Operation, Artefact],
+    *,
+    recursive: bool = True,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
-    """Tag artefacts in the database."""
+    """Delete an artefact and its dependents."""
     db = get_db(connection)
-    for where in artefacts:
-        tag_artefact(db, where.hash, tag)
+    if isinstance(what, Artefact):
+        h = what.parent
+        if h == "root":
+            logger.error("attempted to delete const artefact.")
+            return
+    else:
+        h = what.hash
+
+    # Delete everything from the operation
+    op = Operation.grab(db, h)
+    for art in op.out.values():
+        delete_artefact(db, art)
+
+    if recursive:
+        # and its dependencies
+        for el in descendants(db, h):
+            op = Operation.grab(db, el)
+            for art in op.out.values():
+                delete_artefact(db, art)
