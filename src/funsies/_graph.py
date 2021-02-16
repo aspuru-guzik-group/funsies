@@ -9,7 +9,6 @@ import io
 from typing import cast, Optional, Type, Union
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 from redis.client import Pipeline
 
@@ -24,11 +23,9 @@ from .constants import (
     DAG_PARENTS,
     hash_t,
     OPERATIONS,
-    OPTIONS,
-    STORE,
     join,
 )
-from .errors import Error, ErrorKind, get_error, Result, set_error
+from .errors import Error, ErrorKind, Result
 from .logging import logger
 
 # Max redis value size in bytes
@@ -90,7 +87,7 @@ class Artefact:
 
     @classmethod
     def grab(cls: Type["Artefact"], db: Redis[bytes], hash: hash_t) -> "Artefact":
-        """Grab an operation from the Redis store."""
+        """Grab an artefact from the Redis store."""
         if not db.exists(join(ARTEFACTS, hash)):
             raise RuntimeError(f"No artefact at {hash}")
 
@@ -125,7 +122,7 @@ def mark_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
         logger.error("attempted to mark in error a const artefact.")
     else:
         set_status(db, address, ArtefactStatus.error)
-        set_error(db, address, error)
+        error.put(db, address)
 
 
 # Delete artefact
@@ -139,19 +136,10 @@ def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
         return
 
     # mark as deleted
-    _ = db.set(join(ARTEFACTS, address, "status"), int(ArtefactStatus.deleted))
+    set_status(db, address, ArtefactStatus.deleted)
 
-    # delete previous data
-    count = 0
-    while True:
-        if count > 0:
-            where = address + f"_{count}"
-        else:
-            where = address
-        i = db.hdel(STORE, where)
-        if not i:
-            break
-        count += 1
+    # delete data
+    db.delete(join(ARTEFACTS, address, "data"))
 
 
 def _set_block_size(n: int) -> None:
@@ -175,7 +163,7 @@ def get_data(
     # First check the status
     stat = get_status(store, address)
     if stat == ArtefactStatus.error:
-        return get_error(store, address)
+        return Error.grab(store, address)
     elif stat <= ArtefactStatus.no_data:
         return Error(
             kind=ErrorKind.NotFound,
@@ -275,12 +263,13 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
 # Operations
 @dataclass(frozen=True)
 class Operation:
-    """An instantiated Funsie."""
+    """An operation on data in the graph."""
 
     hash: hash_t
     funsie: hash_t
     inp: dict[str, hash_t]
     out: dict[str, hash_t]
+    options: Optional[Options] = None
 
     def put(self: "Operation", db: Redis[bytes]):
         """Save an operation to Redis."""
@@ -288,6 +277,8 @@ class Operation:
             db.hset(join(OPERATIONS, self.hash, "inp"), mapping=self.inp)  # type:ignore
         if self.out:
             db.hset(join(OPERATIONS, self.hash, "out"), mapping=self.out)  # type:ignore
+        if self.options:
+            db.set(join(OPERATIONS, self.hash, "options"), self.options.pack())
         db.hset(  # type:ignore
             join(OPERATIONS, self.hash),
             mapping={"funsie": self.funsie, "hash": self.hash},
@@ -305,11 +296,19 @@ class Operation:
         metadata = db.hgetall(join(OPERATIONS, hash))
         inp = db.hgetall(join(OPERATIONS, hash, "inp"))
         out = db.hgetall(join(OPERATIONS, hash, "out"))
+
+        tmp = db.get(join(OPERATIONS, hash, "options"))
+        if tmp is not None:
+            options: Optional[Options] = Options.unpack(tmp)
+        else:
+            options = None
+
         return Operation(
             hash=hash_t(metadata[b"hash"].decode()),
             funsie=hash_t(metadata[b"funsie"].decode()),
             inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
             out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
+            options=options,
         )
 
 
@@ -354,14 +353,7 @@ def make_op(
         out_art[key] = variable_artefact(pipe, ophash, key).hash
 
     # Make the node
-    node = Operation(ophash, funsie.hash, inp_art, out_art)
-
-    # store the runtime options for the node
-    pipe.hset(
-        OPTIONS,
-        ophash,
-        opt.pack(),
-    )
+    node = Operation(ophash, funsie.hash, inp_art, out_art, opt)
 
     # store the node
     node.put(pipe)
@@ -387,8 +379,7 @@ def make_op(
 def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:
     """Load an operation from Redis store."""
     # store the artefact
-    out = store.hget(OPTIONS, hash)
+    out = store.get(join(OPERATIONS, hash, "options"))
     if out is None:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
-
     return Options.unpack(out)

@@ -21,13 +21,6 @@ FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
 HASH_INDEX = "funsies.hash_index"
 
-# Data associated with operations
-OPTIONS = "funsies.runtime_options"
-
-# Data associated with artefacts
-STORE = "funsies.store"
-ERRORS = "funsies.errors"
-
 # DAGs
 DAG_STORE = "funsies.dags.run."
 DAG_INDEX = "funsies.dags.index"

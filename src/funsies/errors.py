@@ -2,16 +2,15 @@
 from __future__ import annotations
 
 # std
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TypeVar, Union
+from typing import Optional, TypeVar, Union, Type
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 
 # module
-from .constants import ERRORS, hash_t
+from .constants import ARTEFACTS, hash_t, join
 
 
 class UnwrapError(Exception):
@@ -38,21 +37,42 @@ class Error:
     kind: ErrorKind
     source: Optional[hash_t] = None
     details: Optional[str] = None
-    data: Optional[bytes] = None
 
+    def put(self: "Error", db: Redis[bytes], hash: hash_t) -> None:
+        """Save an error to Redis."""
+        data = dict(kind=self.kind.name)
+        if self.source:
+            data["source"] = str(self.source)
+        if self.details:
+            data["details"] = str(self.details)
+        db.hset(  # type:ignore
+            join(ARTEFACTS, hash, "error"),
+            mapping=data,  # type:ignore
+        )
 
-def set_error(db: Redis[bytes], address: hash_t, error: Error) -> None:
-    """Save an Error to redis."""
-    _ = db.hset(ERRORS, address, packb(asdict(error)))
+    @classmethod
+    def grab(cls: Type["Error"], db: Redis[bytes], hash: hash_t) -> "Error":
+        """Grab an operation from the Redis store."""
 
+        if not join(ARTEFACTS, hash, "error"):
+            raise RuntimeError(f"No error for artefact at {hash}")
 
-def get_error(db: Redis[bytes], address: hash_t) -> Error:
-    """Load an Error from redis."""
-    val = db.hget(ERRORS, address)
-    if val is None:
-        return Error(ErrorKind.NoErrorData)
-    out = unpackb(val)
-    return Error(**out)
+        data = db.hgetall(join(ARTEFACTS, hash, "error"))
+        kind = ErrorKind(data[b"kind"].decode())
+
+        # Sometimes the python boilerplate is really freaking annoying...
+        tmp = data.get(b"source", None)
+        if tmp is not None:
+            source: Optional[hash_t] = hash_t(tmp.decode())
+        else:
+            source = None
+        tmp = data.get(b"details", None)
+        if tmp is not None:
+            details: Optional[str] = tmp.decode()
+        else:
+            details = None
+
+        return Error(kind, source=source, details=details)
 
 
 # A simple mypy result type
