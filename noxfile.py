@@ -52,5 +52,4 @@ def mypy(session: Session) -> None:
     """Run the static type checker."""
     args = session.posargs or locations
     session.install("mypy")
-    session.install(*type_libraries)
     session.run("mypy", *args)

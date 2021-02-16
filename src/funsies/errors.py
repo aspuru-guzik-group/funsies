@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TypeVar, Union, Type
+from typing import Optional, Type, TypeVar, Union
 
 # external
 from redis import Redis
@@ -39,7 +39,7 @@ class Error:
     details: Optional[str] = None
 
     def put(self: "Error", db: Redis[bytes], hash: hash_t) -> None:
-        """Save an error to Redis."""
+        """Save an Error to Redis."""
         data = dict(kind=self.kind.name)
         if self.source:
             data["source"] = str(self.source)
@@ -52,8 +52,7 @@ class Error:
 
     @classmethod
     def grab(cls: Type["Error"], db: Redis[bytes], hash: hash_t) -> "Error":
-        """Grab an operation from the Redis store."""
-
+        """Grab an Error from the Redis store."""
         if not join(ARTEFACTS, hash, "error"):
             raise RuntimeError(f"No error for artefact at {hash}")
 

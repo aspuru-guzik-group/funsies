@@ -24,8 +24,6 @@ HASH_INDEX = "funsies.hash_index"
 # DAGs
 DAG_STORE = "funsies.dags.run."
 DAG_INDEX = "funsies.dags.index"
-DAG_PARENTS = "funsies.dags.parents."
-DAG_CHILDREN = "funsies.dags.children."
 
 # Max size of continuous data
 BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB

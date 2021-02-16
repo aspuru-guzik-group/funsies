@@ -56,7 +56,9 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
                 return False
         return True
 
-    answer = db.transaction(__status, *keys, watch_delay=0.5, value_from_callable=True)
+    answer: bool = db.transaction(  # type:ignore
+        __status, *keys, watch_delay=0.5, value_from_callable=True
+    )
     return answer
 
 

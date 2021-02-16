@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 # std
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import IntEnum
 import hashlib
-from typing import Dict, List, Mapping, Optional, Tuple, Type
+from typing import Type
 
 # external
 from redis import Redis
@@ -13,8 +13,6 @@ from redis import Redis
 # module
 from ._short_hash import hash_save
 from .constants import FUNSIES, hash_t, join
-from .errors import Error, ErrorKind, Result
-from .logging import logger
 
 
 def _to_list(inp: dict[bytes, bytes]) -> list[str]:
@@ -59,7 +57,7 @@ class Funsie:
     error_tolerant: int = 0
     hash: hash_t = field(init=False)
 
-    def put(self: "Funsie", db: Redis[bytes]):
+    def put(self: "Funsie", db: Redis[bytes]) -> None:
         """Save a Funsie to Redis."""
         db.hset(  # type:ignore
             join(FUNSIES, self.hash),

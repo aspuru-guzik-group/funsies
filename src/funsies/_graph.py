@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 # std
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-from typing import cast, Optional, Type, Union
+from typing import Optional, Type, Union
 
 # external
 from redis import Redis
@@ -19,11 +19,9 @@ from .config import Options
 from .constants import (
     ARTEFACTS,
     BLOCK_SIZE,
-    DAG_CHILDREN,
-    DAG_PARENTS,
     hash_t,
-    OPERATIONS,
     join,
+    OPERATIONS,
 )
 from .errors import Error, ErrorKind, Result
 from .logging import logger
@@ -271,7 +269,7 @@ class Operation:
     out: dict[str, hash_t]
     options: Optional[Options] = None
 
-    def put(self: "Operation", db: Redis[bytes]):
+    def put(self: "Operation", db: Redis[bytes]) -> None:
         """Save an operation to Redis."""
         if self.inp:
             db.hset(join(OPERATIONS, self.hash, "inp"), mapping=self.inp)  # type:ignore
@@ -363,13 +361,13 @@ def make_op(
     for k in inp_art.keys():
         v = inp[k]
         if v.parent != "root":
-            pipe.sadd(DAG_PARENTS + ophash, v.parent)
-            pipe.sadd(DAG_CHILDREN + v.parent, ophash)
+            pipe.sadd(join(OPERATIONS, ophash, "parents"), v.parent)
+            pipe.sadd(join(OPERATIONS, v.parent, "children"), ophash)
             root = False
     if root:
         # This dag has no dependencies
-        pipe.sadd(DAG_PARENTS + ophash, "root")
-        pipe.sadd(DAG_CHILDREN + "root", ophash)
+        pipe.sadd(join(OPERATIONS, ophash, "parents"), "root")
+        pipe.sadd(join(OPERATIONS, hash_t("root"), "children"), ophash)
 
     # Execute the full transaction
     pipe.execute()
