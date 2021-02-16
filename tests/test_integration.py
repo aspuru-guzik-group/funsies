@@ -17,7 +17,6 @@ from funsies import (
     reduce,
     Result,
     shell,
-    tag,
     take,
     utils,
     wait_for,
@@ -35,8 +34,12 @@ make_reference = False
 # directory for reference data
 ref_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_data")
 
+# Versions
+VERSION_FAILING = ["0.1", "0.2"]
+VERSION_WORKING = ["0.3"]
 
-@pytest.mark.parametrize("reference", ["0.1", "0.2"])
+
+@pytest.mark.parametrize("reference", VERSION_WORKING)
 @pytest.mark.parametrize("nworkers", [1, 2, 8])
 def test_integration(reference: str, nworkers: int) -> None:
     """Test full integration."""
@@ -58,7 +61,6 @@ def test_integration(reference: str, nworkers: int) -> None:
             inp=dict(file1=step1, file2=dat),
             out=["file2", "file3"],
         )
-        tag("a tagged file", step2.out["file3"])
         echo = shell("sleep 1", "date")
         merge = reduce(
             join_bytes,
@@ -71,27 +73,19 @@ def test_integration(reference: str, nworkers: int) -> None:
         )
         test_data["test1"] = merge
 
-        # features from 0.2 onward
-        if reference == "0.2":
-            # Added features:
-            # - concat
-            # - errors and error handling
-            # - lax and strict funsies
-            # - partial hash calls
+        def raises(inp: bytes) -> bytes:
+            raise RuntimeError("an error was raised")
 
-            def raises(inp: bytes) -> bytes:
-                raise RuntimeError("an error was raised")
+        def error_count(*inp: Result[bytes]) -> bytes:
+            out = utils.match_results(inp, lambda x: 0, lambda x: 1)
+            return str(sum(out)).encode()
 
-            def error_count(*inp: Result[bytes]) -> bytes:
-                out = utils.match_results(inp, lambda x: 0, lambda x: 1)
-                return str(sum(out)).encode()
-
-            err = morph(raises, dat)
-            count = reduce(
-                error_count, dat, dat, err, dat, err, err, echo.stdouts[0], strict=False
-            )
-            cat = utils.concat(estdout, dat, err, count, echo.stdouts[1], strict=False)
-            test_data["test2"] = cat
+        err = morph(raises, dat)
+        count = reduce(
+            error_count, dat, dat, err, dat, err, err, echo.stdouts[0], strict=False
+        )
+        cat = utils.concat(estdout, dat, err, count, echo.stdouts[1], strict=False)
+        test_data["test2"] = cat
 
         # basic functionality
         execute(step1)

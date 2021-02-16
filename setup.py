@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="funsies",
-    version="0.2.0",
+    version="0.3.0",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
     description="Funsies is an opinionated typed python library to build"
@@ -16,7 +16,6 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=[
         "redis",
-        "msgpack",
         "cloudpickle",
         "rq>=1.7",
         "loguru",

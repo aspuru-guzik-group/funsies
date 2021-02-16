@@ -132,18 +132,6 @@ def test_store_takeout() -> None:
                 assert f2.read() == b"bla bla"
 
 
-def test_tag_artefact() -> None:
-    """Test artefact tagging."""
-    with Fun(Redis()) as db:
-        dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
-        ui.tag("tag", morph)
-        ui.tag("tag", dat)
-        ui.tag("tag2", dat)
-
-        run_op(db, morph.parent)
-
-
 def test_mapping() -> None:
     """Test the mapping() function."""
     with Fun(Redis()) as db:

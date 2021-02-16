@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+import json
 import os
 import subprocess
 import tempfile
@@ -9,14 +10,13 @@ import time
 from typing import Mapping, Optional, Sequence
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 
 # module
 from ._funsies import Funsie, FunsieHow
-from ._graph import Artefact, get_artefact, Operation
+from ._graph import Artefact, Operation
 from .constants import hash_t
-from .errors import Result
+from .errors import Error, Result
 from .logging import logger
 
 # Special namespaced "files"
@@ -38,12 +38,19 @@ def shell_funsie(
     for k in range(len(cmds)):
         out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
 
+    ierr = 1
+    if strict:
+        ierr = 0
+
+    extra = dict(cmds=json.dumps(list(cmds)).encode(), env=json.dumps(env).encode())
+
     return Funsie(
         how=FunsieHow.shell,
-        what=packb({"cmds": cmds, "env": env}),
+        what=";".join(cmds),
         inp=list(input_files),
         out=out,
-        error_tolerant=not strict,
+        error_tolerant=ierr,
+        extra=extra,
     )
 
 
@@ -54,20 +61,17 @@ def run_shell_funsie(  # noqa:C901
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
         # Put in dir the input files
-        incoming_files, _ = funsie.check_inputs(input_values)
-        for fn, val in incoming_files.items():
-            with open(os.path.join(dir, fn), "wb") as f:
-                f.write(val)
+        for fn, val in input_values.items():
+            if isinstance(val, Error):
+                pass
+            else:
+                with open(os.path.join(dir, fn), "wb") as f:
+                    f.write(val)
 
-        shell = unpackb(funsie.what)
-
-        # goto shell funsie above for definitions of those.
-        cmds = shell["cmds"]
-
-        # Just update env variables with the new values, do not erase them.
-        new_env = shell["env"]
+        cmds = json.loads(funsie.extra["cmds"].decode())
+        new_env = json.loads(funsie.extra["env"].decode())
         env: Optional[dict[str, str]] = None
-        if new_env is not None:
+        if new_env:
             env = os.environ.copy()
             env.update(new_env)
 
@@ -126,19 +130,19 @@ class ShellOutput:
                 if RETURNCODE in key:
                     self.n += 1  # count the number of commands
             else:
-                self.out[key] = get_artefact(store, val)
+                self.out[key] = Artefact.grab(store, val)
 
         self.inp = {}
         for key, val in op.inp.items():
-            self.inp[key] = get_artefact(store, val)
+            self.inp[key] = Artefact.grab(store, val)
 
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
         for i in range(self.n):
-            self.stdouts += [get_artefact(store, op.out[f"{STDOUT}{i}"])]
-            self.stderrs += [get_artefact(store, op.out[f"{STDERR}{i}"])]
-            self.returncodes += [get_artefact(store, op.out[f"{RETURNCODE}{i}"])]
+            self.stdouts += [Artefact.grab(store, op.out[f"{STDOUT}{i}"])]
+            self.stderrs += [Artefact.grab(store, op.out[f"{STDERR}{i}"])]
+            self.returncodes += [Artefact.grab(store, op.out[f"{RETURNCODE}{i}"])]
 
     def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:

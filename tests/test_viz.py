@@ -61,6 +61,3 @@ def test_dag_dump() -> None:
         # TODO pass through dot for testing?
         with open("g.dot", "w") as f:
             f.write(dot)
-
-
-test_dag_dump()

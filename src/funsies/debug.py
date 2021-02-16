@@ -9,12 +9,11 @@ import os.path
 from typing import Optional, Union
 
 # external
-from msgpack import unpackb
 from redis import Redis
 
 # module
-from ._funsies import Funsie, FunsieHow, get_funsie
-from ._graph import Artefact, get_artefact, get_data, get_op, Operation
+from ._funsies import Funsie, FunsieHow
+from ._graph import Artefact, get_data, Operation
 from ._shell import ShellOutput
 from .constants import _AnyPath
 from .context import get_db
@@ -83,14 +82,16 @@ def shell(  # noqa:C901
     with open(os.path.join(directory, "operation.json"), "w") as f:
         f.write(json.dumps(asdict(shell_output.op), sort_keys=True, indent=2))
 
-    what = unpackb(get_funsie(db, shell_output.op.funsie).what)
+    extra = Funsie.grab(db, shell_output.op.funsie).extra
+    cmds = json.loads(extra["cmds"].decode())
+    env = json.loads(extra["env"].decode())
     with open(os.path.join(directory, "op.sh"), "w") as f:
-        f.write("\n".join(what["cmds"]))
+        f.write("\n".join(cmds))
         f.write("\n")
 
-    if what["env"] is not None:
+    if env is not None:
         with open(os.path.join(directory, "op.env"), "w") as f:
-            for key, val in what["env"].items():
+            for key, val in env.items():
                 f.write(f"{key}={val}\n")
 
 
@@ -132,12 +133,12 @@ def python(
 
     if isinstance(target, Artefact):
         # Get the corresponding operation
-        target = get_op(db, target.parent)
+        target = Operation.grab(db, target.parent)
         if target is None:
             raise RuntimeError(f"Operation not found at {target.parent}")
 
     os.makedirs(directory, exist_ok=True)
-    funsie = get_funsie(db, target.funsie)
+    funsie = Funsie.grab(db, target.funsie)
     inp = os.path.join(directory, "inputs")
     out = os.path.join(directory, "outputs")
     errors = {}
@@ -145,7 +146,7 @@ def python(
         raise RuntimeError(f"Operation is of type {funsie.how}, not a python function.")
 
     for key, v in target.inp.items():
-        val = get_artefact(db, v)
+        val = Artefact.grab(db, v)
         try:
             p = os.path.join(inp, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -154,7 +155,7 @@ def python(
             errors[f"input:{key}"] = asdict(get_data(db, val))
 
     for key, v in target.out.items():
-        val = get_artefact(db, v)
+        val = Artefact.grab(db, v)
         try:
             p = os.path.join(out, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -172,7 +173,7 @@ def python(
         )
 
     meta = {
-        "what": funsie.what.decode(),
+        "what": funsie.what,
         "inp": funsie.inp,
         "out": funsie.out,
         "error_tolerant": funsie.error_tolerant,
@@ -183,9 +184,10 @@ def python(
     with open(os.path.join(directory, "operation.json"), "w") as f:
         f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
 
-    with open(os.path.join(directory, "function.pkl"), "wb") as f:
-        assert funsie.aux is not None
-        f.write(funsie.aux)
+    # TODO
+    # with open(os.path.join(directory, "function.pkl"), "wb") as f:
+    #     assert funsie.aux is not None
+    #     f.write(funsie.aux)
 
 
 # --------------
@@ -198,7 +200,7 @@ def anything(
     """Debug anything really."""
     db = get_db(connection)
     if isinstance(obj, Operation):
-        funsie = get_funsie(db, obj.funsie)
+        funsie = Funsie.grab(db, obj.funsie)
         if funsie.how == FunsieHow.shell:
             shell_output = ShellOutput(db, obj)
             shell(shell_output, output, db)

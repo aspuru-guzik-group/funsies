@@ -43,10 +43,10 @@ def test_shell_run() -> None:
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.get_artefact(db, operation.inp["file1"]))
+    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.inp["file1"]))
     assert dat == b"bla bla"
 
-    dat = _graph.get_data(db, _graph.get_artefact(db, operation.out[f"{s.STDOUT}0"]))
+    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.out[f"{s.STDOUT}0"]))
     assert dat == b"bla bla"
 
 
@@ -62,10 +62,10 @@ def test_pyfunc_run() -> None:
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.get_artefact(db, operation.inp["inp"]))
+    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.inp["inp"]))
     assert dat == b"bla bla"
 
-    dat = _graph.get_data(db, _graph.get_artefact(db, operation.out["inp"]))
+    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.out["inp"]))
     assert dat == b"BLA BLA"
 
 
@@ -109,7 +109,7 @@ def test_dependencies() -> None:
         db, cmd, inp={"inp": _graph.constant_artefact(db, b"bla bla")}, opt=opt
     )
     operation2 = _graph.make_op(
-        db, cmd2, inp={"inp": _graph.get_artefact(db, operation.out["inp"])}, opt=opt
+        db, cmd2, inp={"inp": _graph.Artefact.grab(db, operation.out["inp"])}, opt=opt
     )
 
     status = run_op(db, operation2.hash)

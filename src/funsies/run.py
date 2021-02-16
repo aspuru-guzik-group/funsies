@@ -7,15 +7,14 @@ import traceback
 from typing import Union
 
 # external
-from redis import Redis, WatchError
+from redis import Redis
 
 # module
-from ._funsies import FunsieHow, get_funsie
+from ._funsies import Funsie, FunsieHow
 from ._graph import (
+    Artefact,
     ArtefactStatus,
-    get_artefact,
     get_data,
-    get_op,
     get_status,
     mark_error,
     Operation,
@@ -23,7 +22,7 @@ from ._graph import (
 )
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
-from .constants import DATA_STATUS, hash_t
+from .constants import ARTEFACTS, hash_t, join
 from .errors import Error, ErrorKind, Result
 from .logging import logger
 
@@ -48,21 +47,19 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
     # status of generating operations.
-    pipe = db.pipeline(transaction=True)
-    cached = True
-    while True:
-        try:
-            pipe.watch(DATA_STATUS)
-            for val in op.out.values():
-                stat = get_status(db, val)
-                if stat <= ArtefactStatus.no_data:
-                    cached = False
-                    break
-            break
-        except WatchError:
-            # Someone changed artefact status while we were watching.
-            continue
-    return cached
+    keys = [join(ARTEFACTS, address, "status") for address in op.out.values()]
+
+    def __status(p: Redis[bytes]) -> bool:
+        for address in op.out.values():
+            stat = get_status(p, address)
+            if stat <= ArtefactStatus.no_data:
+                return False
+        return True
+
+    answer: bool = db.transaction(  # type:ignore
+        __status, *keys, watch_delay=0.5, value_from_callable=True
+    )
+    return answer
 
 
 def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
@@ -81,7 +78,7 @@ def run_op(  # noqa:C901
     """Run an Operation from its hash address."""
     # Compatibility feature
     if not isinstance(op, Operation):
-        op = get_op(db, op)
+        op = Operation.grab(db, op)
 
     logger.info(f"=== {op.hash} ===")
     logger.info("evaluating...")
@@ -102,14 +99,14 @@ def run_op(  # noqa:C901
         return RunStatus.unmet_dependencies
 
     # load the funsie
-    funsie = get_funsie(db, op.funsie)
+    funsie = Funsie.grab(db, op.funsie)
     runner = RUNNERS[funsie.how]
 
     # load input files
     input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
-        artefact = get_artefact(db, val)
-        dat = get_data(db, artefact, source=op.hash)
+        artefact = Artefact.grab(db, val)
+        dat = get_data(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -144,12 +141,11 @@ def run_op(  # noqa:C901
         return RunStatus.executed
 
     for key, val in out_data.items():
-        artefact = get_artefact(db, op.out[key])
         if val is None:
             logger.warning(f"no output data for {key}")
             mark_error(
                 db,
-                artefact.hash,
+                op.out[key],
                 error=Error(
                     kind=ErrorKind.MissingOutput,
                     source=op.hash,
@@ -159,7 +155,7 @@ def run_op(  # noqa:C901
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
         else:
-            set_data(db, artefact, val)
+            set_data(db, op.out[key], val, status=ArtefactStatus.done)
 
     logger.success("DONE: successful eval.")
     return RunStatus.executed

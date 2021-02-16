@@ -7,12 +7,11 @@ import os.path
 from typing import cast, Dict
 
 # external
-from msgpack import unpackb
 from redis import Redis
 
 # module
-from ._funsies import FunsieHow, get_funsie
-from ._graph import ArtefactStatus, get_op, get_status
+from ._funsies import Funsie, FunsieHow
+from ._graph import ArtefactStatus, get_status, Operation
 from ._short_hash import shorten_hash
 from .constants import DAG_INDEX, DAG_STORE, hash_t
 from .dag import build_dag
@@ -56,13 +55,13 @@ def export(
             # all the operations
             h = hash_t(element.decode())
             nodes[h] = {}
-            obj = get_op(db, h)
-            funsie = get_funsie(db, obj.funsie)
+            obj = Operation.grab(db, h)
+            funsie = Funsie.grab(db, obj.funsie)
 
             if funsie.how == FunsieHow.shell:
-                labels[h] = __sanitize_command(";".join(unpackb(funsie.what)["cmds"]))
+                labels[h] = __sanitize_command(funsie.what)
             else:
-                labels[h] = __sanitize_command(funsie.what.decode())
+                labels[h] = __sanitize_command(funsie.what)
 
             if funsie.error_tolerant:
                 labels[h] += r"\n(tolerates err)"

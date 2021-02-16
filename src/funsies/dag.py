@@ -7,9 +7,9 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._graph import get_artefact, get_op, get_op_options
+from ._graph import Artefact, get_op_options, Operation
 from ._short_hash import shorten_hash
-from .constants import DAG_CHILDREN, DAG_INDEX, DAG_PARENTS, DAG_STORE, hash_t
+from .constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
 from .logging import logger
 from .run import run_op, RunStatus
 
@@ -29,7 +29,9 @@ def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
 
 def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op within a given DAG."""
-    return __set_as_hashes(db, DAG_STORE + dag_of, DAG_CHILDREN + op_from)
+    return __set_as_hashes(
+        db, DAG_STORE + dag_of, join(OPERATIONS, op_from, "children")
+    )
 
 
 def delete_all_dags(db: Redis[bytes]) -> None:
@@ -48,7 +50,8 @@ def ancestors(db: Redis[bytes], address: hash_t) -> set[hash_t]:
 
     while len(queue) > 0:
         curr = queue.pop()
-        for el in db.smembers(DAG_PARENTS + curr):
+
+        for el in db.smembers(join(OPERATIONS, curr, "parents")):
             if el == b"root":
                 continue
 
@@ -66,7 +69,7 @@ def descendants(db: Redis[bytes], address: hash_t) -> set[hash_t]:
 
     while len(queue) > 0:
         curr = queue.pop()
-        for el in db.smembers(DAG_CHILDREN + curr):
+        for el in db.smembers(join(OPERATIONS, curr, "children")):
             h = hash_t(el.decode())  # type:ignore
             out.add(h)
             if h not in queue:
@@ -79,12 +82,12 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     root = "root"
     art = None
     try:
-        node = get_op(db, address)
+        node = Operation.grab(db, address)
         logger.debug(f"building dag for op at {address[:6]}")
     except RuntimeError:
         # one possibility is that address is an artefact...
         try:
-            art = get_artefact(db, address)
+            art = Artefact.grab(db, address)
             logger.debug(f"artefact at {address[:6]}")
         except RuntimeError:
             raise RuntimeError(
@@ -97,7 +100,7 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
             logger.debug("no dependencies to execute")
             return
         else:
-            node = get_op(db, art.parent)
+            node = Operation.grab(db, art.parent)
             logger.debug(f"building dag for op at {node.hash[:6]}")
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
@@ -127,7 +130,7 @@ def task(
     db: Redis[bytes] = job.connection
 
     # Load operation
-    op = get_op(db, current)
+    op = Operation.grab(db, current)
 
     with logger.contextualize(op=shorten_hash(op.hash)):
         # Now we run the job
