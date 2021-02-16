@@ -131,7 +131,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 if isinstance(res, funsies.Error):
                     logger.warning(f"error at {hash}: {res.kind}")
                     if res.details is not None:
-                        sys.stderr.buffer.write(res.details.encode())
+                        sys.stderr.buffer.write((res.details + "\n").encode())
                     logger.warning(f"error source: {res.source}")
                 else:
                     sys.stdout.buffer.write(res)
@@ -162,8 +162,8 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     type=str,
 )
 @click.pass_context
-def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
-    """Extract data related to a given hash value."""
+def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
+    """Extract all data related to a given hash value."""
     logger.info(f"extracting {hash}")
     db = ctx.obj
     if output is None:
@@ -194,7 +194,6 @@ def get(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 @click.argument(
     "hash",
     type=str,
-    nargs=-1,
 )
 @click.pass_context
 def reset(ctx: click.Context, hash: str) -> None:
