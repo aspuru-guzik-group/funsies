@@ -7,23 +7,22 @@ import traceback
 from typing import Union
 
 # external
-from redis import Redis, WatchError
+from redis import Redis
 
 # module
-from ._funsies import FunsieHow, Funsie
+from ._funsies import Funsie, FunsieHow
 from ._graph import (
     Artefact,
     ArtefactStatus,
     get_data,
     get_status,
-    mark_done,
     mark_error,
     Operation,
     set_data,
 )
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
-from .constants import hash_t
+from .constants import ARTEFACTS, hash_t, join
 from .errors import Error, ErrorKind, Result
 from .logging import logger
 
@@ -48,22 +47,17 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
     # status of generating operations.
-    pipe = db.pipeline(transaction=True)
-    cached = True
-    while True:
-        try:
-            # TODO
-            # pipe.watch(DATA_STATUS)
-            for val in op.out.values():
-                stat = get_status(db, val)
-                if stat <= ArtefactStatus.no_data:
-                    cached = False
-                    break
-            break
-        except WatchError:
-            # Someone changed artefact status while we were watching.
-            continue
-    return cached
+    keys = [join(ARTEFACTS, address, "status") for address in op.out.values()]
+
+    def __status(p: Redis[bytes]) -> bool:
+        for address in op.out.values():
+            stat = get_status(p, address)
+            if stat <= ArtefactStatus.no_data:
+                return False
+        return True
+
+    answer = db.transaction(__status, *keys, watch_delay=0.5, value_from_callable=True)
+    return answer
 
 
 def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
