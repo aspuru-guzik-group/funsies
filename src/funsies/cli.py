@@ -121,6 +121,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.error("hash does not correspond to anything!")
+                raise SystemExit(2)
 
             if len(things) > 1:
                 logger.error(f"hash resolves to {len(things)} things.")
@@ -294,7 +295,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(
-                [dag.decode for dag in db.smembers(funsies.constants.DAG_INDEX)]
+                [dag.decode() for dag in db.smembers(funsies.constants.DAG_INDEX)]
             )
 
         all_data = []
