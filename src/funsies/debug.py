@@ -9,7 +9,6 @@ import os.path
 from typing import Optional, Union
 
 # external
-from msgpack import unpackb
 from redis import Redis
 
 # module
@@ -84,8 +83,8 @@ def shell(  # noqa:C901
         f.write(json.dumps(asdict(shell_output.op), sort_keys=True, indent=2))
 
     extra = Funsie.grab(db, shell_output.op.funsie).extra
-    cmds = unpackb(extra["cmds"])
-    env = unpackb(extra["env"])
+    cmds = json.loads(extra["cmds"].decode())
+    env = json.loads(extra["env"].decode())
     with open(os.path.join(directory, "op.sh"), "w") as f:
         f.write("\n".join(cmds))
         f.write("\n")

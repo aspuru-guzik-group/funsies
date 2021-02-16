@@ -7,7 +7,6 @@ import os.path
 from typing import cast, Dict
 
 # external
-from msgpack import unpackb
 from redis import Redis
 
 # module

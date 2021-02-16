@@ -1,10 +1,8 @@
 """Configuration dictionaries for jobs."""
 # std
 from dataclasses import asdict, dataclass
+import json
 from typing import Any, Mapping, Type
-
-# external
-from msgpack import packb, unpackb
 
 
 # Constants
@@ -62,11 +60,11 @@ class Options:
         """Return a dictionary of arguments for rq.Queue."""
         return dict(is_async=self.distributed)
 
-    def pack(self: "Options") -> bytes:
+    def pack(self: "Options") -> str:
         """Pack an Options instance to a bytestring."""
-        return packb(asdict(self))
+        return json.dumps(asdict(self))
 
     @classmethod
-    def unpack(cls: Type["Options"], data: bytes) -> "Options":
+    def unpack(cls: Type["Options"], data: str) -> "Options":
         """Unpack an Options instance from a byte string."""
-        return Options(**unpackb(data))
+        return Options(**json.loads(data))

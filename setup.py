@@ -16,7 +16,6 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=[
         "redis",
-        "msgpack",
         "cloudpickle",
         "rq>=1.7",
         "loguru",

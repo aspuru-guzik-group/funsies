@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+import json
 import os
 import subprocess
 import tempfile
@@ -9,7 +10,6 @@ import time
 from typing import Mapping, Optional, Sequence
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 
 # module
@@ -42,13 +42,15 @@ def shell_funsie(
     if strict:
         ierr = 0
 
+    extra = dict(cmds=json.dumps(list(cmds)).encode(), env=json.dumps(env).encode())
+
     return Funsie(
         how=FunsieHow.shell,
         what=";".join(cmds),
         inp=list(input_files),
         out=out,
         error_tolerant=ierr,
-        extra=dict(cmds=packb(list(cmds)), env=packb(env)),
+        extra=extra,
     )
 
 
@@ -66,11 +68,10 @@ def run_shell_funsie(  # noqa:C901
                 with open(os.path.join(dir, fn), "wb") as f:
                     f.write(val)
 
-        cmds = unpackb(funsie.extra["cmds"])
-        new_env = unpackb(funsie.extra["env"])
-
+        cmds = json.loads(funsie.extra["cmds"].decode())
+        new_env = json.loads(funsie.extra["env"].decode())
         env: Optional[dict[str, str]] = None
-        if new_env is not None:
+        if new_env:
             env = os.environ.copy()
             env.update(new_env)
 

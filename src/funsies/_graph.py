@@ -299,7 +299,7 @@ class Operation:
 
         tmp = db.get(join(OPERATIONS, hash, "options"))
         if tmp is not None:
-            options: Optional[Options] = Options.unpack(tmp)
+            options: Optional[Options] = Options.unpack(tmp.decode())
         else:
             options = None
 
@@ -382,4 +382,4 @@ def get_op_options(store: Redis[bytes], hash: hash_t) -> Options:
     out = store.get(join(OPERATIONS, hash, "options"))
     if out is None:
         raise RuntimeError(f"Options for operation at {hash} could not be found.")
-    return Options.unpack(out)
+    return Options.unpack(out.decode())

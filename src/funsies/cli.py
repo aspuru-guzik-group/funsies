@@ -14,7 +14,7 @@ from redis import Redis
 from rq import command, Connection, Worker
 
 # required funsies libraries loaded in advance
-import funsies, subprocess, msgpack, hashlib, loguru  # noqa
+import funsies, subprocess, hashlib, loguru  # noqa
 
 # Local
 from . import __version__

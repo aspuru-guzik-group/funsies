@@ -7,7 +7,6 @@ package = "funsies"
 nox.options.sessions = "black", "lint", "tests", "mypy"  # default session
 locations = "examples", "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.8", "3.9"]
-type_libraries = ["msgpack-types"]
 
 
 # Testing

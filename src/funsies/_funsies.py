@@ -8,7 +8,6 @@ import hashlib
 from typing import Dict, List, Mapping, Optional, Tuple, Type
 
 # external
-from msgpack import packb, unpackb
 from redis import Redis
 
 # module
