@@ -11,7 +11,6 @@ from redis import Redis
 
 # module
 from ._constants import ARTEFACTS, hash_t, join
-from .errors import Error, ErrorKind, Result
 from ._funsies import Funsie, FunsieHow
 from ._graph import (
     Artefact,
@@ -25,6 +24,7 @@ from ._graph import (
 from ._logging import logger
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
+from .errors import Error, ErrorKind, Result
 
 # Dictionary of runners
 RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}

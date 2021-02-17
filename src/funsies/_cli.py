@@ -84,7 +84,7 @@ def clean(ctx: click.Context) -> None:
     """Clean job queues and DAGs."""
     db = ctx.obj
     logger.info("cleaning up")
-    funsies.context.cleanup_funsies(db)
+    funsies._context.cleanup_funsies(db)
     logger.success("done")
 
 
@@ -115,7 +115,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print artefacts to stdout."""
     db = ctx.obj
 
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         for hash in hashes:
             logger.info(f"extracting {hash}")
             things = funsies.get(hash)
@@ -173,7 +173,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     else:
         output2 = output + "_"
 
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         things = funsies.get(hash)
         if len(things) == 0:
             logger.error(f"{hash} does not correspond to anything!")
@@ -200,7 +200,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 def reset(ctx: click.Context, hash: str) -> None:
     """Reset operations and their dependents."""
     db = ctx.obj
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         things = funsies.get(hash)
         if len(things) == 0:
             logger.warning(f"no object with hash {hash}")
@@ -249,7 +249,7 @@ def wait(  # noqa:C901
                 logger.error("timeout exceeded")
                 raise SystemExit(2)
 
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         h = []
         for hash in hashes:
             things = funsies.get(hash)
@@ -291,7 +291,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     import funsies.graphviz
 
     db = ctx.obj
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(
@@ -329,7 +329,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Enqueue execution of hashes."""
     db = ctx.obj
-    with funsies.context.Fun(db):
+    with funsies._context.Fun(db):
         for hash in hashes:
             things = funsies.get(hash)
             if len(things) == 0:

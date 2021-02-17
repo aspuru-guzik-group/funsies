@@ -14,10 +14,10 @@ from redis import Redis
 
 # module
 from ._constants import hash_t
-from .errors import Error, Result
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._logging import logger
+from .errors import Error, Result
 
 # Special namespaced "files"
 SPECIAL = "__special__"
