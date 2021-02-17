@@ -7,8 +7,8 @@ import pytest
 
 # module
 from funsies import _funsies as f
-from funsies import _graph, errors, hash_t
-from funsies import options
+from funsies import _graph, errors, options
+from funsies.types import hash_t
 
 
 def test_artefact_add() -> None:

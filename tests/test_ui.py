@@ -8,7 +8,9 @@ from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _graph, Fun, options, run_op, ui, UnwrapError
+from funsies import _graph, Fun, options, ui
+from funsies.run import run_op
+from funsies.types import UnwrapError
 
 
 def test_shell_run() -> None:

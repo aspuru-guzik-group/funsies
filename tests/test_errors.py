@@ -7,7 +7,9 @@ import pytest
 
 # module
 import funsies
-from funsies import _graph, Fun, hash_t, options
+from funsies import _graph, Fun, options
+from funsies.run import run_op
+from funsies.types import Error, hash_t, Result, UnwrapError
 
 
 def test_artefact_add() -> None:
@@ -45,9 +47,9 @@ def test_not_generated() -> None:
     """What happens when an artefact is not generated?"""
     with Fun(Redis()) as db:
         s = funsies.shell("cp file1 file2", inp=dict(file1="bla"), out=["file3"])
-        funsies.run_op(db, s.op.hash)
+        run_op(db, s.op.hash)
         assert funsies.take(s.returncode) == b"0"
-        with pytest.raises(funsies.UnwrapError):
+        with pytest.raises(UnwrapError):
             funsies.take(s.out["file3"])
 
 
@@ -58,11 +60,11 @@ def test_error_propagation() -> None:
         s2 = funsies.shell(
             "cat file1 file2", inp=dict(file1="a file", file2=s1.out["file2"])
         )
-        funsies.run_op(db, s1.op.hash)
-        funsies.run_op(db, s2.op.hash)
+        run_op(db, s1.op.hash)
+        run_op(db, s2.op.hash)
         out = funsies.take(s2.stdout, strict=False)
         print(out)
-        assert isinstance(out, funsies.Error)
+        assert isinstance(out, Error)
         assert out.source == s1.op.hash
 
 
@@ -74,27 +76,27 @@ def test_error_propagation_morph() -> None:
         def fun_strict(inp: bytes) -> bytes:
             return inp
 
-        def fun_lax(inp: funsies.Result[bytes]) -> bytes:
+        def fun_lax(inp: Result[bytes]) -> bytes:
             return b"bla bla"
 
         s2 = funsies.morph(fun_strict, s1.out["file2"])
         s3 = funsies.morph(fun_lax, s1.out["file2"])
         s4 = funsies.morph(fun_lax, s1.out["file2"], strict=False)
 
-        funsies.run_op(db, s1.op.hash)
-        funsies.run_op(db, s2.parent)
+        run_op(db, s1.op.hash)
+        run_op(db, s2.parent)
 
         out = funsies.take(s2, strict=False)
-        assert isinstance(out, funsies.Error)
+        assert isinstance(out, Error)
         assert out.source == s1.op.hash
 
         print(s3.parent)
-        funsies.run_op(db, s3.parent)
+        run_op(db, s3.parent)
         out = funsies.take(s3, strict=False)
-        assert isinstance(out, funsies.Error)
+        assert isinstance(out, Error)
         assert out.source == s1.op.hash
 
-        funsies.run_op(db, s4.parent)
+        run_op(db, s4.parent)
         out = funsies.take(s4)
         assert out == b"bla bla"
 
@@ -120,12 +122,12 @@ def test_error_propagation_shell() -> None:
         opt=options(),
     )
 
-    funsies.run_op(store, s1.op.hash)
-    funsies.run_op(store, s2.op.hash)
-    with pytest.raises(funsies.UnwrapError):
+    run_op(store, s1.op.hash)
+    run_op(store, s2.op.hash)
+    with pytest.raises(UnwrapError):
         funsies.take(s2.stderr, connection=store)
 
-    funsies.run_op(store, s3.op.hash)
+    run_op(store, s3.op.hash)
     with Fun(store):
         assert funsies.take(s3.stderr) != b""
         assert funsies.take(s3.returncode) != b"0"
@@ -135,8 +137,8 @@ def test_error_tolerant() -> None:
     """Test error tolerant funsie."""
     store = Redis()
 
-    def error_tolerant_fun(inp: funsies.Result[bytes]) -> bytes:
-        if isinstance(inp, funsies.Error):
+    def error_tolerant_fun(inp: Result[bytes]) -> bytes:
+        if isinstance(inp, Error):
             return b"err"
         else:
             return b""
@@ -147,7 +149,7 @@ def test_error_tolerant() -> None:
 
         with pytest.raises(RuntimeError):
             # Test operation not found
-            funsies.run_op(store, s2.hash)
-        funsies.run_op(store, s1.op)
-        funsies.run_op(store, s2.parent)
+            run_op(store, s2.hash)
+        run_op(store, s1.op)
+        run_op(store, s2.parent)
         assert funsies.take(s2) == b"err"

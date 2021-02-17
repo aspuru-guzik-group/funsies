@@ -17,7 +17,7 @@ from rq import command, Connection, Worker
 import funsies, subprocess, hashlib, loguru  # noqa
 
 # Local
-from . import __version__
+from . import __version__, types
 from ._graph import get_status
 from .logging import logger
 
@@ -127,9 +127,9 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 logger.error(f"hash resolves to {len(things)} things.")
 
             art = things[0]
-            if isinstance(art, funsies.Artefact):
+            if isinstance(art, types.Artefact):
                 res = funsies.take(art, strict=False)
-                if isinstance(res, funsies.Error):
+                if isinstance(res, types.Error):
                     logger.warning(f"error at {hash}: {res.kind}")
                     if res.details is not None:
                         sys.stderr.buffer.write((res.details + "\n").encode())
@@ -137,7 +137,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 else:
                     sys.stdout.buffer.write(res)
                     logger.success(f"{hash} output to stdout")
-            elif isinstance(art, funsies.Operation):
+            elif isinstance(art, types.Operation):
                 logger.error("not an artefact")
                 logger.info("did you mean...")
                 sys.stderr.write("      INPUTS:\n")
@@ -212,8 +212,8 @@ def reset(ctx: click.Context, hash: str) -> None:
                 logger.error(f"\t{t.hash}")
             raise SystemExit(2)
         else:
-            if isinstance(things[0], funsies.Artefact) or isinstance(
-                things[0], funsies.Operation
+            if isinstance(things[0], types.Artefact) or isinstance(
+                things[0], types.Operation
             ):
                 funsies.ui.reset(things[0])
             else:
@@ -256,10 +256,10 @@ def wait(  # noqa:C901
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
-                if isinstance(t, funsies.Artefact):
+                if isinstance(t, types.Artefact):
                     h += [t.hash]
                     logger.info(f"waiting on artefact at {hash}")
-                elif isinstance(t, funsies.Operation):
+                elif isinstance(t, types.Operation):
                     h += [next(iter(t.out.values()))]
                     logger.info(f"waiting on operation at {hash}")
                 else:
@@ -304,7 +304,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
-                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
                     all_data += [t.hash]
 
         if len(all_data):
@@ -335,7 +335,7 @@ def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
-                if isinstance(t, funsies.Operation) or isinstance(t, funsies.Artefact):
+                if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
                     funsies.execute(t)
                 else:
                     logger.warning(f"object with hash {hash} of type {type(t)}")

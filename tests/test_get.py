@@ -3,8 +3,7 @@
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import Artefact, Fun, getter, Operation, ui
-from funsies._funsies import Funsie
+from funsies import Fun, getter, types, ui
 
 
 def test_get() -> None:
@@ -15,16 +14,16 @@ def test_get() -> None:
         data = getter.get(s1.hash)
         assert len(data) == 1
         dat = data[0]
-        assert isinstance(dat, Operation)
+        assert isinstance(dat, types.Operation)
         assert dat == s1.op
 
         data = getter.get(s1.inp["file1"].hash)
         assert len(data) == 1
         dat = data[0]
-        assert isinstance(dat, Artefact)
+        assert isinstance(dat, types.Artefact)
         assert dat == s1.inp["file1"]
 
         data = getter.get(s1.op.funsie)
         assert len(data) == 1
         dat = data[0]
-        assert isinstance(dat, Funsie)
+        assert isinstance(dat, types.Funsie)
