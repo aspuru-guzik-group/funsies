@@ -8,7 +8,7 @@ import pytest
 
 # module
 from funsies import _short_hash as sh
-from funsies.t import hash_t
+from funsies.types import hash_t
 
 
 def test_shorten_hash():

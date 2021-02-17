@@ -9,7 +9,7 @@ import pytest
 import funsies
 from funsies import _graph, Fun, options
 from funsies.run import run_op
-from funsies.t import Error, hash_t, Result, UnwrapError
+from funsies.types import Error, hash_t, Result, UnwrapError
 
 
 def test_artefact_add() -> None:
@@ -25,7 +25,7 @@ def test_artefact_load_errors() -> None:
     """Test loading artefact errors."""
     store = Redis()
     with pytest.raises(RuntimeError):
-        _ = _graph.Artefact.grab(store, hash_t("bla"))
+        _ = _graph.Artefact.grab(store, "bla")  # type:ignore
 
     # TODO check that warnings are logged?
     _graph.constant_artefact(store, b"bla bla")
