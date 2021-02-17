@@ -7,7 +7,7 @@ from fakeredis import FakeStrictRedis as Redis
 # module
 from funsies import _graph
 import funsies.constants as cons
-from funsies.types import hash_t
+from funsies.t import hash_t
 
 
 def test_artefact_add_large() -> None:

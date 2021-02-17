@@ -1,6 +1,14 @@
-"""Funsies is a transparently-memoized worfklow engine."""
+# noqa
+"""
+`funsies` is a lightweight, distributed, transparently cached and
+incrementally computed workflow engine. 🔧
+
+.. include:: ./documentation.md
+
+"""
+# qa
 from . import debug
-from . import types
+from . import t
 from . import utils
 from .context import Fun, ManagedFun, options
 from .errors import unwrap
@@ -18,18 +26,19 @@ from .ui import (
     wait_for,
 )
 
+
+# Note: order here is the order in documentation
 __all__ = [
-    # ui
-    "execute",
     "shell",
     "morph",
     "reduce",
     "mapping",
+    "execute",
+    "wait_for",
     "put",
-    "reset",
     "take",
     "takeout",
-    "wait_for",
+    "reset",
     # context,
     "Fun",
     "ManagedFun",
@@ -44,7 +53,7 @@ __all__ = [
     # submodules
     "utils",
     "debug",
-    "types",
+    "t",
 ]
 
 # versioning information

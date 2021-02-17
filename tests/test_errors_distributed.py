@@ -7,7 +7,7 @@ import pytest
 
 # module
 import funsies as f
-from funsies.types import UnwrapError
+from funsies.t import UnwrapError
 
 
 def test_raising_funsie() -> None:

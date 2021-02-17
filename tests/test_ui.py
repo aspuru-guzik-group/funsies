@@ -10,7 +10,7 @@ import pytest
 # module
 from funsies import _graph, Fun, options, ui
 from funsies.run import run_op
-from funsies.types import UnwrapError
+from funsies.t import UnwrapError
 
 
 def test_shell_run() -> None:

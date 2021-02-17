@@ -20,7 +20,7 @@ from funsies import (
     utils,
     wait_for,
 )
-from funsies.types import Result
+from funsies.t import Result
 
 
 def join_bytes(*args: bytes) -> bytes:

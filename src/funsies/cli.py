@@ -17,7 +17,7 @@ from rq import command, Connection, Worker
 import funsies, subprocess, hashlib, loguru  # noqa
 
 # Local
-from . import __version__, types
+from . import __version__, t
 from ._graph import get_status
 from .logging import logger
 
@@ -127,9 +127,9 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 logger.error(f"hash resolves to {len(things)} things.")
 
             art = things[0]
-            if isinstance(art, types.Artefact):
+            if isinstance(art, t.Artefact):
                 res = funsies.take(art, strict=False)
-                if isinstance(res, types.Error):
+                if isinstance(res, t.Error):
                     logger.warning(f"error at {hash}: {res.kind}")
                     if res.details is not None:
                         sys.stderr.buffer.write((res.details + "\n").encode())
@@ -137,7 +137,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 else:
                     sys.stdout.buffer.write(res)
                     logger.success(f"{hash} output to stdout")
-            elif isinstance(art, types.Operation):
+            elif isinstance(art, t.Operation):
                 logger.error("not an artefact")
                 logger.info("did you mean...")
                 sys.stderr.write("      INPUTS:\n")
@@ -208,13 +208,11 @@ def reset(ctx: click.Context, hash: str) -> None:
         if len(things) > 1:
             logger.error(f"more than object with hash starting with {hash}")
             logger.error("which one do you mean of :")
-            for t in things:
-                logger.error(f"\t{t.hash}")
+            for el in things:
+                logger.error(f"\t{el.hash}")
             raise SystemExit(2)
         else:
-            if isinstance(things[0], types.Artefact) or isinstance(
-                things[0], types.Operation
-            ):
+            if isinstance(things[0], t.Artefact) or isinstance(things[0], t.Operation):
                 funsies.ui.reset(things[0])
             else:
                 logger.error(f"object {hash} is neither an operation or an artefact")
@@ -255,15 +253,15 @@ def wait(  # noqa:C901
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
-            for t in things:
-                if isinstance(t, types.Artefact):
-                    h += [t.hash]
+            for el in things:
+                if isinstance(el, t.Artefact):
+                    h += [el.hash]
                     logger.info(f"waiting on artefact at {hash}")
-                elif isinstance(t, types.Operation):
-                    h += [next(iter(t.out.values()))]
+                elif isinstance(el, t.Operation):
+                    h += [next(iter(el.out.values()))]
                     logger.info(f"waiting on operation at {hash}")
                 else:
-                    logger.warning(f"ignoring {type(t)} at {t.hash}")
+                    logger.warning(f"ignoring {type(el)} at {el.hash}")
 
         while len(h) > 0:
             stat = get_status(db, h[0])
@@ -303,9 +301,9 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
-            for t in things:
-                if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    all_data += [t.hash]
+            for el in things:
+                if isinstance(el, t.Operation) or isinstance(el, t.Artefact):
+                    all_data += [el.hash]
 
         if len(all_data):
             logger.info(f"writing graph for {len(all_data)} objects")
@@ -334,9 +332,9 @@ def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
-            for t in things:
-                if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    funsies.execute(t)
+            for el in things:
+                if isinstance(el, t.Operation) or isinstance(el, t.Artefact):
+                    funsies.execute(el)
                 else:
                     logger.warning(f"object with hash {hash} of type {type(t)}")
 
