@@ -9,7 +9,7 @@ import pytest
 
 # module
 from funsies import _graph, Fun, options, ui
-from funsies.run import run_op
+from funsies._run import run_op
 from funsies.types import UnwrapError
 
 

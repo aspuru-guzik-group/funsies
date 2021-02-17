@@ -11,8 +11,8 @@ from typing import Type
 from redis import Redis
 
 # module
+from ._constants import FUNSIES, hash_t, join
 from ._short_hash import hash_save
-from .constants import FUNSIES, hash_t, join
 
 
 def _to_list(inp: dict[bytes, bytes]) -> list[str]:

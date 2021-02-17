@@ -13,10 +13,8 @@ from redis import Redis
 from redis.client import Pipeline
 
 # module
-from ._funsies import Funsie
-from ._short_hash import hash_save
 from .config import Options
-from .constants import (
+from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
     hash_t,
@@ -24,7 +22,9 @@ from .constants import (
     OPERATIONS,
 )
 from .errors import Error, ErrorKind, Result
-from .logging import logger
+from ._funsies import Funsie
+from ._logging import logger
+from ._short_hash import hash_save
 
 # Max redis value size in bytes
 MIB = 1024 * 1024

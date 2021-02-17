@@ -6,8 +6,8 @@ from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import dag, execute, Fun, morph, options, put, shell, take
-from funsies.constants import DAG_INDEX, DAG_STORE, hash_t
+from funsies import _dag, execute, Fun, morph, options, put, shell, take
+from funsies._constants import DAG_INDEX, DAG_STORE, hash_t
 from funsies.utils import concat
 
 
@@ -19,19 +19,19 @@ def test_dag_build() -> None:
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
 
-        dag.build_dag(db, output.hash)
+        _dag.build_dag(db, output.hash)
         assert len(db.smembers(DAG_STORE + output.hash)) == 2
 
         # test deletion
-        dag.delete_all_dags(db)
+        _dag.delete_all_dags(db)
         assert len(db.smembers(DAG_STORE + output.hash)) == 0
 
-        # test new dag
-        dag.build_dag(db, step1.hash)
+        # test new _dag
+        _dag.build_dag(db, step1.hash)
         assert len(db.smembers(DAG_STORE + step1.hash)) == 1
 
-        assert len(dag.descendants(db, step1.parent)) == 1
-        # assert len(dag.descendants(db, step1.hash)) == 1
+        assert len(_dag.descendants(db, step1.parent)) == 1
+        # assert len(_dag.descendants(db, step1.hash)) == 1
 
 
 def test_dag_efficient() -> None:
@@ -47,14 +47,14 @@ def test_dag_efficient() -> None:
             "cat file1 file2", inp=dict(file1=step1, file2=step2b.stdout), out=["file2"]
         )
 
-        dag.build_dag(db, step2.stdout.hash)
+        _dag.build_dag(db, step2.stdout.hash)
         # check that step2 only has stdout has no dependents
-        assert len(dag._dag_dependents(db, step2.stdout.hash, step2.hash)) == 0
-        assert len(dag._dag_dependents(db, step2.stdout.hash, step1.parent)) == 1
+        assert len(_dag._dag_dependents(db, step2.stdout.hash, step2.hash)) == 0
+        assert len(_dag._dag_dependents(db, step2.stdout.hash, step1.parent)) == 1
 
-        dag.build_dag(db, merge.hash)
+        _dag.build_dag(db, merge.hash)
         # check that however, the merged one has two dependents for step1
-        assert len(dag._dag_dependents(db, merge.hash, step1.parent)) == 2
+        assert len(_dag._dag_dependents(db, merge.hash, step1.parent)) == 2
 
 
 def test_dag_cached() -> None:
@@ -92,7 +92,7 @@ def test_dag_cached() -> None:
 
 
 def test_dag_execute() -> None:
-    """Test execution of a dag."""
+    """Test execution of a _dag."""
     with Fun(Redis(), options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
@@ -106,7 +106,7 @@ def test_dag_execute() -> None:
 
 
 def test_dag_execute2() -> None:
-    """Test execution of a dag."""
+    """Test execution of a _dag."""
     with Fun(Redis(), options(distributed=False)):
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
@@ -141,7 +141,7 @@ def test_dag_execute_same_root() -> None:
 
 
 def test_dag_cleanup() -> None:
-    """Test dag cleanups."""
+    """Test _dag cleanups."""
     with Fun(Redis(), options(distributed=False)) as db:
         dat = put("bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
@@ -173,5 +173,5 @@ def test_dag_large() -> None:
             outputs += [concat(step1, step1, step2.stdout, join=" ")]
 
         final = concat(*outputs, join="\n")
-        dag.build_dag(db, final.hash)
-        assert len(dag._dag_dependents(db, final.hash, hash_t("root"))) == 100
+        _dag.build_dag(db, final.hash)
+        assert len(_dag._dag_dependents(db, final.hash, hash_t("root"))) == 100

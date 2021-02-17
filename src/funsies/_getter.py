@@ -8,12 +8,12 @@ from typing import Optional, Union
 from redis import Redis
 
 # module
-from . import constants as c
+from . import _constants as c
+from ._context import get_db
 from ._funsies import Funsie
 from ._graph import Artefact, Operation
+from ._logging import logger
 from ._short_hash import hash_load
-from .context import get_db
-from .logging import logger
 
 
 def get(

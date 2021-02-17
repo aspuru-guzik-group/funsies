@@ -10,12 +10,12 @@ from typing import cast, Dict
 from redis import Redis
 
 # module
+from ._constants import DAG_INDEX, DAG_STORE, hash_t
+from ._dag import build_dag
 from ._funsies import Funsie, FunsieHow
 from ._graph import ArtefactStatus, get_status, Operation
+from ._logging import logger
 from ._short_hash import shorten_hash
-from .constants import DAG_INDEX, DAG_STORE, hash_t
-from .dag import build_dag
-from .logging import logger
 
 __node_type = Dict[hash_t, Dict[str, Dict[str, hash_t]]]
 __artefact_type = Dict[str, ArtefactStatus]

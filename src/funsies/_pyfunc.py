@@ -9,9 +9,9 @@ from typing import Callable, Dict, Literal, Mapping, Optional, overload, Sequenc
 import cloudpickle
 
 # module
-from ._funsies import Funsie, FunsieHow
 from .errors import Result
-from .logging import logger
+from ._funsies import Funsie, FunsieHow
+from ._logging import logger
 
 # types
 pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]

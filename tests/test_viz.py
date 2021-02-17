@@ -8,10 +8,10 @@ from fakeredis import FakeStrictRedis as Redis
 
 # module
 from funsies import (
-    dag,
+    _dag,
+    _graphviz,
     execute,
     Fun,
-    graphviz,
     morph,
     options,
     put,
@@ -48,14 +48,14 @@ def test_dag_dump() -> None:
 
         out = utils.concat(step1, dat, step2.stdout, step3.stdout)
 
-        dag.build_dag(db, out.hash)
+        _dag.build_dag(db, out.hash)
         execute(step2b)
         execute(step4b)
         wait_for(step4b)
         reset(step4)
 
-        nodes, artefacts, labels = graphviz.export(db, [out.hash, step4b.hash])
-        dot = graphviz.format_dot(nodes, artefacts, labels, [out.hash, step4b.hash])
+        nodes, artefacts, labels = _graphviz.export(db, [out.hash, step4b.hash])
+        dot = _graphviz.format_dot(nodes, artefacts, labels, [out.hash, step4b.hash])
         assert len(dot) > 0
 
         # TODO pass through dot for testing?

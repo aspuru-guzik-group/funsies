@@ -2,9 +2,9 @@
 from . import debug
 from . import types
 from . import utils
-from .context import Fun, ManagedFun, options
+from ._context import Fun, ManagedFun, options
+from ._getter import get
 from .errors import unwrap
-from .getter import get
 from .ui import (
     execute,
     mapping,
@@ -17,6 +17,7 @@ from .ui import (
     takeout,
     wait_for,
 )
+
 
 __all__ = [
     # ui

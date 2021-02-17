@@ -17,6 +17,9 @@ from typing import (
 from redis import Redis
 
 # module
+from ._constants import _AnyPath, hash_t
+from ._context import get_db, get_options
+from ._dag import descendants, start_dag_execution
 from ._graph import (
     Artefact,
     constant_artefact,
@@ -26,15 +29,12 @@ from ._graph import (
     make_op,
     Operation,
 )
+from ._logging import logger
 from ._pyfunc import python_funsie
 from ._shell import shell_funsie, ShellOutput
 from ._short_hash import shorten_hash
 from .config import Options
-from .constants import _AnyPath, hash_t
-from .context import get_db, get_options
-from .dag import descendants, start_dag_execution
 from .errors import Error, Result, unwrap
-from .logging import logger
 
 # Types
 _INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]

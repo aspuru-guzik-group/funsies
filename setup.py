@@ -22,6 +22,6 @@ setuptools.setup(
     ],
     entry_points="""
         [console_scripts]
-        funsies=funsies.cli:main
+        funsies=funsies._cli:main
     """,
 )

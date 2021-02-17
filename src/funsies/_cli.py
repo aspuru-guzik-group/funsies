@@ -19,7 +19,7 @@ import funsies, subprocess, hashlib, loguru  # noqa
 # Local
 from . import __version__, types
 from ._graph import get_status
-from .logging import logger
+from ._logging import logger
 
 
 # This is the main funsies command
@@ -295,7 +295,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(
-                [dag.decode() for dag in db.smembers(funsies.constants.DAG_INDEX)]
+                [dag.decode() for dag in db.smembers(funsies._constants.DAG_INDEX)]
             )
 
         all_data = []

@@ -7,11 +7,11 @@ import rq
 from rq.queue import Queue
 
 # module
+from ._constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation
+from ._logging import logger
+from ._run import run_op, RunStatus
 from ._short_hash import shorten_hash
-from .constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
-from .logging import logger
-from .run import run_op, RunStatus
 
 
 def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:

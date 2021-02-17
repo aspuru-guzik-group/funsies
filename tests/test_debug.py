@@ -7,7 +7,7 @@ from fakeredis import FakeStrictRedis as Redis
 
 # module
 from funsies import debug, Fun, shell
-from funsies.run import run_op
+from funsies._run import run_op
 
 
 def test_shell_run() -> None:

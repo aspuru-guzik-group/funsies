@@ -8,7 +8,7 @@ from fakeredis import FakeStrictRedis as Redis
 
 # module
 from funsies import errors, Fun, mapping, morph, put, reduce, take, utils
-from funsies.run import run_op
+from funsies._run import run_op
 
 
 def test_concat() -> None:

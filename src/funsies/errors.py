@@ -10,7 +10,7 @@ from typing import Optional, Type, TypeVar, Union
 from redis import Redis
 
 # module
-from .constants import ARTEFACTS, hash_t, join
+from ._constants import ARTEFACTS, hash_t, join
 
 
 class UnwrapError(Exception):
