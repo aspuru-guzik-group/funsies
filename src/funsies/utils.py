@@ -79,7 +79,7 @@ def stop_if(
 
 
 def pickled(fun: Callable[..., Any]) -> Callable[..., Any]:
-    """Wrap a function so that args and return values are automatically pickled."""
+    """Wrap a function so that args and return value are automatically pickled."""
 
     def pickled_fun(*inp: bytes) -> Any:
         unpickled = []
@@ -89,11 +89,7 @@ def pickled(fun: Callable[..., Any]) -> Callable[..., Any]:
             except pickle.PickleError:
                 unpickled += [i]
         out = fun(*unpickled)
-
-        if isinstance(out, tuple):
-            return tuple([pickle.dumps(i) for i in out])
-        else:
-            return pickle.dumps(out)
+        return pickle.dumps(out)
 
     pickled_fun.__qualname__ = fun.__qualname__ + "_pickled"
     return pickled_fun
