@@ -81,7 +81,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 @main.command()
 @click.pass_context
 def clean(ctx: click.Context) -> None:
-    """Reset job queues and DAGs."""
+    """Clean job queues and DAGs."""
     db = ctx.obj
     logger.info("cleaning up")
     funsies.context.cleanup_funsies(db)
@@ -198,7 +198,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 )
 @click.pass_context
 def reset(ctx: click.Context, hash: str) -> None:
-    """Enqueue execution of hashes."""
+    """Reset operations and their dependents."""
     db = ctx.obj
     with funsies.context.Fun(db):
         things = funsies.get(hash)
