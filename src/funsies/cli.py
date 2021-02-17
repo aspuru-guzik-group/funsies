@@ -81,7 +81,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 @main.command()
 @click.pass_context
 def clean(ctx: click.Context) -> None:
-    """Reset job queues and DAGs."""
+    """Clean job queues and DAGs."""
     db = ctx.obj
     logger.info("cleaning up")
     funsies.context.cleanup_funsies(db)
@@ -121,6 +121,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.error("hash does not correspond to anything!")
+                raise SystemExit(2)
 
             if len(things) > 1:
                 logger.error(f"hash resolves to {len(things)} things.")
@@ -197,7 +198,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 )
 @click.pass_context
 def reset(ctx: click.Context, hash: str) -> None:
-    """Enqueue execution of hashes."""
+    """Reset operations and their dependents."""
     db = ctx.obj
     with funsies.context.Fun(db):
         things = funsies.get(hash)
@@ -294,7 +295,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(
-                [dag.decode for dag in db.smembers(funsies.constants.DAG_INDEX)]
+                [dag.decode() for dag in db.smembers(funsies.constants.DAG_INDEX)]
             )
 
         all_data = []

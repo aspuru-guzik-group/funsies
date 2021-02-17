@@ -40,7 +40,7 @@ def concat(
     join: Union[Artefact, str, bytes] = b"",
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None
+    connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Concatenate artefacts."""
 
@@ -55,6 +55,26 @@ def concat(
 
     return reduce(
         concatenation, join, *inp, strict=strict, connection=connection, opt=opt
+    )
+
+
+def stop_if(
+    fun: Callable[[bytes], bool],
+    inp: Union[Artefact, str, bytes],
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact:
+    """Stop execution if a condition holds."""
+
+    def __stop_if(inp: bytes) -> bytes:
+        if fun(inp):
+            raise RuntimeError("Data triggered stop.")
+        else:
+            return inp
+
+    fun_name = f"stop_if:{fun.__qualname__}"
+    return reduce(
+        __stop_if, inp, name=fun_name, strict=False, connection=connection, opt=opt
     )
 
 
