@@ -1,4 +1,7 @@
-"""Funsies is a transparently-memoized worfklow engine."""
+"""Funsies is a lightweight workflow engine 🔧.
+
+.. include:: documentation.md
+"""
 from . import debug
 from . import types
 from . import utils
@@ -21,28 +24,21 @@ from .ui import (
 
 __all__ = [
     # ui
-    "execute",
     "shell",
-    "morph",
     "reduce",
+    "morph",
     "mapping",
-    "put",
-    "reset",
     "take",
     "takeout",
+    "put",
+    "execute",
     "wait_for",
-    # context,
+    "reset",
+    "get",
     "Fun",
     "ManagedFun",
-    # dag
-    "execute",
-    # error
     "unwrap",
-    # getter
-    "get",
-    # options
     "options",
-    # submodules
     "utils",
     "debug",
     "types",

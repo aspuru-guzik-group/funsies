@@ -66,32 +66,34 @@ def shell(  # noqa:C901
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> ShellOutput:
-    """Add one or multiple shell commands to the call graph.
+    """Add a shell command to the workflow.
 
-    Make a shell operation. This is a more user-friendly interface than the
-    direct constructor, and it is much more lenient on types.
+    `shell()` puts a shell command in the workflow and returns a `types.ShellOutput`
+    instance that provides a convenient wrapper to stdout, stderr and output
+    files.
 
-    The strict= flag determines how to interpret errors in input files. When
-    set to False, input files with errors will simply (and silently) not be
-    passed to the shell script.
+    The `strict` flag determines how to interpret errors in input files. When
+    set to False, input files with errors will simply (and silently) be
+    excluded from the shell script.
 
     Shell commands are run in a temporary directory which conveys some measure
     of encapsulation, but it is quite weak, so the callee should make sure
     that commands only use relative paths etc. to ensure proper cleanup and
-    lack of side effects. This is done using python's tempfile; the temporary
+    function purity. This is done using python's tempfile; the temporary
     directory can be set using the TMPDIR environment variable.
 
-    Arguments:
-        *args: Shell commands.
-        inp: Input files for task.
-        out: Output files for task.
+    Args:
+        *args: Lines of shell script to be evaluated.
+        inp: Input files to pass to the shell comand.
+        out: Output files to keep from the shell command.
         env: Environment variables to be set.
-        strict: Whether this command should still run even if inputs are errored.
+        strict: Strictness of operation.
         connection: A Redis connection.
-        opt: An Options instance.
+        opt: An `types.Options` instance.
 
     Returns:
-        A Task object.
+        A `types.ShellOutput` object, populated with the generated
+        `types.Artefact` instances.
 
     Raises:
         TypeError: when types of arguments are wrong.
@@ -229,7 +231,36 @@ def reduce(
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
-    """Add to call graph a many-to-one python function."""
+    """Add a many-to-one python function to the workflow.
+
+    `reduce()` puts a python function `fun` on the workflow and returns its
+    output artefact. `fun` should have the following signature,
+
+    `fun(arg1, arg2, arg3, ...) -> bytes`
+
+    As many arguments will be passed to `fun()` as there are input
+    `types.Artefact` instances in `*inp`. Arguments are bytestring of object
+    of type `types.Result`, depending on the strictness of the operation.
+
+    This function is a convenience wrapper around the more general `mapping()`
+    function. Conversely, the `morph()` function is a special case of this one
+    with only one input.
+
+    Args:
+        fun:
+            Python function that operates on input artefacts and produces a
+            single output artefact.
+        *inp: Input artefacts.
+        name:
+            Override the name of the python function used in hash generation.
+        strict: Strictness of operation.
+        opt: An `types.Options` instance.
+        connection: A Redis connection.
+
+    Returns:
+        A `types.Artefact` instance that corresponds to the reduction output.
+
+    """
     if name is not None:
         red_name = name
     else:

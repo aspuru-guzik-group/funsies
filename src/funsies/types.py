@@ -4,6 +4,7 @@ from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._run import RunStatus
 from ._shell import ShellOutput
+from .config import Options
 from .errors import Error, ErrorKind, Result, UnwrapError
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "Result",
     "UnwrapError",
     "RunStatus",
+    "Options",
 ]
