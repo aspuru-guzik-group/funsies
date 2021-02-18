@@ -156,7 +156,7 @@ def test_wait() -> None:
     """Test waiting on things."""
     with Fun(Redis()) as db:
         s = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TimeoutError):
             ui.wait_for(s.stdout, timeout=0)
         run_op(db, s.op.hash)
         ui.wait_for(s.stdout, timeout=0)

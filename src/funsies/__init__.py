@@ -25,9 +25,9 @@ from .ui import (
 __all__ = [
     # ui
     "shell",
+    "mapping",
     "reduce",
     "morph",
-    "mapping",
     "take",
     "takeout",
     "put",
