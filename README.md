@@ -1,7 +1,7 @@
 **funsies** is a library and engine to build reproducible,
 composable computational workflows.
-- 🐍 funsies workflows are entirely in python.
-- 🪶 lightweight library with few dependencies.
+- 🐍 workflows are entirely in python.
+- 🐦 lightweight library with few dependencies.
 - 🚀 easy to deploy.
 - 🔧 embedabble in your own apps.
 
@@ -46,7 +46,7 @@ Here is a funsies "Hello, world!" script,
 ```python
 import funsies as fun
 with fun.Fun():
-    cmd = fun.shell('sleep 2; echo')
+    cmd = fun.shell('sleep 2; echo 👋 🪐')
     fun.execute(cmd)
     print(f"my output is {cmd.stdout.hash[:5]}")
 ```
@@ -84,7 +84,7 @@ re-running it will only recompute changed results. This is achieved using a
 hash tree structure that transparently tracks the history of all data produced
 and consumed.
 
-**funsies completely abstract all filesystem operations.** Funsies "files" are
+**funsies completely abstract all filesystem operations.** "Files" are
 all stored in the database. This abstraction is enforced by running all
 commandline tasks entirely in temporary directories. Any files not explicitly
 saved as an output is **deleted**. By completely abstracting away the
@@ -92,4 +92,19 @@ filesystem, we ensure that every generated result is fully specified within
 the calculation workflow.
 
 
+## Related projects
+funsies is intended as a lightweight alternative to industrial workflow
+engines, such as [Apache Airflow](https://airflow.apache.org/) or
+[Luigi](https://github.com/spotify/luigi). We rely heavily on awesome python
+libraries: [RQ library](https://github.com/rq/rq),
+[loguru](https://github.com/Delgan/loguru) and
+[Click](https://click.palletsprojects.com/). 
 
+funsies is inspired by
+[git](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects),
+[ccache](https://ccache.dev/),
+[snakemake](https://snakemake.readthedocs.io/en/stable/)
+[targets](https://github.com/ropensci/targets),
+[rain](https://github.com/substantic/rain) and others. A comprehensive list of
+other worfklow engine can be found
+[here.](https://github.com/pditommaso/awesome-pipeline)
