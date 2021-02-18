@@ -48,7 +48,14 @@ def execute(
     output: Union[Operation, Artefact, ShellOutput],
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
-    """Execute a DAG to obtain a given output using an RQ queue."""
+    """Trigger execution of a workflow to obtain a given output.
+
+    Args:
+        output: Final artefact or operation to be evaluated in the workflow.
+            It and all of its dependencies will be executed by workers.
+        connection (optional): An explicit Redis connection. Not required if
+            called within a `Fun()` context.
+    """
     # get redis
     db = get_db(connection)
 

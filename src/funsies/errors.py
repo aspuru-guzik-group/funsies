@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Type, TypeVar, Union
+from typing import NewType, Optional, Type, TypeVar, Union
 
 # external
 from redis import Redis
@@ -77,15 +77,34 @@ class Error:
 # A simple mypy result type
 T = TypeVar("T")
 Result = Union[Error, T]
+"""Result contains either a value or an `Error` instance.
+
+`Result[T]` is a type hint that corresponds to `Union[T, Error]`. This is only
+a `typing` abstraction: at runtime, a `Result[T]` is just `T` or `Error` and
+does not exist as a class or instance etc.
+"""
 
 
-def unwrap(dat: Result[T]) -> T:
-    """Unwrap an option type."""
-    if isinstance(dat, Error):
+def unwrap(it: Result[T]) -> T:
+    """Unwrap a `Result` type.
+
+    Unwrap `Result[T]` and return `T`. If `Result[T]` is of type `Error`, this
+    function raises.
+
+    Args:
+        it: `Result[T]`
+
+    Returns:
+        `T`
+
+    Raises:
+        UnwrapError: `Result[T]` is an `Error` instance.
+    """
+    if isinstance(it, Error):
         raise UnwrapError(
-            f"data is errored: kind={dat.kind}"
-            + f"\nsource={dat.source}"
-            + f"\ndetails={dat.details}"
+            f"data is errored: kind={it.kind}"
+            + f"\nsource={it.source}"
+            + f"\ndetails={it.details}"
         )
     else:
-        return dat
+        return it

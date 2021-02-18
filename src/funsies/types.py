@@ -7,6 +7,10 @@ from ._shell import ShellOutput
 from .config import Options
 from .errors import Error, ErrorKind, Result, UnwrapError
 
+# A simple mypy result type
+Result = Result
+"""see `funsies.errors.Result`."""
+
 __all__ = [
     "Funsie",
     "FunsieHow",
