@@ -17,10 +17,10 @@ import rq
 from rq.local import LocalStack
 
 # module
+from ._constants import _AnyPath
+from ._dag import delete_all_dags
+from ._logging import logger
 from .config import Options
-from .constants import _AnyPath
-from .dag import delete_all_dags
-from .logging import logger
 
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()

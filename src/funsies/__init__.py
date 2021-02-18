@@ -1,14 +1,13 @@
-"""Funsies is a transparently-memoized worfklow engine."""
+"""Funsies is a lightweight workflow engine 🔧.
+
+.. include:: documentation.md
+"""
 from . import debug
+from . import types
 from . import utils
-from ._funsies import Funsie, FunsieHow
-from ._graph import Artefact, Operation
-from ._shell import ShellOutput
-from .constants import hash_t
-from .context import Fun, ManagedFun, options
-from .errors import Error, ErrorKind, Result, unwrap, UnwrapError
-from .getter import get
-from .run import run_op, RUNNERS, RunStatus
+from ._context import Fun, ManagedFun, options
+from ._getter import get
+from .errors import unwrap
 from .ui import (
     execute,
     mapping,
@@ -22,47 +21,27 @@ from .ui import (
     wait_for,
 )
 
+
 __all__ = [
     # ui
-    "execute",
     "shell",
-    "morph",
-    "reduce",
     "mapping",
-    "put",
-    "reset",
+    "reduce",
+    "morph",
     "take",
     "takeout",
+    "put",
+    "execute",
     "wait_for",
-    # context,
+    "reset",
+    "get",
     "Fun",
     "ManagedFun",
-    # dag
-    "execute",
-    # error
     "unwrap",
-    # getter
-    "get",
-    # options
     "options",
-    # run
-    "run_op",
-    "RUNNERS",
-    # types
-    "hash_t",
-    "Artefact",
-    "Operation",
-    "ShellOutput",
-    "UnwrapError",
-    "Result",
-    "Error",
-    "ErrorKind",
-    "RunStatus",
-    "Funsie",
-    "FunsieHow",
-    # utils
     "utils",
     "debug",
+    "types",
 ]
 
 # versioning information

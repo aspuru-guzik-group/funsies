@@ -7,6 +7,7 @@ import pytest
 
 # module
 import funsies as f
+from funsies.types import UnwrapError
 
 
 def test_raising_funsie() -> None:
@@ -26,7 +27,7 @@ def test_raising_funsie() -> None:
         s1 = f.reduce(raising_fun, "bla bla", s0a, s0b, strict=True)
         f.execute(s1)
         f.wait_for(s1, timeout=2)
-        with pytest.raises(f.UnwrapError):
+        with pytest.raises(UnwrapError):
             _ = f.take(s1)
 
         s2 = f.morph(lambda x: x, s1)
@@ -51,14 +52,14 @@ def test_timeout_funsie() -> None:
         s1 = f.reduce(timeout_fun, "bla bla", "bla bla", opt=f.options(timeout=1))
         f.execute(s1)
         f.wait_for(s1, timeout=2)
-        with pytest.raises(f.UnwrapError):
+        with pytest.raises(UnwrapError):
             _ = f.take(s1)
 
         # Test when shell function times out
         s1 = f.shell("sleep 20", opt=f.options(timeout=1))
         f.execute(s1)
         f.wait_for(s1, timeout=2)
-        with pytest.raises(f.UnwrapError):
+        with pytest.raises(UnwrapError):
             _ = f.take(s1.stdout)
 
 

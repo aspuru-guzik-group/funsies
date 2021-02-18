@@ -7,7 +7,8 @@ from typing import List, Tuple, Union
 from fakeredis import FakeStrictRedis as Redis
 
 # module
-from funsies import errors, Fun, mapping, morph, put, run_op, take, utils
+from funsies import errors, Fun, mapping, morph, put, reduce, take, utils
+from funsies._run import run_op
 
 
 def test_concat() -> None:
@@ -59,12 +60,21 @@ def test_pickled() -> None:
             out2 = [int(b.decode()) for b in integers if isinstance(b, bytes)]
             return sum(out1), sum(out2)
 
+        def sum_integers_1(*integers: Union[int, bytes]) -> int:
+            out1 = [i for i in integers if isinstance(i, int)]
+            out2 = [int(b.decode()) for b in integers if isinstance(b, bytes)]
+            return sum(out1) + sum(out2)
+
         int1 = put(pickle.dumps(1))
         int8 = put(pickle.dumps(8))
         str5 = put("5")
         str9 = put("9")
-        fun = utils.pickled(sum_integers)
+        fun = utils.pickled(sum_integers, 2)
+        fun2 = utils.pickled(sum_integers_1)
         out_int, out_bytes = mapping(fun, int1, str5, int8, str9, noutputs=2)
+        out_both = reduce(fun2, int1, str5, int8, str9)
         run_op(db, out_int.parent)
+        run_op(db, out_both.parent)
         assert pickle.loads(take(out_int)) == 9
         assert pickle.loads(take(out_bytes)) == 14
+        assert pickle.loads(take(out_both)) == 23

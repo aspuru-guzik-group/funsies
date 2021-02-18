@@ -28,6 +28,9 @@ class Options:
 
     """
 
+    # Instantiation arguments
+    reset: bool = False
+
     # Job options
     timeout: int = INFINITE
     ttl: int = ONE_DAY

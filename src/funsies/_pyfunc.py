@@ -10,8 +10,8 @@ import cloudpickle
 
 # module
 from ._funsies import Funsie, FunsieHow
+from ._logging import logger
 from .errors import Result
-from .logging import logger
 
 # types
 pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]

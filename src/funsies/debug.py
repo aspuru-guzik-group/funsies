@@ -12,11 +12,11 @@ from typing import Optional, Union
 from redis import Redis
 
 # module
+from ._constants import _AnyPath
+from ._context import get_db
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, get_data, Operation
 from ._shell import ShellOutput
-from .constants import _AnyPath
-from .context import get_db
 from .errors import UnwrapError
 from .ui import takeout
 

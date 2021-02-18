@@ -8,19 +8,34 @@ from typing import Optional, Union
 from redis import Redis
 
 # module
-from . import constants as c
+from . import _constants as c
+from ._context import get_db
 from ._funsies import Funsie
 from ._graph import Artefact, Operation
+from ._logging import logger
 from ._short_hash import hash_load
-from .context import get_db
-from .logging import logger
 
 
 def get(
     target: str,
     connection: Optional[Redis[bytes]] = None,
 ) -> list[Union[Artefact, Funsie, Operation]]:
-    """Get the object returned by a given hash value."""
+    """Get object or objects that correspond to a given hash value.
+
+    `get()` returns a list of objects (`Artefact`, `Operation` and `Funsie`
+    instances) currently on the active Redis connection that have a hash
+    address starting with `target`. This function allows programatically
+    retrieving hashes like the ```funsies cat``` command does.
+
+    Args:
+        target: A hash or truncated hash value.
+        connection (optional): An explicit Redis connection. Not required if
+            called within a `Fun()` context.
+
+    Returns:
+        A list of objects with ids that start with `target`. Empty if no such
+        objects exist.
+    """
     db = get_db(connection)
     hashes = hash_load(db, target)
     out: list[Union[Artefact, Funsie, Operation]] = []

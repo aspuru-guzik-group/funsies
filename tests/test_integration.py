@@ -15,12 +15,12 @@ from funsies import (
     morph,
     put,
     reduce,
-    Result,
     shell,
     take,
     utils,
     wait_for,
 )
+from funsies.types import Result
 
 
 def join_bytes(*args: bytes) -> bytes:

@@ -8,7 +8,9 @@ from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _graph, Fun, options, run_op, ui, UnwrapError
+from funsies import _graph, Fun, options, ui
+from funsies._run import run_op
+from funsies.types import UnwrapError
 
 
 def test_shell_run() -> None:
@@ -52,8 +54,9 @@ def test_rm() -> None:
     """Test rm."""
     with Fun(Redis(), options(distributed=False)):
         dat = ui.put("bla bla")
-        # no error because const dat are not removable
-        ui.reset(dat)
+        # removing const artefact raises
+        with pytest.raises(AttributeError):
+            ui.reset(dat)
         ui.take(dat)
 
         def upper(x: bytes) -> bytes:
@@ -154,7 +157,7 @@ def test_wait() -> None:
     """Test waiting on things."""
     with Fun(Redis()) as db:
         s = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TimeoutError):
             ui.wait_for(s.stdout, timeout=0)
         run_op(db, s.op.hash)
         ui.wait_for(s.stdout, timeout=0)

@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="funsies",
-    version="0.3.1",
+    version="0.3.2",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
     description="Funsies is an opinionated typed python library to build"
@@ -22,6 +22,6 @@ setuptools.setup(
     ],
     entry_points="""
         [console_scripts]
-        funsies=funsies.cli:main
+        funsies=funsies._cli:main
     """,
 )

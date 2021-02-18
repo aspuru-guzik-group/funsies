@@ -3,8 +3,10 @@
 from funsies import execute, Fun, reduce, shell
 from funsies.utils import concat, stop_if
 
+
 # To run this example, you will need openbabel and xtb installed and on path
 # on all worker nodes.
+
 
 # This is the routine that outputs the HOMO-LUMO gap out of the xtb output.
 def get_gap(smi: bytes, xtbout: bytes) -> bytes:

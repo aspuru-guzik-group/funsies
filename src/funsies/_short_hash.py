@@ -7,8 +7,8 @@ from __future__ import annotations
 from redis import Redis
 
 # module
-from .constants import HASH_INDEX, hash_t
-from .logging import logger
+from ._constants import HASH_INDEX, hash_t
+from ._logging import logger
 
 # Constants
 SHORT = 6  # Length of short hashes

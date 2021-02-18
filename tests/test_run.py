@@ -8,7 +8,9 @@ from fakeredis import FakeStrictRedis as Redis
 from funsies import _graph
 from funsies import _pyfunc as p
 from funsies import _shell as s
-from funsies import options, run_op, RunStatus
+from funsies import options
+from funsies._run import run_op
+from funsies.types import RunStatus
 
 
 # defaults
