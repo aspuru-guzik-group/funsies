@@ -53,3 +53,13 @@ def mypy(session: Session) -> None:
     args = session.posargs or locations
     session.install("mypy")
     session.run("mypy", *args)
+
+
+# Documentation
+@nox.session(python="3.9")
+def docs(session: Session) -> None:
+    """Make documentation."""
+    session.install("-r", "requirements.txt")
+    session.install("-e", ".", "--no-deps")
+    session.install("pdoc3")
+    session.run("pdoc", "--template-dir", "src/templates", "--html", "funsies")
