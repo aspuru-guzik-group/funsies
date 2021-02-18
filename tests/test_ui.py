@@ -54,8 +54,9 @@ def test_rm() -> None:
     """Test rm."""
     with Fun(Redis(), options(distributed=False)):
         dat = ui.put("bla bla")
-        # no error because const dat are not removable
-        ui.reset(dat)
+        # removing const artefact raises
+        with pytest.raises(AttributeError):
+            ui.reset(dat)
         ui.take(dat)
 
         def upper(x: bytes) -> bytes:
