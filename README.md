@@ -11,7 +11,7 @@ tree data structure enables automatic and transparent caching and incremental
 computing.
 
 ## Installation
-`funsies` is easy to install and deploy. To install from `pip`, simply run the
+funsies is easy to install and deploy. To install from `pip`, simply run the
 following command, 
 ```bash
 pip install git+ssh://git@github.com/aspuru-guzik-group/funsies.git@master
@@ -30,7 +30,7 @@ Other redis-compatible backends such as
 [ardb](https://github.com/yinqiwen/ardb) probably work, but are not tested.
 
 ## Hello, funsies!
-funsies is easy to deploy and simple to use. To run workflows, three
+funsies is fast to deploy and simple to use. To run workflows, three
 components need to be connected:
 
 - 📜 a python script describing the workflow
@@ -98,9 +98,7 @@ engines, such as [Apache Airflow](https://airflow.apache.org/) or
 [Luigi](https://github.com/spotify/luigi). We rely heavily on awesome python
 libraries: [RQ library](https://github.com/rq/rq),
 [loguru](https://github.com/Delgan/loguru) and
-[Click](https://click.palletsprojects.com/). 
-
-funsies is inspired by
+[Click](https://click.palletsprojects.com/). We are inspired by
 [git](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects),
 [ccache](https://ccache.dev/),
 [snakemake](https://snakemake.readthedocs.io/en/stable/)
