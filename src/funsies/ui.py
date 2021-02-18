@@ -196,7 +196,7 @@ def mapping(  # noqa:C901
     outputs as the value of `noutputs`.
 
     If `strict=False`, the function is taken to do it's own error handling and
-    arguments will be of type `types.Result[bytes]` instead of `bytes`. See
+    arguments will be of type `errors.Result[bytes]` instead of `bytes`. See
     `utils.match_results()` for a convenient way to process these values.
 
     Python function hashes are generated based on their names (as given by
@@ -224,7 +224,7 @@ def mapping(  # noqa:C901
         noutputs: Number of outputs of function `fun()`.
         name (optional): Override the name of `fun()` used in hash generation.
         strict (optional): If `False`, error handling will be deferred to
-            `fun()` by passing it argument of type `types.Result[bytes]` instead
+            `fun()` by passing it argument of type `errors.Result[bytes]` instead
             of `bytes`.
         connection (optional): An explicit Redis connection. Not required if
             called within a `Fun()` context.
@@ -401,7 +401,7 @@ def take(
     to running `unwrap()` on the return value.
 
     However if `strict=False`, the return value of `take()` is a
-    `types.Result[bytes]` variable, that is, either an instance of `bytes` or
+    `errors.Result[bytes]` variable, that is, either an instance of `bytes` or
     whatever `types.Error` is currently held by `where`.
 
     Finally, if `where` does not point to a valid redis-backed
