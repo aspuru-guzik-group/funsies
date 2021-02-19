@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 from dataclasses import dataclass
 from enum import Enum
-from typing import NewType, Optional, Type, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union
 
 # external
 from redis import Redis

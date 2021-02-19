@@ -1,3 +1,4 @@
+"""Hello, world!"""
 import funsies as fun
 
 with fun.Fun():
