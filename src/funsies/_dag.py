@@ -117,6 +117,30 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     pipe.execute()
 
 
+def enqueue_dependents(
+    dag_of: hash_t,
+    current: hash_t,
+) -> None:
+    """Enqueue dependents."""
+    job = rq.get_current_job()
+    db: Redis[bytes] = job.connection
+    depen = _dag_dependents(db, dag_of, current)
+    logger.info(f"enqueuing {len(depen)} dependents")
+
+    for dependent in depen:
+        # Run the dependent task
+        options = get_op_options(db, dependent)
+        queue = Queue(connection=db, **options.queue_args)
+
+        logger.info(f"-> {shorten_hash(dependent)}")
+        queue.enqueue_call(
+            task,
+            args=(dag_of, dependent),
+            kwargs=options.task_args,
+            **options.job_args,
+        )
+
+
 def task(
     dag_of: hash_t,
     current: hash_t,
@@ -138,21 +162,7 @@ def task(
 
         if stat > 0:
             # Success! Let's enqueue dependents.
-            depen = _dag_dependents(db, dag_of, current)
-            logger.info(f"enqueuing {len(depen)} dependents")
-
-            for dependent in depen:
-                # Run the dependent task
-                options = get_op_options(db, dependent)
-                queue = Queue(connection=db, **options.queue_args)
-
-                logger.info(f"-> {shorten_hash(dependent)}")
-                queue.enqueue_call(
-                    task,
-                    args=(dag_of, dependent),
-                    kwargs=options.task_args,
-                    **options.job_args,
-                )
+            enqueue_dependents(dag_of, current)
 
     return stat
 
