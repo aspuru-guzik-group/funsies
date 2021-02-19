@@ -36,16 +36,20 @@ from ._logging import logger
 def main(ctx: click.Context, url: str) -> None:
     """Command-line tools for funsies."""
     logger.debug(f"connecting to {url}")
-    db = Redis.from_url(url)
-    try:
-        db.ping()
-    except Exception as e:
-        logger.error("could not connect to server! exiting")
-        logger.error(str(e))
-        sys.exit(-1)
-    logger.debug("connection sucessful")
-    ctx.obj = db
-    logger.info(f"connected to {url}")
+
+    def connect2db() -> Redis[bytes]:
+        db = Redis.from_url(url)
+        try:
+            db.ping()
+        except Exception as e:
+            logger.error("could not connect to server! exiting")
+            logger.error(str(e))
+            sys.exit(-1)
+        logger.debug("connection sucessful")
+        logger.info(f"connected to {url}")
+        return db
+
+    ctx.obj = connect2db
 
 
 @main.command()
@@ -66,7 +70,7 @@ def main(ctx: click.Context, url: str) -> None:
 @click.pass_context
 def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
-    db: Redis[bytes] = ctx.obj
+    db: Redis[bytes] = ctx.obj()
     with Connection(db):
         queues = queues or ["default"]
         if burst:
@@ -82,7 +86,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 @click.pass_context
 def clean(ctx: click.Context) -> None:
     """Clean job queues and DAGs."""
-    db = ctx.obj
+    db = ctx.obj()
     logger.info("cleaning up")
     funsies._context.cleanup_funsies(db)
     logger.success("done")
@@ -98,7 +102,7 @@ def clean(ctx: click.Context) -> None:
 @click.pass_context
 def shutdown(ctx: click.Context, force: bool) -> None:
     """Tell workers to shutdown."""
-    db = ctx.obj
+    db = ctx.obj()
     workers = Worker.all(db)
     logger.info(f"shutting down {len(workers)} workers")
     for worker in workers:
@@ -113,7 +117,7 @@ def shutdown(ctx: click.Context, force: bool) -> None:
 @click.pass_context
 def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print artefacts to stdout."""
-    db = ctx.obj
+    db = ctx.obj()
 
     with funsies._context.Fun(db):
         for hash in hashes:
@@ -166,7 +170,7 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     """Extract all data related to a given hash value."""
     logger.info(f"extracting {hash}")
-    db = ctx.obj
+    db = ctx.obj()
     if output is None:
         output = hash
         output2 = ""
@@ -199,7 +203,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 @click.pass_context
 def reset(ctx: click.Context, hash: str) -> None:
     """Reset operations and their dependents."""
-    db = ctx.obj
+    db = ctx.obj()
     with funsies._context.Fun(db):
         things = funsies.get(hash)
         if len(things) == 0:
@@ -232,7 +236,7 @@ def wait(  # noqa:C901
     ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]
 ) -> None:
     """Wait until redis database or certain hashes are ready."""
-    db = ctx.obj
+    db = ctx.obj()
     if timeout is not None:
         tmax = time.time() + timeout
 
@@ -290,7 +294,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print to stdout a DOT-formatted graph to visualize DAGs."""
     import funsies.graphviz
 
-    db = ctx.obj
+    db = ctx.obj()
     with funsies._context.Fun(db):
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
@@ -326,19 +330,22 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     nargs=-1,
 )
 @click.pass_context
-def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+def execute(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Enqueue execution of hashes."""
-    db = ctx.obj
+    db = ctx.obj()
     with funsies._context.Fun(db):
+        exec_list = []
         for hash in hashes:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
                 if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    funsies.execute(t)
+                    exec_list += [t]
                 else:
-                    logger.warning(f"object with hash {hash} of type {type(t)}")
+                    logger.warning(f"object with hash {hash} of type {type(t)} skipped")
+
+        funsies.execute(*exec_list)
 
 
 if __name__ == "__main__":

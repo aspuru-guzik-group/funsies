@@ -6,7 +6,6 @@ import time
 from typing import (
     Callable,
     Iterable,
-    Literal,
     Mapping,
     Optional,
     overload,
@@ -15,6 +14,12 @@ from typing import (
 
 # external
 from redis import Redis
+
+# python 3.7 imports Literal from typing_extensions
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # type:ignore
 
 # module
 from ._constants import _AnyPath, hash_t
@@ -45,14 +50,15 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 # --------------------------------------------------------------------------------
 # Dag execution
 def execute(
-    output: Union[Operation, Artefact, ShellOutput],
+    *outputs: Union[Operation, Artefact, ShellOutput],
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Trigger execution of a workflow to obtain a given output.
 
     Args:
-        output: Final artefact or operation to be evaluated in the workflow.
-            It and all of its dependencies will be executed by workers.
+        *outputs: Final artefacts or operations to be evaluated in the
+            workflow. These objects and all of their dependencies will be
+            executed by workers.
         connection (optional): An explicit Redis connection. Not required if
             called within a `Fun()` context.
     """
@@ -60,7 +66,8 @@ def execute(
     db = get_db(connection)
 
     # run dag
-    start_dag_execution(db, output.hash)
+    for el in outputs:
+        start_dag_execution(db, el.hash)
 
 
 # --------------------------------------------------------------------------------
@@ -490,7 +497,7 @@ def wait_for(
         if timeout is not None:
             if t1 - t0 > timeout:
                 raise TimeoutError(
-                    f"waited on {shorten_hash(thing.hash)} " + f"for {t1} seconds."
+                    f"waited on {shorten_hash(thing.hash)} " + f"for {t1-t0} seconds."
                 )
 
         # avoids hitting the DB way too often

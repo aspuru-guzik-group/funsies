@@ -4,12 +4,11 @@ from __future__ import annotations
 # std
 from contextlib import contextmanager
 from dataclasses import replace
-import os
 import shutil
 import subprocess
 import tempfile
 import time
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Sequence
 
 # external
 from redis import Redis
@@ -78,12 +77,13 @@ def Fun(
 def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
     if db is None:
+        myjob = rq.get_current_job()
         if _connect_stack.top is not None:
             # try context instance
             out: Redis[bytes] = _connect_stack.top
             return out
-        elif (job := rq.get_current_job()) is not None:
-            out2: Redis[bytes] = job.connection
+        elif myjob is not None:
+            out2: Redis[bytes] = myjob.connection
             return out2
         else:
             raise RuntimeError("No redis instance available.")
@@ -118,6 +118,8 @@ def options(**kwargs: Any) -> Options:
 @contextmanager
 def ManagedFun(
     nworkers: int = 1,
+    worker_args: Optional[Sequence[str]] = None,
+    redis_args: Optional[Sequence[str]] = None,
     defaults: Optional[Options] = None,
     directory: Optional[_AnyPath] = None,
 ) -> Iterator[Redis[bytes]]:
@@ -129,13 +131,20 @@ def ManagedFun(
 
     logger.debug(f"running redis-server in {dir}")
 
+    if worker_args is not None:
+        wargs = [el for el in worker_args]
+    else:
+        wargs = []
+
+    if redis_args is not None:
+        rargs = [el for el in redis_args]
+    else:
+        rargs = []
+
     # Start redis
     port = 16379
     url = f"redis://localhost:{port}"
-    if os.path.exists(os.path.join(dir, "redis.conf")):
-        cmdline = ["redis-server", "redis.conf", "--port", f"{port}"]
-    else:
-        cmdline = ["redis-server", "--port", f"{port}"]
+    cmdline = ["redis-server"] + rargs + ["--port", f"{port}"]
 
     redis_server = subprocess.Popen(
         cmdline,
@@ -150,7 +159,7 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "--url", url, "worker"], cwd=dir)
+        subprocess.Popen(["funsies", "--url", url, "worker"] + wargs, cwd=dir)
         for i in range(nworkers)
     ]
 

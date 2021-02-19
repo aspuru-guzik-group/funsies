@@ -16,7 +16,7 @@ following command,
 ```bash
 pip install git+ssh://git@github.com/aspuru-guzik-group/funsies.git@master
 ```
-Python 3.8 and 3.9 are supported. To run workflows, you'll need a redis
+Python 3.7, 3.8 and 3.9 are supported. To run workflows, you'll need a redis
 server. Redis can be installed using conda,
 ```bash
 conda install redis

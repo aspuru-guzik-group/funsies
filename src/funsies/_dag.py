@@ -1,6 +1,10 @@
 """DAG related utilities."""
 from __future__ import annotations
 
+# std
+import signal
+from types import FrameType
+
 # external
 from redis import Redis
 import rq
@@ -10,7 +14,7 @@ from rq.queue import Queue
 from ._constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation
 from ._logging import logger
-from ._run import run_op, RunStatus
+from ._run import run_op, RunStatus, SignalError
 from ._short_hash import shorten_hash
 
 
@@ -117,6 +121,30 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     pipe.execute()
 
 
+def enqueue_dependents(
+    dag_of: hash_t,
+    current: hash_t,
+) -> None:
+    """Enqueue dependents."""
+    job = rq.get_current_job()
+    db: Redis[bytes] = job.connection
+    depen = _dag_dependents(db, dag_of, current)
+    logger.info(f"enqueuing {len(depen)} dependents")
+
+    for dependent in depen:
+        # Run the dependent task
+        options = get_op_options(db, dependent)
+        queue = Queue(connection=db, **options.queue_args)
+
+        logger.info(f"-> {shorten_hash(dependent)}")
+        queue.enqueue_call(
+            task,
+            args=(dag_of, dependent),
+            kwargs=options.task_args,
+            **options.job_args,
+        )
+
+
 def task(
     dag_of: hash_t,
     current: hash_t,
@@ -124,6 +152,15 @@ def task(
     evaluate: bool = True,
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
+    #
+    # register signals so that can fail gracefully and not block the dag if
+    # killed.
+    def _signal_failure(signum: signal.Signals, frame: FrameType) -> None:
+        raise SignalError(str(signum))
+
+    signal.signal(signal.SIGINT, _signal_failure)
+    signal.signal(signal.SIGTERM, _signal_failure)
+
     # load database
     logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()
@@ -138,21 +175,7 @@ def task(
 
         if stat > 0:
             # Success! Let's enqueue dependents.
-            depen = _dag_dependents(db, dag_of, current)
-            logger.info(f"enqueuing {len(depen)} dependents")
-
-            for dependent in depen:
-                # Run the dependent task
-                options = get_op_options(db, dependent)
-                queue = Queue(connection=db, **options.queue_args)
-
-                logger.info(f"-> {shorten_hash(dependent)}")
-                queue.enqueue_call(
-                    task,
-                    args=(dag_of, dependent),
-                    kwargs=options.task_args,
-                    **options.job_args,
-                )
+            enqueue_dependents(dag_of, current)
 
     return stat
 

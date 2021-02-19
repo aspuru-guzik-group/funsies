@@ -1,13 +1,29 @@
 """Test errors in distributed context."""
+from __future__ import annotations
+
 # std
+from signal import SIGINT, SIGKILL, SIGTERM
 import time
 
 # external
 import pytest
+from redis import Redis
+from rq import Worker
 
 # module
 import funsies as f
 from funsies.types import UnwrapError
+
+
+# utility functions
+def wait_for_workers(db: Redis[bytes], nworkers: int) -> None:
+    """Wait till nworkers are connected."""
+    while True:
+        workers = Worker.all(connection=db)
+        if len(workers) == nworkers:
+            break
+        else:
+            time.sleep(0.1)
 
 
 def test_raising_funsie() -> None:
@@ -35,32 +51,103 @@ def test_raising_funsie() -> None:
         f.wait_for(s2, timeout=0.5)
 
 
-def test_timeout_funsie() -> None:
-    """Test funsie that timeout.
+def test_timeout_deadlock() -> None:
+    """Test funsies that time out.
 
-    This test is specifically designed to catch the deadlock produced when a
-    funsie times out.
-
+    Here we explicitly check if dependents are still enqueued or if the whole
+    thing deadlocks.
     """
 
     def timeout_fun(*inp: bytes) -> bytes:
         time.sleep(3.0)
         return b"what"
 
-    with f.ManagedFun(nworkers=1):
+    def cap(inp: bytes) -> bytes:
+        return inp.capitalize()
+
+    with f.ManagedFun(nworkers=2):
         # Test when python function times out
         s1 = f.reduce(timeout_fun, "bla bla", "bla bla", opt=f.options(timeout=1))
-        f.execute(s1)
-        f.wait_for(s1, timeout=2)
-        with pytest.raises(UnwrapError):
-            _ = f.take(s1)
-
+        s1b = f.morph(cap, s1)
         # Test when shell function times out
-        s1 = f.shell("sleep 20", opt=f.options(timeout=1))
-        f.execute(s1)
-        f.wait_for(s1, timeout=2)
-        with pytest.raises(UnwrapError):
-            _ = f.take(s1.stdout)
+        s2 = f.shell("sleep 20", "echo 'bla bla'", opt=f.options(timeout=1))
+        s2b = f.morph(cap, s2.stdouts[1])
+        f.execute(s1b, s2b)
+
+        # Check err for reduce
+        f.wait_for(s1b, timeout=1.5)
+        err = f.take(s1b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.JobTimedOut
+        assert err.source == s1.parent
+
+        # Check err for shell
+        f.wait_for(s2b, timeout=1.5)
+        err = f.take(s2b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.JobTimedOut
+        assert err.source == s2.hash
+
+
+@pytest.mark.parametrize("nworkers", [1, 2])
+@pytest.mark.parametrize("sig", [SIGTERM, SIGKILL])
+def test_worker_killed(nworkers: int, sig: int) -> None:
+    """Test what happens when 'funsies worker' gets killed."""
+    import os
+
+    def kill_funsies_worker(*inp: bytes) -> bytes:
+        pid = os.getppid()
+        os.kill(pid, sig)
+        time.sleep(2.0)
+        return b"what"
+
+    def cap(inp: bytes) -> bytes:
+        return inp.upper()
+
+    with f.ManagedFun(nworkers=nworkers) as db:
+        wait_for_workers(db, nworkers)
+        s1 = f.reduce(
+            kill_funsies_worker, "bla bla", "bla bla", opt=f.options(timeout=3)
+        )
+        s1b = f.morph(cap, s1)
+        f.execute(s1b)
+
+        if nworkers == 1:
+            # no other workers to pick up the slack
+            with pytest.raises(TimeoutError):
+                f.wait_for(s1b, timeout=1)
+        else:
+            # everything is ok
+            f.wait_for(s1b, timeout=1)
+            assert f.take(s1b) == b"WHAT"
+
+
+@pytest.mark.parametrize("nworkers", [1, 2])
+@pytest.mark.parametrize("sig", [SIGTERM, SIGINT])
+def test_job_killed(nworkers: int, sig: int) -> None:
+    """Test what happens when 'funsies worker' is ok but its job gets killed."""
+    import os
+
+    def kill_self(*inp: bytes) -> bytes:
+        pid = os.getpid()
+        os.kill(pid, sig)
+        time.sleep(2.0)
+        return b"what"
+
+    def cap(inp: bytes) -> bytes:
+        return inp.upper()
+
+    with f.ManagedFun(nworkers=nworkers) as db:
+        wait_for_workers(db, nworkers)
+        s1 = f.reduce(kill_self, "bla bla", "bla bla", opt=f.options(timeout=3))
+        s1b = f.morph(cap, s1)
+        f.execute(s1b)
+
+        # error
+        f.wait_for(s1b, timeout=1)
+        err = f.take(s1b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.KilledBySignal
 
 
 @pytest.mark.parametrize("nworkers", [1, 2, 8])
