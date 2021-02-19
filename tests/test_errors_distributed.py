@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+from signal import SIGINT, SIGKILL, SIGTERM
 import time
 
 # external
@@ -89,21 +90,21 @@ def test_timeout_deadlock() -> None:
 
 
 @pytest.mark.parametrize("nworkers", [1, 2])
-def test_worker_killed(nworkers: int) -> None:
+@pytest.mark.parametrize("sig", [SIGTERM, SIGKILL])
+def test_worker_killed(nworkers: int, sig: int) -> None:
     """Test what happens when 'funsies worker' gets killed."""
     import os
-    from signal import SIGTERM
 
     def kill_funsies_worker(*inp: bytes) -> bytes:
         pid = os.getppid()
-        os.kill(pid, SIGTERM)
+        os.kill(pid, sig)
         time.sleep(2.0)
         return b"what"
 
     def cap(inp: bytes) -> bytes:
         return inp.upper()
 
-    with f.ManagedFun(nworkers=nworkers, worker_args=["--rq-log-level", "DEBUG"]) as db:
+    with f.ManagedFun(nworkers=nworkers) as db:
         wait_for_workers(db, nworkers)
         s1 = f.reduce(
             kill_funsies_worker, "bla bla", "bla bla", opt=f.options(timeout=3)
@@ -122,34 +123,31 @@ def test_worker_killed(nworkers: int) -> None:
 
 
 @pytest.mark.parametrize("nworkers", [1, 2])
-def test_job_killed(nworkers: int) -> None:
+@pytest.mark.parametrize("sig", [SIGTERM, SIGINT])
+def test_job_killed(nworkers: int, sig: int) -> None:
     """Test what happens when 'funsies worker' is ok but its job gets killed."""
     import os
-    from signal import SIGTERM
 
     def kill_self(*inp: bytes) -> bytes:
         pid = os.getpid()
-        os.kill(pid, SIGTERM)
+        os.kill(pid, sig)
         time.sleep(2.0)
         return b"what"
 
     def cap(inp: bytes) -> bytes:
         return inp.upper()
 
-    with f.ManagedFun(nworkers=nworkers, worker_args=["--rq-log-level", "DEBUG"]) as db:
+    with f.ManagedFun(nworkers=nworkers) as db:
         wait_for_workers(db, nworkers)
         s1 = f.reduce(kill_self, "bla bla", "bla bla", opt=f.options(timeout=3))
         s1b = f.morph(cap, s1)
         f.execute(s1b)
 
-        if nworkers == 1:
-            # no other workers to pick up the slack
-            with pytest.raises(TimeoutError):
-                f.wait_for(s1b, timeout=1)
-        else:
-            # everything is ok
-            f.wait_for(s1b, timeout=1)
-            assert f.take(s1b) == b"WHAT"
+        # error
+        f.wait_for(s1b, timeout=1)
+        err = f.take(s1b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.KilledBySignal
 
 
 @pytest.mark.parametrize("nworkers", [1, 2, 8])

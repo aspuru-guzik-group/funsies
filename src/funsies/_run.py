@@ -31,6 +31,12 @@ from .errors import Error, ErrorKind, Result
 RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
 
 
+class SignalError(Exception):
+    """Error raised by signal handler."""
+
+    pass
+
+
 class RunStatus(IntEnum):
     """Possible status of running an operation."""
 
@@ -124,8 +130,9 @@ def run_op(  # noqa:C901
     logger.info("running...")
     try:
         out_data = runner(funsie, input_data)
+
+    # Timed out
     except rq.timeouts.JobTimeoutException as e:
-        # much trouble
         for val in op.out.values():
             mark_error(
                 db,
@@ -139,6 +146,25 @@ def run_op(  # noqa:C901
         logger.error("DONE: runner timed out.")
         return RunStatus.executed
 
+    # Killed by signal
+    except SignalError as e:
+        logger.exception("runner raised!")
+        tb_exc = traceback.format_exc()
+        # much trouble
+        for val in op.out.values():
+            mark_error(
+                db,
+                val,
+                error=Error(
+                    kind=ErrorKind.KilledBySignal,
+                    source=op.hash,
+                    details=f"signal={e}",
+                ),
+            )
+        logger.error("DONE: runner killed by signal.")
+        return RunStatus.executed
+
+    # Anything else
     except Exception:
         logger.exception("runner raised!")
         tb_exc = traceback.format_exc()

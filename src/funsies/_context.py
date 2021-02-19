@@ -4,12 +4,11 @@ from __future__ import annotations
 # std
 from contextlib import contextmanager
 from dataclasses import replace
-import os
 import shutil
 import subprocess
 import tempfile
 import time
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Sequence
 
 # external
 from redis import Redis

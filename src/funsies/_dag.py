@@ -1,6 +1,10 @@
 """DAG related utilities."""
 from __future__ import annotations
 
+# std
+import signal
+from types import FrameType
+
 # external
 from redis import Redis
 import rq
@@ -10,7 +14,7 @@ from rq.queue import Queue
 from ._constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation
 from ._logging import logger
-from ._run import run_op, RunStatus
+from ._run import run_op, RunStatus, SignalError
 from ._short_hash import shorten_hash
 
 
@@ -148,6 +152,15 @@ def task(
     evaluate: bool = True,
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
+    #
+    # register signals so that can fail gracefully and not block the dag if
+    # killed.
+    def _signal_failure(signum: signal.Signals, frame: FrameType) -> None:
+        raise SignalError(str(signum))
+
+    signal.signal(signal.SIGINT, _signal_failure)
+    signal.signal(signal.SIGTERM, _signal_failure)
+
     # load database
     logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()

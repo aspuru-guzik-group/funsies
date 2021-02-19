@@ -29,6 +29,7 @@ class ErrorKind(str, Enum):
     ExceptionRaised = "ExceptionRaised"
     JobTimedOut = "JobTimedOut"
     NoErrorData = "NoErrorData"
+    KilledBySignal = "KilledBySignal"
 
 
 @dataclass
