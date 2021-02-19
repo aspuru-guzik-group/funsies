@@ -44,7 +44,16 @@ __all__ = [
     "types",
 ]
 
-# versioning information
-from importlib import metadata  # noqa
 
-__version__ = metadata.version("funsies")
+# Version information
+# We grab it from setup.py so that we don't have to bump versions in multiple
+# places.
+try:
+    from importlib import metadata
+
+    __version__ = metadata.version("funsies")
+except ImportError:
+    # Running on pre-3.8 Python; use importlib-metadata package
+    import importlib_metadata
+
+    __version__ = importlib_metadata.version("funsies")

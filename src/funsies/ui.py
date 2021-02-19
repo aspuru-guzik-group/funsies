@@ -6,7 +6,6 @@ import time
 from typing import (
     Callable,
     Iterable,
-    Literal,
     Mapping,
     Optional,
     overload,
@@ -15,6 +14,12 @@ from typing import (
 
 # external
 from redis import Redis
+
+# python 3.7 imports Literal from typing_extensions
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 # module
 from ._constants import _AnyPath, hash_t

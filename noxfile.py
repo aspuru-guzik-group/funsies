@@ -6,7 +6,7 @@ from nox.sessions import Session
 package = "funsies"
 nox.options.sessions = "black", "lint", "tests", "mypy"  # default session
 locations = "examples", "src", "tests", "noxfile.py"  # Linting locations
-pyversions = ["3.8", "3.9"]
+pyversions = ["3.7", "3.8", "3.9"]
 
 
 # Testing
@@ -16,7 +16,7 @@ def tests(session: Session) -> None:
     args = session.posargs or ["--cov"]
     session.install("-r", "requirements.txt")
     session.install("pytest", "pytest-cov")
-    session.install("-e", ".", "--no-deps")
+    session.install("-e", ".")
     session.run("pytest", *args)
 
 
@@ -60,6 +60,6 @@ def mypy(session: Session) -> None:
 def docs(session: Session) -> None:
     """Make documentation."""
     session.install("-r", "requirements.txt")
-    session.install("-e", ".", "--no-deps")
+    session.install("-e", ".")
     session.install("pdoc3")
     session.run("pdoc", "--template-dir", "src/templates", "--html", "funsies")

@@ -78,12 +78,13 @@ def Fun(
 def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
     if db is None:
+        myjob = rq.get_current_job()
         if _connect_stack.top is not None:
             # try context instance
             out: Redis[bytes] = _connect_stack.top
             return out
-        elif (job := rq.get_current_job()) is not None:
-            out2: Redis[bytes] = job.connection
+        elif myjob is not None:
+            out2: Redis[bytes] = myjob.connection
             return out2
         else:
             raise RuntimeError("No redis instance available.")

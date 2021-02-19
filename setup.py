@@ -13,12 +13,14 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
     # Dependencies
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     install_requires=[
         "redis",
         "cloudpickle",
         "rq>=1.7",
         "loguru",
+        'importlib-metadata ~= 1.0 ; python_version < "3.8"',
+        'typing_extensions ; python_version < "3.8"',
     ],
     entry_points="""
         [console_scripts]
