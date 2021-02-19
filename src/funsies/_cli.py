@@ -326,19 +326,22 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     nargs=-1,
 )
 @click.pass_context
-def run(ctx: click.Context, hashes: tuple[str, ...]) -> None:
+def execute(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Enqueue execution of hashes."""
     db = ctx.obj
     with funsies._context.Fun(db):
+        exec_list = []
         for hash in hashes:
             things = funsies.get(hash)
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
                 if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    funsies.execute(t)
+                    exec_list += [t]
                 else:
-                    logger.warning(f"object with hash {hash} of type {type(t)}")
+                    logger.warning(f"object with hash {hash} of type {type(t)} skipped")
+
+        funsies.execute(*exec_list)
 
 
 if __name__ == "__main__":

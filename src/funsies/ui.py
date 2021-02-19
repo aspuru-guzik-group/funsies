@@ -45,14 +45,15 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 # --------------------------------------------------------------------------------
 # Dag execution
 def execute(
-    output: Union[Operation, Artefact, ShellOutput],
+    *outputs: Union[Operation, Artefact, ShellOutput],
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Trigger execution of a workflow to obtain a given output.
 
     Args:
-        output: Final artefact or operation to be evaluated in the workflow.
-            It and all of its dependencies will be executed by workers.
+        *outputs: Final artefacts or operations to be evaluated in the
+            workflow. These objects and all of their dependencies will be
+            executed by workers.
         connection (optional): An explicit Redis connection. Not required if
             called within a `Fun()` context.
     """
@@ -60,7 +61,8 @@ def execute(
     db = get_db(connection)
 
     # run dag
-    start_dag_execution(db, output.hash)
+    for el in outputs:
+        start_dag_execution(db, el.hash)
 
 
 # --------------------------------------------------------------------------------
