@@ -12,7 +12,7 @@ import cloudpickle
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal  # type:ignore
 
 # module
 from ._funsies import Funsie, FunsieHow
