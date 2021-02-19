@@ -27,6 +27,7 @@ class ErrorKind(str, Enum):
     MissingOutput = "MissingOutput"
     MissingInput = "MissingInput"
     ExceptionRaised = "ExceptionRaised"
+    JobTimedOut = "JobTimedOut"
     NoErrorData = "NoErrorData"
 
 

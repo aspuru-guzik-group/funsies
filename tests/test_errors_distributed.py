@@ -35,32 +35,42 @@ def test_raising_funsie() -> None:
         f.wait_for(s2, timeout=0.5)
 
 
-def test_timeout_funsie() -> None:
-    """Test funsie that timeout.
+def test_timeout_deadlock() -> None:
+    """Test funsies that time out.
 
-    This test is specifically designed to catch the deadlock produced when a
-    funsie times out.
-
+    Here we explicitly check if dependents are still enqueued or if the whole
+    thing deadlocks.
     """
 
     def timeout_fun(*inp: bytes) -> bytes:
         time.sleep(3.0)
         return b"what"
 
-    with f.ManagedFun(nworkers=1):
+    def cap(inp: bytes) -> bytes:
+        return inp.capitalize()
+
+    with f.ManagedFun(nworkers=2):
         # Test when python function times out
         s1 = f.reduce(timeout_fun, "bla bla", "bla bla", opt=f.options(timeout=1))
-        f.execute(s1)
-        f.wait_for(s1, timeout=2)
-        with pytest.raises(UnwrapError):
-            _ = f.take(s1)
-
+        s1b = f.morph(cap, s1)
         # Test when shell function times out
-        s1 = f.shell("sleep 20", opt=f.options(timeout=1))
-        f.execute(s1)
-        f.wait_for(s1, timeout=2)
-        with pytest.raises(UnwrapError):
-            _ = f.take(s1.stdout)
+        s2 = f.shell("sleep 20", "echo 'bla bla'", opt=f.options(timeout=1))
+        s2b = f.morph(cap, s2.stdouts[1])
+        f.execute(s1b, s2b)
+
+        # Check err for reduce
+        f.wait_for(s1b, timeout=1.5)
+        err = f.take(s1b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.JobTimedOut
+        assert err.source == s1.parent
+
+        # Check err for shell
+        f.wait_for(s2b, timeout=1.5)
+        err = f.take(s2b, strict=False)
+        assert isinstance(err, f.errors.Error)
+        assert err.kind == f.errors.ErrorKind.JobTimedOut
+        assert err.source == s2.hash
 
 
 @pytest.mark.parametrize("nworkers", [1, 2, 8])

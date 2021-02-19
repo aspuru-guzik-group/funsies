@@ -8,6 +8,7 @@ from typing import Union
 
 # external
 from redis import Redis
+import rq
 
 # module
 from ._constants import ARTEFACTS, hash_t, join
@@ -123,6 +124,21 @@ def run_op(  # noqa:C901
     logger.info("running...")
     try:
         out_data = runner(funsie, input_data)
+    except rq.timeouts.JobTimeoutException as e:
+        # much trouble
+        for val in op.out.values():
+            mark_error(
+                db,
+                val,
+                error=Error(
+                    kind=ErrorKind.JobTimedOut,
+                    source=op.hash,
+                    details=e.args[0],
+                ),
+            )
+        logger.error("DONE: runner timed out.")
+        return RunStatus.executed
+
     except Exception:
         logger.exception("runner raised!")
         tb_exc = traceback.format_exc()
