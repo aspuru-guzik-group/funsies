@@ -42,7 +42,11 @@ even be connected at different time. Redis is started using `redis-server`,
 workers are started using `funsies worker` and the workflow is run using
 python.
 
-Here is a funsies "Hello, world!" script,
+First, we start a redis server,
+```python
+$ redis-server &
+```
+Next, we write a little funsies "Hello, world!" script,
 ```python
 import funsies as fun
 with fun.Fun():
@@ -50,10 +54,8 @@ with fun.Fun():
     fun.execute(cmd)
     print(f"my output is {cmd.stdout.hash[:5]}")
 ```
-The python script should be run while connected to redis. For a local
-installation,
+The workflow is just a normal python script,
 ```bash
-$ redis-server &
 $ python hello-world.py
 my output is c2a8f
 ```
