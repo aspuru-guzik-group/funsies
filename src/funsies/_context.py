@@ -119,6 +119,8 @@ def options(**kwargs: Any) -> Options:
 @contextmanager
 def ManagedFun(
     nworkers: int = 1,
+    worker_args: Optional[Sequence[str]] = None,
+    redis_args: Optional[Sequence[str]] = None,
     defaults: Optional[Options] = None,
     directory: Optional[_AnyPath] = None,
 ) -> Iterator[Redis[bytes]]:
@@ -130,13 +132,20 @@ def ManagedFun(
 
     logger.debug(f"running redis-server in {dir}")
 
+    if worker_args is not None:
+        wargs = [el for el in worker_args]
+    else:
+        wargs = []
+
+    if redis_args is not None:
+        rargs = [el for el in redis_args]
+    else:
+        rargs = []
+
     # Start redis
     port = 16379
     url = f"redis://localhost:{port}"
-    if os.path.exists(os.path.join(dir, "redis.conf")):
-        cmdline = ["redis-server", "redis.conf", "--port", f"{port}"]
-    else:
-        cmdline = ["redis-server", "--port", f"{port}"]
+    cmdline = ["redis-server"] + rargs + ["--port", f"{port}"]
 
     redis_server = subprocess.Popen(
         cmdline,
@@ -151,7 +160,7 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "--url", url, "worker"], cwd=dir)
+        subprocess.Popen(["funsies", "--url", url, "worker"] + wargs, cwd=dir)
         for i in range(nworkers)
     ]
 

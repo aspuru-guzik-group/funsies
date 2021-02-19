@@ -53,7 +53,7 @@ def test_integration(reference: str, nworkers: int) -> None:
     test_data = {}
 
     # Start funsie script
-    with ManagedFun(nworkers=nworkers, directory=dir):
+    with ManagedFun(nworkers=nworkers, directory=dir, redis_args=["redis.conf"]):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell(
