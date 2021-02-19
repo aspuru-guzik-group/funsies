@@ -497,7 +497,7 @@ def wait_for(
         if timeout is not None:
             if t1 - t0 > timeout:
                 raise TimeoutError(
-                    f"waited on {shorten_hash(thing.hash)} " + f"for {t1} seconds."
+                    f"waited on {shorten_hash(thing.hash)} " + f"for {t1-t0} seconds."
                 )
 
         # avoids hitting the DB way too often
