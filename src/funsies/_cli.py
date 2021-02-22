@@ -292,7 +292,7 @@ def wait(  # noqa:C901
 @click.pass_context
 def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print to stdout a DOT-formatted graph to visualize DAGs."""
-    import funsies.graphviz
+    import funsies._graphviz
 
     db = ctx.obj()
     with funsies._context.Fun(db):
@@ -313,8 +313,8 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 
         if len(all_data):
             logger.info(f"writing graph for {len(all_data)} objects")
-            out = funsies.graphviz.format_dot(
-                *funsies.graphviz.export(db, all_data), targets=all_data
+            out = funsies._graphviz.format_dot(
+                *funsies._graphviz.export(db, all_data), targets=all_data
             )
             sys.stdout.write(out)
             logger.success("done")
