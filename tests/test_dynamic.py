@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # external
 from fakeredis import FakeStrictRedis as Redis
+import pytest
 
 # module
 import funsies
@@ -45,7 +46,8 @@ def test_map_reduce() -> None:
         print(final.hash)
 
 
-def test_nested_map_reduce(nworkers:int) -> None:
+@pytest.mark.parametrize("nworkers", [1, 8])
+def test_nested_map_reduce(nworkers: int) -> None:
     """Test nested map-reduce."""
 
     def sum_inputs(*inp: bytes) -> bytes:
@@ -60,7 +62,7 @@ def test_nested_map_reduce(nworkers:int) -> None:
         return out
 
     def apply2(inp: dict[str, Artefact]) -> dict[str, Artefact]:
-        return {"out": funsies.reduce(sum_inputs, inp['out'], '1')}
+        return {"out": funsies.reduce(sum_inputs, inp["out"], "1")}
 
     def combine2(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
         return {"out": funsies.reduce(sum_inputs, *[el["out"] for el in inp])}
@@ -72,7 +74,11 @@ def test_nested_map_reduce(nworkers:int) -> None:
 
     def apply(inp: dict[str, Artefact]) -> dict[str, Artefact]:
         operation = dynamic.map_reduce(
-            split2, apply2, combine2, inp={"in": inp["out"]}, out=["out"],
+            split2,
+            apply2,
+            combine2,
+            inp={"in": inp["out"]},
+            out=["out"],
         )
         return {"out": Artefact.grab(funsies._context.get_db(), operation.out["out"])}
 
@@ -94,7 +100,4 @@ def test_nested_map_reduce(nworkers:int) -> None:
         final = funsies.morph(lambda x: x, g)
         funsies.execute(final)
         funsies.wait_for(final)
-        assert funsies.take(final) == b'5,,17,,24,,2'
-
-
-test_nested_map_reduce(1)
+        assert funsies.take(final) == b"5,,17,,24,,2"

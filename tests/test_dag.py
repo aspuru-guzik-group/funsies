@@ -18,7 +18,7 @@ from funsies import (
     shell,
     take,
 )
-from funsies._constants import DAG_INDEX, DAG_STORE, hash_t
+from funsies._constants import DAG_INDEX, DAG_RUNNING, hash_t, join
 from funsies.utils import concat
 
 
@@ -31,15 +31,15 @@ def test_dag_build() -> None:
         output = step2.stdout
 
         _dag.build_dag(db, output.hash)
-        assert len(db.smembers(DAG_STORE + output.hash)) == 2
+        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 2
 
         # test deletion
         _dag.delete_all_dags(db)
-        assert len(db.smembers(DAG_STORE + output.hash)) == 0
+        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 0
 
         # test new _dag
         _dag.build_dag(db, step1.hash)
-        assert len(db.smembers(DAG_STORE + step1.hash)) == 1
+        assert len(db.smembers(join(DAG_RUNNING, step1.hash))) == 1
 
         assert len(_dag.descendants(db, step1.parent)) == 1
         # assert len(_dag.descendants(db, step1.hash)) == 1
@@ -149,24 +149,6 @@ def test_dag_execute_same_root() -> None:
         execute(step2b)
         out = take(step2b.stdout)
         assert out == b"BLA BLA"
-
-
-def test_dag_cleanup() -> None:
-    """Test _dag cleanups."""
-    with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
-        step1 = morph(lambda x: x.decode().upper().encode(), dat)
-        step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
-
-        execute(step2)
-        out = take(step2.stdout)
-        assert out == b"BLA BLAbla bla"
-
-    with Fun(db, options(distributed=False), cleanup=False):
-        assert len(db.smembers(DAG_INDEX)) == 1
-
-    with Fun(db, options(distributed=False), cleanup=True):
-        assert len(db.smembers(DAG_INDEX)) == 0
 
 
 def test_dag_large() -> None:

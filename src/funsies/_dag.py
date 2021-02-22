@@ -12,7 +12,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
+from ._constants import DAG_INDEX, DAG_RUNNING, DAG_DONE, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
 from ._run import run_op, RunStatus, SignalError
@@ -35,14 +35,15 @@ def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
 def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op within a given DAG."""
     return __set_as_hashes(
-        db, DAG_STORE + dag_of, join(OPERATIONS, op_from, "children")
+        db, join(DAG_RUNNING, dag_of), join(OPERATIONS, op_from, "children")
     )
 
 
 def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in db.smembers(DAG_INDEX):
-        db.delete(DAG_STORE + dag.decode())  # type:ignore
+        db.delete(join(DAG_RUNNING, dag.decode()))  # type:ignore
+        db.delete(join(DAG_DONE, dag.decode()))  # type:ignore
 
     # Remove old index
     db.delete(DAG_INDEX)
@@ -116,11 +117,16 @@ def build_dag(
     logger.debug(f"{node.hash[:6]} has {len(ancs)} ancestors")
 
     if subdag is None:
-        dag_of = str(address)
+        dag_of = address
     else:
-        dag_of = f"{subdag}:{address}"
-    pipe = db.pipeline()
-    key = DAG_STORE + dag_of
+        dag_of = hash_t(f"{subdag}/{address}")
+
+    # delete old data
+    db.delete(join(DAG_RUNNING, dag_of))
+    db.delete(join(DAG_DONE, dag_of))
+
+    pipe = db.pipeline(transaction=False)
+    key = join(DAG_RUNNING, dag_of)
     pipe.sadd(key, node.hash)  # need to run this at least
     for k in ancs:
         pipe.sadd(key, k)
@@ -151,7 +157,7 @@ def enqueue_dependents(
             **options.job_args,
         )
 
-    components = dag_of.split(":")
+    components = dag_of.split("/")
     if len(components) > 1:
         evaluating = components[-1]
         from_op = components[-2]
@@ -161,9 +167,13 @@ def enqueue_dependents(
             logger.info(f"enqueuing dependents of {shorten_hash(hash_t(from_op))}")
             logger.info(
                 "within dag of"
-                + f' {":".join([shorten_hash(hash_t(el)) for el in in_parent_dag])}'
+                + f' {"/".join([shorten_hash(hash_t(el)) for el in in_parent_dag])}'
             )
-            enqueue_dependents(hash_t(":".join(in_parent_dag)), hash_t(from_op))
+            enqueue_dependents(hash_t("/".join(in_parent_dag)), hash_t(from_op))
+
+    # Finally, if we have enqueued dependents it means that this specific
+    # operation can now be removed from the active ones.
+    db.smove(join(DAG_RUNNING, dag_of), join(DAG_DONE, dag_of), current)  # type:ignore
 
 
 def task(
@@ -200,7 +210,7 @@ def task(
                 ln = resolve_link(db, value)
                 art = Artefact.grab(db, ln)
                 logger.info(f"starting subdag -> {shorten_hash(art.parent)}")
-                start_dag_execution(db, art.parent, subdag=f"{dag_of}:{current}")
+                start_dag_execution(db, art.parent, subdag=f"{dag_of}/{current}")
 
         if stat > 0:
             # Success! Let's enqueue dependents.
@@ -217,7 +227,7 @@ def start_dag_execution(
     build_dag(db, data_output, subdag)
 
     if subdag is not None:
-        dag_of = hash_t(f"{subdag}:{data_output}")
+        dag_of = hash_t(f"{subdag}/{data_output}")
     else:
         dag_of = data_output
 

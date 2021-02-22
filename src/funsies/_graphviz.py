@@ -10,7 +10,7 @@ from typing import cast, Dict
 from redis import Redis
 
 # module
-from ._constants import DAG_INDEX, DAG_STORE, hash_t
+from ._constants import DAG_INDEX, DAG_RUNNING, DAG_DONE, hash_t, join
 from ._dag import build_dag
 from ._funsies import Funsie, FunsieHow
 from ._graph import ArtefactStatus, get_status, Operation
@@ -50,7 +50,9 @@ def export(
             build_dag(db, address)
 
         # add node data
-        for element in db.smembers(DAG_STORE + address):
+        for element in db.sunion(
+            join(DAG_RUNNING, address), join(DAG_DONE, address)
+        ):  # type:ignore
             element = cast(bytes, element)
             # all the operations
             h = hash_t(element.decode())
