@@ -47,9 +47,9 @@ def delete_all_dags(db: Redis[bytes]) -> None:
     db.delete(DAG_INDEX)
 
 
-def ancestors(db: Redis[bytes], address: hash_t) -> set[hash_t]:
+def ancestors(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
     """Get all ancestors of a given hash."""
-    queue = [address]
+    queue = list(addresses)
     out = set()
 
     while len(queue) > 0:
@@ -66,9 +66,9 @@ def ancestors(db: Redis[bytes], address: hash_t) -> set[hash_t]:
     return out
 
 
-def descendants(db: Redis[bytes], address: hash_t) -> set[hash_t]:
+def descendants(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
     """Get all descendants of a given hash."""
-    queue = [address]
+    queue = list(addresses)
     out = set()
 
     while len(queue) > 0:

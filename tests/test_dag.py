@@ -1,4 +1,4 @@
-"""Test of Funsies shell capabilities."""
+"""Tests of funsies dag traversal."""
 # std
 
 # external

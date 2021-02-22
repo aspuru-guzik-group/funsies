@@ -360,7 +360,11 @@ def make_op(
     root = True
     for k in inp_art.keys():
         v = inp[k]
+        # register op as dependent of artefacts
+        pipe.sadd(join(ARTEFACTS, v.hash, "dependents"), ophash)
+
         if v.parent != "root":
+            # register ops as dependents of other ops
             pipe.sadd(join(OPERATIONS, ophash, "parents"), v.parent)
             pipe.sadd(join(OPERATIONS, v.parent, "children"), ophash)
             root = False
