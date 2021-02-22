@@ -178,10 +178,6 @@ def shell(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Data transformers
-# class __LaxMapping(Protocol):
-#     def __call__(
-
-
 def mapping(  # noqa:C901
     fun: Callable,  # type:ignore
     *inp: Union[Artefact, str, bytes],
