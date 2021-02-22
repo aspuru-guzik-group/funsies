@@ -72,7 +72,7 @@ def test_nested_map_reduce(nworkers:int) -> None:
 
     def apply(inp: dict[str, Artefact]) -> dict[str, Artefact]:
         operation = dynamic.map_reduce(
-            split2, apply2, combine2, inp={"in": inp["out"]}, out=["out"]
+            split2, apply2, combine2, inp={"in": inp["out"]}, out=["out"],
         )
         return {"out": Artefact.grab(funsies._context.get_db(), operation.out["out"])}
 

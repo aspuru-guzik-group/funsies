@@ -12,6 +12,7 @@ import rq
 
 # module
 from ._constants import ARTEFACTS, hash_t, join
+from ._context import _options_stack
 from ._funsies import Funsie, FunsieHow
 from ._graph import (
     Artefact,
@@ -115,6 +116,10 @@ def run_op(  # noqa:C901
 
     # load the funsie
     funsie = Funsie.grab(db, op.funsie)
+
+    # set options in case we need them in the funsie
+    _options_stack.push(op.options)
+    # we don't have to pop it later because this process is going to die
 
     # load input files
     input_data: dict[str, Result[bytes]] = {}

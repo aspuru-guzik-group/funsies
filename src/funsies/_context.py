@@ -17,7 +17,6 @@ from rq.local import LocalStack
 
 # module
 from ._constants import _AnyPath
-from ._dag import delete_all_dags
 from ._logging import logger
 from .config import Options
 
@@ -32,9 +31,6 @@ def cleanup_funsies(connection: Redis[bytes]) -> None:
     queues = rq.Queue.all(connection=connection)
     for queue in queues:
         queue.delete(delete_jobs=True)
-
-    # Now we cleanup all the old dags that are lying around
-    delete_all_dags(connection)
 
 
 # --------------------------------------------------------------------------------
