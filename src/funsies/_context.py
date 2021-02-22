@@ -47,8 +47,8 @@ def Fun(
 ) -> Iterator[Redis[bytes]]:
     """Context manager for redis connections."""
     if connection is None:
-        connection = Redis(decode_responses=False)
         logger.warning("Opening new redis connection with default settings...")
+        connection = Redis(decode_responses=False)
 
     if defaults is None:
         defaults = Options()

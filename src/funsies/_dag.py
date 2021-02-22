@@ -4,6 +4,7 @@ from __future__ import annotations
 # std
 import signal
 from types import FrameType
+from typing import Optional
 
 # external
 from redis import Redis
@@ -12,7 +13,7 @@ from rq.queue import Queue
 
 # module
 from ._constants import DAG_INDEX, DAG_STORE, hash_t, join, OPERATIONS
-from ._graph import Artefact, get_op_options, Operation
+from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
 from ._run import run_op, RunStatus, SignalError
 from ._short_hash import shorten_hash
@@ -81,7 +82,9 @@ def descendants(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
     return out
 
 
-def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
+def build_dag(
+    db: Redis[bytes], address: hash_t, subdag: Optional[str] = None
+) -> None:  # noqa:C901
     """Setup DAG required to compute the result at a specific address."""
     root = "root"
     art = None
@@ -112,12 +115,16 @@ def build_dag(db: Redis[bytes], address: hash_t) -> None:  # noqa:C901
     ancs = ancestors(db, node.hash)
     logger.debug(f"{node.hash[:6]} has {len(ancs)} ancestors")
 
+    if subdag is None:
+        dag_of = str(address)
+    else:
+        dag_of = f"{subdag}:{address}"
     pipe = db.pipeline()
-    key = DAG_STORE + address
+    key = DAG_STORE + dag_of
     pipe.sadd(key, node.hash)  # need to run this at least
     for k in ancs:
         pipe.sadd(key, k)
-    pipe.sadd(DAG_INDEX, address)
+    pipe.sadd(DAG_INDEX, dag_of)
     pipe.execute()
 
 
@@ -143,6 +150,20 @@ def enqueue_dependents(
             kwargs=options.task_args,
             **options.job_args,
         )
+
+    components = dag_of.split(":")
+    if len(components) > 1:
+        evaluating = components[-1]
+        from_op = components[-2]
+        in_parent_dag = components[:-2]
+        if current == evaluating:
+            logger.info("done evaluating subdag")
+            logger.info(f"enqueuing dependents of {shorten_hash(hash_t(from_op))}")
+            logger.info(
+                "within dag of"
+                + f' {":".join([shorten_hash(hash_t(el)) for el in in_parent_dag])}'
+            )
+            enqueue_dependents(hash_t(":".join(in_parent_dag)), hash_t(from_op))
 
 
 def task(
@@ -173,6 +194,14 @@ def task(
         # Now we run the job
         stat = run_op(db, op, evaluate=evaluate)
 
+        if stat == RunStatus.subdag_ready:
+            # We have created a subdag
+            for value in op.out.values():
+                ln = resolve_link(db, value)
+                art = Artefact.grab(db, ln)
+                logger.info(f"starting subdag -> {shorten_hash(art.parent)}")
+                start_dag_execution(db, art.parent, subdag=f"{dag_of}:{current}")
+
         if stat > 0:
             # Success! Let's enqueue dependents.
             enqueue_dependents(dag_of, current)
@@ -180,18 +209,25 @@ def task(
     return stat
 
 
-def start_dag_execution(db: Redis[bytes], data_output: hash_t) -> None:
+def start_dag_execution(
+    db: Redis[bytes], data_output: hash_t, subdag: Optional[str] = None
+) -> None:
     """Execute a DAG to obtain a given output using an RQ queue."""
     # make dag
-    build_dag(db, data_output)
+    build_dag(db, data_output, subdag)
+
+    if subdag is not None:
+        dag_of = hash_t(f"{subdag}:{data_output}")
+    else:
+        dag_of = data_output
 
     # enqueue everything starting from root
-    for element in _dag_dependents(db, data_output, hash_t("root")):
+    for element in _dag_dependents(db, dag_of, hash_t("root")):
         options = get_op_options(db, element)
         queue = Queue(connection=db, **options.queue_args)
         queue.enqueue_call(
             task,
-            args=(data_output, element),
+            args=(dag_of, element),
             kwargs=options.task_args,
             **options.job_args,
         )

@@ -1,12 +1,23 @@
 """Tests of funsies dag traversal."""
-# std
+from __future__ import annotations
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _dag, execute, Fun, morph, options, put, shell, take
+from funsies import (
+    _dag,
+    _graph,
+    _subdag,
+    execute,
+    Fun,
+    morph,
+    options,
+    put,
+    shell,
+    take,
+)
 from funsies._constants import DAG_INDEX, DAG_STORE, hash_t
 from funsies.utils import concat
 
@@ -175,3 +186,31 @@ def test_dag_large() -> None:
         final = concat(*outputs, join="\n")
         _dag.build_dag(db, final.hash)
         assert len(_dag._dag_dependents(db, final.hash, hash_t("root"))) == 100
+
+
+def test_subdag() -> None:
+    """Test that subdags execute properly."""
+
+    def map_reduce(inputs: dict[str, bytes]) -> dict[str, _graph.Artefact]:
+        """Basic map reduce."""
+        inp_data = inputs["inp"].split(b" ")
+        out = []
+        for el in inp_data:
+            out += [morph(lambda x: x.upper(), el, opt=options(distributed=False))]
+        return {"out": concat(*out, join="-")}
+
+    with Fun(Redis(), options(distributed=False)) as db:
+        dat = put("bla bla lol what")
+        inp = {"inp": dat}
+        cmd = _subdag.subdag_funsie(map_reduce, ["inp"], ["out"])
+        operation = _graph.make_op(db, cmd, inp, options())
+        out = _graph.Artefact.grab(db, operation.out["out"])
+
+        final = shell(
+            "cat file1 file2",
+            inp=dict(file1=out, file2="something"),
+        )
+
+        execute(final)
+        data = take(final.stdout)
+        assert data == b"BLA-BLA-LOL-WHATsomething"

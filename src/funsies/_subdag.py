@@ -1,4 +1,4 @@
-"""Run pythonf functions using funsies."""
+"""Run DAGs from DAGs using funsies."""
 from __future__ import annotations
 
 # std
@@ -16,47 +16,44 @@ except ImportError:
 
 # module
 from ._funsies import Funsie, FunsieHow
+from ._graph import Artefact
 from ._logging import logger
 from .errors import Result
 
 
 # types
-pyfunc_t = Callable[[Dict[str, bytes]], Dict[str, bytes]]
-pyfunc_opt_t = Callable[[Dict[str, Result[bytes]]], Dict[str, bytes]]
-pyfunc_opt_map_t = Callable[[Mapping[str, Result[bytes]]], Dict[str, bytes]]
+subdag_t = Callable[[Dict[str, bytes]], Dict[str, Artefact]]
+subdag_opt_t = Callable[[Dict[str, Result[bytes]]], Dict[str, Artefact]]
+subdag_opt_map_t = Callable[[Mapping[str, Result[bytes]]], Dict[str, Artefact]]
 
 
 # strict overload
 # fmt:off
 @overload
-def python_funsie(fun: Union[pyfunc_opt_t, pyfunc_t], inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[False] = False) -> Funsie:  # noqa
+def subdag_funsie(fun: Union[subdag_opt_t, subdag_t], inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[False] = False) -> Funsie:  # noqa
     ...
 
 
 @overload
-def python_funsie(fun: pyfunc_t, inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[True] = True) -> Funsie:  # noqa
+def subdag_funsie(fun: subdag_t, inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[True] = True) -> Funsie:  # noqa
     ...
 # fmt:on
 
 
-def python_funsie(
-    fun: Union[pyfunc_t, pyfunc_opt_t],
+def subdag_funsie(
+    fun: Union[subdag_t, subdag_opt_t],
     inputs: Sequence[str],
     outputs: Sequence[str],
     name: Optional[str] = None,
     strict: bool = True,
 ) -> Funsie:
-    """Wrap a python function.
+    """Wrap a python function that creates a DAG.
 
     The callable should have the following signature:
 
-        f(dict[str, bytes or Result[bytes]]) -> dict[str, bytes]
+        f(dict[str, Artefact]) -> dict[str, Artefact]
 
-    This is done like this because there is no way to ensure that a python
-    function will return a specific number of arguments at runtime. This
-    structure is both the most robust and most general.
-
-    The input type can be made to accept Result by setting strict = False.
+    This is similar to python_funsie in _pyfunc.py
 
     Args:
         fun: a Python callable f(inp)->out.
@@ -64,7 +61,8 @@ def python_funsie(
         outputs: Keys in the output dictionary out.
         name (optional): name of callable. If not given, the qualified name of
             the callable is used instead.
-        strict (optional): If true, the function accepts Result.
+        strict (optional): If True (default), the function will not run if any
+            of its inputs are Error-ed.
 
     Returns:
         A Funsie instance.
@@ -77,7 +75,7 @@ def python_funsie(
         ierr = 0
 
     return Funsie(
-        how=FunsieHow.python,
+        how=FunsieHow.subdag,
         what=name,
         inp=list(inputs),
         out=list(outputs),
@@ -86,14 +84,14 @@ def python_funsie(
     )
 
 
-def run_python_funsie(
+def run_subdag_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[bytes]]:
-    """Execute a python function."""
-    logger.info("python function")
-    fun: pyfunc_opt_map_t = cloudpickle.loads(funsie.extra["pickled function"])
+) -> dict[str, Optional[Artefact]]:
+    """Execute a subdag generator."""
+    logger.info("subdag generator")
+    fun: subdag_opt_map_t = cloudpickle.loads(funsie.extra["pickled function"])
     name = funsie.what
-    logger.info(f"$> {name}(*args)")
+    logger.info(f"$> {name} subdag generator")
 
     # run
     t1 = time.time()
@@ -101,7 +99,7 @@ def run_python_funsie(
     t2 = time.time()
 
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
-    out: dict[str, Optional[bytes]] = {}
+    out: dict[str, Optional[Artefact]] = {}
     for output in funsie.out:
         if output in outfun:
             out[output] = outfun[output]

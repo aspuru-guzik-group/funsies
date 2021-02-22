@@ -30,6 +30,7 @@ class ErrorKind(str, Enum):
     JobTimedOut = "JobTimedOut"
     NoErrorData = "NoErrorData"
     KilledBySignal = "KilledBySignal"
+    UnresolvedLink = "UnresolvedLink"
 
 
 @dataclass

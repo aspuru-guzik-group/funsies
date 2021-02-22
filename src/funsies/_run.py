@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 from enum import IntEnum
 import traceback
-from typing import Union
+from typing import cast, Dict, Optional, Union
 
 # external
 from redis import Redis
@@ -16,6 +16,7 @@ from ._funsies import Funsie, FunsieHow
 from ._graph import (
     Artefact,
     ArtefactStatus,
+    create_link,
     get_data,
     get_status,
     mark_error,
@@ -25,10 +26,16 @@ from ._graph import (
 from ._logging import logger
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
+from ._subdag import run_subdag_funsie  # runner for shell
 from .errors import Error, ErrorKind, Result
 
 # Dictionary of runners
-RUNNERS = {FunsieHow.shell: run_shell_funsie, FunsieHow.python: run_python_funsie}
+RUNNERS = {
+    FunsieHow.shell: run_shell_funsie,
+    FunsieHow.python: run_python_funsie,
+    FunsieHow.subdag: run_subdag_funsie,
+}
+out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact]]]
 
 
 class SignalError(Exception):
@@ -41,6 +48,7 @@ class RunStatus(IntEnum):
     """Possible status of running an operation."""
 
     # <= 0 -> issue prevented running job.
+    subdag_ready = -5
     unmet_dependencies = -2
     not_ready = -1
     # > 0 -> executed, can run dependents.
@@ -107,7 +115,6 @@ def run_op(  # noqa:C901
 
     # load the funsie
     funsie = Funsie.grab(db, op.funsie)
-    runner = RUNNERS[funsie.how]
 
     # load input files
     input_data: dict[str, Result[bytes]] = {}
@@ -129,7 +136,8 @@ def run_op(  # noqa:C901
 
     logger.info("running...")
     try:
-        out_data = runner(funsie, input_data)
+        runner = RUNNERS[funsie.how]
+        out_data: out_data_t = runner(funsie, input_data)  # type:ignore
 
     # Timed out
     except rq.timeouts.JobTimeoutException as e:
@@ -197,7 +205,14 @@ def run_op(  # noqa:C901
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
         else:
-            set_data(db, op.out[key], val, status=ArtefactStatus.done)
+            if funsie.how == FunsieHow.subdag:
+                create_link(db, op.out[key], cast(Artefact, val).hash)
+            else:
+                set_data(db, op.out[key], cast(bytes, val), status=ArtefactStatus.done)
 
-    logger.success("DONE: successful eval.")
-    return RunStatus.executed
+    if funsie.how == FunsieHow.subdag:
+        logger.success("DONE: subdag ready.")
+        return RunStatus.subdag_ready
+    else:
+        logger.success("DONE: successful eval.")
+        return RunStatus.executed

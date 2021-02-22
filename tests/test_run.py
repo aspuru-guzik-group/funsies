@@ -8,13 +8,10 @@ from fakeredis import FakeStrictRedis as Redis
 from funsies import _graph
 from funsies import _pyfunc as p
 from funsies import _shell as s
+from funsies import _subdag as sub
 from funsies import options
 from funsies._run import run_op
 from funsies.types import RunStatus
-
-
-# defaults
-opt = options()
 
 
 def capitalize(inputs: Dict[str, bytes]) -> Dict[str, bytes]:
@@ -35,6 +32,7 @@ def uncapitalize(inputs: Dict[str, bytes]) -> Dict[str, bytes]:
 
 def test_shell_run() -> None:
     """Test run on a shell command."""
+    opt = options()
     db = Redis()
     cmd = s.shell_funsie(["cat file1"], ["file1"], [])
     inp = {"file1": _graph.constant_artefact(db, b"bla bla")}
@@ -55,6 +53,7 @@ def test_shell_run() -> None:
 def test_pyfunc_run() -> None:
     """Test run on a python function."""
     db = Redis()
+    opt = options()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -74,6 +73,7 @@ def test_pyfunc_run() -> None:
 def test_cached_run() -> None:
     """Test cached result."""
     db = Redis()
+    opt = options()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -88,6 +88,7 @@ def test_cached_run() -> None:
 def test_cached_instances() -> None:
     """Test cached result from running same code twice."""
     db = Redis()
+    opt = options()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"], name="capit")
     inp = {"inp": _graph.constant_artefact(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -105,6 +106,7 @@ def test_cached_instances() -> None:
 def test_dependencies() -> None:
     """Test cached result."""
     db = Redis()
+    opt = options()
     cmd = p.python_funsie(capitalize, ["inp"], ["inp"])
     cmd2 = p.python_funsie(uncapitalize, ["inp"], ["inp"])
     operation = _graph.make_op(
@@ -122,3 +124,40 @@ def test_dependencies() -> None:
 
     status = run_op(db, operation2.hash)
     assert status == RunStatus.executed
+
+
+def test_subdag() -> None:
+    """Test run of a subdag function."""
+    import funsies as f
+
+    db = Redis()
+    opt = options()
+    with f.Fun(db):
+
+        def map_reduce(inputs: Dict[str, bytes]) -> Dict[str, _graph.Artefact]:
+            """Basic map reduce."""
+            inp_data = inputs["inp"].split(b" ")
+            for el in inp_data:
+                out = f.morph(lambda x: x.upper(), el, opt=options())
+            return {"out": f.utils.concat(out, join="-")}
+
+        cmd = sub.subdag_funsie(map_reduce, ["inp"], ["out"])
+        inp = {"inp": _graph.constant_artefact(db, b"bla bla blo lol")}
+        operation = _graph.make_op(db, cmd, inp, opt)
+        status = run_op(db, operation.hash)
+
+        # test return values
+        assert status == RunStatus.subdag_ready
+
+        # test output data
+        dat = _graph.get_data(
+            db, _graph.Artefact.grab(db, operation.out["out"]), do_resolve_link=False
+        )
+        assert isinstance(dat, f.errors.Error)
+        assert dat.kind == "UnresolvedLink"
+
+        datl = _graph.get_data(
+            db, _graph.Artefact.grab(db, operation.out["out"]), do_resolve_link=True
+        )
+        assert isinstance(datl, f.errors.Error)
+        assert datl.kind == "NotFound"
