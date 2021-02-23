@@ -304,12 +304,12 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 
         all_data = []
         for hash in hashes:
-            things = funsies.get(hash)
+            things = funsies.get(hash.split("/")[-1])
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
                 if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    all_data += [t.hash]
+                    all_data += [hash]
 
         if len(all_data):
             logger.info(f"writing graph for {len(all_data)} objects")

@@ -1,0 +1,12 @@
+name: slurm-conformers
+channels:
+  - default
+  - conda-forge
+dependencies:
+  - python=3.9
+  - openbabel
+  - redis
+  - xtb
+  - pip
+  - pip:
+      - git+ssh://git@github.com/aspuru-guzik-group/funsies.git@master

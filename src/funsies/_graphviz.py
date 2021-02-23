@@ -10,10 +10,18 @@ from typing import cast, Dict
 from redis import Redis
 
 # module
-from ._constants import DAG_DONE, DAG_INDEX, DAG_RUNNING, hash_t, join
+from ._constants import (
+    ARTEFACTS,
+    DAG_DONE,
+    DAG_INDEX,
+    DAG_RUNNING,
+    FUNSIES,
+    hash_t,
+    join,
+)
 from ._dag import build_dag
 from ._funsies import Funsie, FunsieHow
-from ._graph import ArtefactStatus, get_status, Operation
+from ._graph import ArtefactStatus, get_status, Operation, resolve_link
 from ._logging import logger
 from ._short_hash import shorten_hash
 
@@ -41,6 +49,9 @@ def export(
     labels: dict[str, str] = {}
     artefacts: __artefact_type = {}
 
+    funsies = {}
+    art_hashes = set()
+
     for address in addresses:
         if address.encode() not in db.smembers(DAG_INDEX):
             logger.warning(
@@ -49,32 +60,60 @@ def export(
             )
             build_dag(db, address)
 
+        logger.info("generating graph for")
+        logger.info(f"{'/'.join([shorten_hash(a) for a in address.split('/')])}")
         # add node data
-        for element in db.sunion(
+        curr_nodes = db.sunion(
             join(DAG_RUNNING, address), join(DAG_DONE, address)
-        ):  # type:ignore
+        )  # type:ignore
+        logger.info(f"graph contains {len(curr_nodes)} nodes")
+
+        for k, element in enumerate(curr_nodes):
+            if k % 100 == 0 and k > 0:
+                logger.info(f"done: {k} / {len(curr_nodes)}")
             element = cast(bytes, element)
             # all the operations
             h = hash_t(element.decode())
             nodes[h] = {}
             obj = Operation.grab(db, h)
-            funsie = Funsie.grab(db, obj.funsie)
 
-            if funsie.how == FunsieHow.shell:
-                labels[h] = __sanitize_command(funsie.what)
-            else:
-                labels[h] = __sanitize_command(funsie.what)
+            # get funsies data, cache it too
+            if obj.funsie not in funsies:
+                funsies[obj.funsie] = db.hgetall(join(FUNSIES, obj.funsie))
+            funsie = funsies[obj.funsie]
 
-            if funsie.error_tolerant:
+            labels[h] = __sanitize_command(funsie[b"what"].decode())
+            if funsie[b"error_tolerant"] == b"1":
                 labels[h] += r"\n(tolerates err)"
 
             nodes[h]["inputs"] = obj.inp
             nodes[h]["outputs"] = obj.out
 
             for k in itertools.chain(obj.inp.values(), obj.out.values()):
-                artefacts[k] = get_status(db, k)
+                # cache status too
+                art_hashes.add(k)
 
-    return nodes, artefacts, labels
+    logger.info(f"gathering status for {len(art_hashes)} artefacts")
+    keys = list(art_hashes)
+    redis_keys = [join(ARTEFACTS, address, "status") for address in keys]
+    statuses = db.mget(redis_keys)
+    for k, s in zip(keys, statuses):
+        if s is None:
+            artefacts[k] = ArtefactStatus.not_found
+        else:
+            artefacts[k] = ArtefactStatus(int(s.decode()))
+
+    # Get links
+    links: dict[hash_t, hash_t] = {}
+    for k, v in artefacts.items():
+        if v == ArtefactStatus.linked:
+            links[k] = resolve_link(db, k)
+    logger.info(f"found {len(links)} links")
+
+    return nodes, artefacts, labels, links
+
+
+__style_line_link = "color=black,penwidth=8.0"
 
 
 def __style_line(i: ArtefactStatus) -> str:
@@ -101,6 +140,8 @@ def __style_node(i: ArtefactStatus) -> str:
         return "color=white"
     elif i == 3:
         return "style=filled,color=5"
+    elif i == 4:
+        return "color=white"
     else:
         return ""
 
@@ -113,6 +154,7 @@ def format_dot(  # noqa:C901
     nodes: __node_type,
     artefacts: __artefact_type,
     labels: __label_type,
+    links: dict[hash_t, hash_t],
     targets: list[hash_t],
 ) -> str:
     """Format output of export() for graphviz dot."""
@@ -128,9 +170,11 @@ def format_dot(  # noqa:C901
     # Setup which artefacts to show, which are inputs and which are outputs.
     for n in nodes:
         for v in nodes[n]["inputs"].values():
-            keep[v] = keep.get(v, []) + [n]
+            # todo make conditional keep setable
             if artefacts[v] == 2:
                 initials[v] = initials.get(v, []) + [n]
+            else:
+                keep[v] = keep.get(v, []) + [n]
 
         # if targets are artefacts, then we should always keep them
         for t in targets:
@@ -143,6 +187,10 @@ def format_dot(  # noqa:C901
             for v in nodes[n]["outputs"].values():
                 keep[v] = keep.get(v, []) + [n]
                 finals[v] = n
+
+    # keep all the links too
+    for k, v in links.items():
+        keep[v] = keep.get(v, []) + [k]
 
     # write operation nodes
     nstring = ""
@@ -192,11 +240,16 @@ def format_dot(  # noqa:C901
             if v in keep:
                 connect += f"A{v} -> N{n}:A{v} [{__style_line(artefacts[v])}];\n"
 
-    init = []
-    for a in artefacts:
-        if artefacts[a] == 2:
-            init += [f"A{a}"]
-    ranks = "{rank = same;" + ";".join(init) + ";}\n"
+    ranks = ""
+    for k, v in links.items():
+        connect += f"A{v} -> A{k} [{__style_line_link}];\n"
+        ranks += "{" + f"rank = same; A{v}; A{k};" + "}\n"
+
+    # init = []
+    # for a in artefacts:
+    #     if artefacts[a] == 2:
+    #         init += [f"A{a}"]
+    # ranks += "{rank = same;" + ";".join(init) + ";}\n"
 
     rank_last = []
     for t in finals.keys():

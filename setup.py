@@ -11,6 +11,7 @@ setuptools.setup(
     + "that are described entirely in Python.",
     url="https://github.com/aspuru-guzik-group/funsies",
     package_dir={"": "src"},
+    package_data={"funsies": ["py.typed"]},  # mypy exports
     packages=setuptools.find_namespace_packages(where="src"),
     # Dependencies
     python_requires=">=3.7",

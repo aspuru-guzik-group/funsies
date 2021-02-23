@@ -3,6 +3,7 @@
 .. include:: documentation.md
 """
 from . import debug
+from . import dynamic
 from . import types
 from . import utils
 from ._context import Fun, ManagedFun, options
