@@ -22,6 +22,7 @@ from ._graph import (
     get_status,
     mark_error,
     Operation,
+    resolve_link,
     set_data,
 )
 from ._logging import logger
@@ -63,7 +64,10 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
     # We do this by checking whether all of it's outputs are already saved.
     # This ensures that there is no mismatch between artefact statuses and the
     # status of generating operations.
-    keys = [join(ARTEFACTS, address, "status") for address in op.out.values()]
+    keys = [
+        join(ARTEFACTS, resolve_link(db, address), "status")
+        for address in op.out.values()
+    ]
 
     def __status(p: Redis[bytes]) -> bool:
         for address in op.out.values():
@@ -81,7 +85,7 @@ def is_it_cached(db: Redis[bytes], op: Operation) -> bool:
 def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
     """Check if all the dependencies of an operation are met."""
     for val in op.inp.values():
-        stat = get_status(db, val)
+        stat = get_status(db, resolve_link(db, val))
         if stat <= ArtefactStatus.no_data:
             return False
 
