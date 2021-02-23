@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 import itertools
 import os.path
-from typing import cast, Dict
+from typing import cast, Dict, Optional
 
 # external
 from redis import Redis
@@ -20,14 +20,14 @@ from ._constants import (
     join,
 )
 from ._dag import build_dag
-from ._funsies import Funsie, FunsieHow
-from ._graph import ArtefactStatus, get_status, Operation, resolve_link
+from ._graph import ArtefactStatus, Operation, resolve_link
 from ._logging import logger
 from ._short_hash import shorten_hash
 
 __node_type = Dict[hash_t, Dict[str, Dict[str, hash_t]]]
-__artefact_type = Dict[str, ArtefactStatus]
+__artefact_type = Dict[hash_t, ArtefactStatus]
 __label_type = Dict[str, str]
+__link_type = Dict[hash_t, hash_t]
 
 # Watch out: nasty code ahead. This functionality is quite secondary to the
 # program, so it's not written with the most care. Likely, the following will
@@ -43,7 +43,7 @@ def __sanitize_command(lab: str) -> str:
 
 def export(
     db: Redis[bytes], addresses: list[hash_t]
-) -> tuple[__node_type, __artefact_type, __label_type]:
+) -> tuple[__node_type, __artefact_type, __label_type, __link_type]:
     """Output a DAG in dot format for graphviz."""
     nodes: __node_type = {}
     labels: dict[str, str] = {}
@@ -89,25 +89,25 @@ def export(
             nodes[h]["inputs"] = obj.inp
             nodes[h]["outputs"] = obj.out
 
-            for k in itertools.chain(obj.inp.values(), obj.out.values()):
+            for h in itertools.chain(obj.inp.values(), obj.out.values()):
                 # cache status too
-                art_hashes.add(k)
+                art_hashes.add(h)
 
     logger.info(f"gathering status for {len(art_hashes)} artefacts")
-    keys = list(art_hashes)
-    redis_keys = [join(ARTEFACTS, address, "status") for address in keys]
-    statuses = db.mget(redis_keys)
-    for k, s in zip(keys, statuses):
+    artefact_hashes = list(art_hashes)
+    redis_keys = [join(ARTEFACTS, address, "status") for address in artefact_hashes]
+    statuses: list[Optional[bytes]] = db.mget(redis_keys)  # type:ignore
+    for h, s in zip(artefact_hashes, statuses):
         if s is None:
-            artefacts[k] = ArtefactStatus.not_found
+            artefacts[h] = ArtefactStatus.not_found
         else:
-            artefacts[k] = ArtefactStatus(int(s.decode()))
+            artefacts[h] = ArtefactStatus(int(s.decode()))
 
     # Get links
     links: dict[hash_t, hash_t] = {}
-    for k, v in artefacts.items():
+    for h, v in artefacts.items():
         if v == ArtefactStatus.linked:
-            links[k] = resolve_link(db, k)
+            links[h] = resolve_link(db, h)
     logger.info(f"found {len(links)} links")
 
     return nodes, artefacts, labels, links
@@ -196,15 +196,15 @@ def format_dot(  # noqa:C901
     nstring = ""
     for n in nodes:
         inps = []
-        for k, v in nodes[n]["inputs"].items():
+        for kk, v in nodes[n]["inputs"].items():
             if v in keep:
-                inps += [f"<A{v}>{__sanitize_fn(k)}"]
+                inps += [f"<A{v}>{__sanitize_fn(kk)}"]
         inps = "|".join(inps)
 
         outs = []
-        for k, v in nodes[n]["outputs"].items():
+        for kk, v in nodes[n]["outputs"].items():
             if v in keep:
-                outs += [f"<A{v}>{__sanitize_fn(k)}"]
+                outs += [f"<A{v}>{__sanitize_fn(kk)}"]
         outs = "|".join(outs)
 
         nstring += (

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+from typing import Union
 
 # external
 from redis import Redis
@@ -14,7 +15,7 @@ from ._logging import logger
 SHORT = 6  # Length of short hashes
 
 
-def shorten_hash(h: hash_t) -> str:
+def shorten_hash(h: Union[hash_t, str]) -> str:
     """Shorten a hash."""
     return h[:SHORT]
 

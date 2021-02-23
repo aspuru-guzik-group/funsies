@@ -50,7 +50,7 @@ def concat(
         lines = match_results(args, lambda x: x)
         out = b""
         for i, l in enumerate(lines):
-            if strip:
+            if do_strip:
                 out += l.strip()
             else:
                 out += l
@@ -166,7 +166,7 @@ def identity(
 ) -> tuple[Artefact, ...]:
     """Add a no-op on the call graph."""
 
-    def __I(*inp: Result[bytes]) -> bytes:
+    def __I(*inp: Result[bytes]) -> tuple[Result[bytes], ...]:
         return inp
 
     return mapping(__I, *inp, noutputs=len(inp), name="no op", strict=strict, opt=opt)

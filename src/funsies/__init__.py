@@ -42,6 +42,7 @@ __all__ = [
     "options",
     "utils",
     "debug",
+    "dynamic",
     "types",
 ]
 
