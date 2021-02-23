@@ -315,19 +315,7 @@ def get_ts_fsm(pair: Artefact) -> Artefact:
 with f.Fun():
     # -------------------------------------------------------------------------------- #
     # put smiles in db
-    smiles = f.put("C(O)CCC(=O)(O)")
-
-    # -------------------------------------------------------------------------------- #
-    # put crest in DB.
-    data = f.get("9b7e0972")
-    if len(data):
-        crest = data[0]
-    else:
-        print("uploading crest...")
-        with open("crest.tgz", "rb") as crest_file:
-            crest = f.put(crest_file.read())
-            print(f"hash: {crest.hash[:8]}")
-        print("done")
+    smiles = f.put("C(O)CC(O)")
 
     # -------------------------------------------------------------------------------- #
     # Generate 3d structures.
@@ -359,9 +347,8 @@ with f.Fun():
     # -------------------------------------------------------------------------------- #
     # Screen conformers.
     screen = f.shell(
-        "tar -xzf crest.tgz",
-        "./crest conformers.xyz --cregen conformers.xyz",
-        inp={"crest.tgz": crest, "conformers.xyz": optimized1},
+        "crest conformers.xyz --cregen conformers.xyz",
+        inp={"conformers.xyz": optimized1},
         out=["crest_ensemble.xyz"],
     )
 
