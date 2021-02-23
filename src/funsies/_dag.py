@@ -12,7 +12,7 @@ import rq
 from rq.queue import Queue
 
 # module
-from ._constants import DAG_INDEX, DAG_RUNNING, DAG_DONE, hash_t, join, OPERATIONS
+from ._constants import DAG_DONE, DAG_INDEX, DAG_RUNNING, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
 from ._run import run_op, RunStatus, SignalError

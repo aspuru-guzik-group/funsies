@@ -18,7 +18,7 @@ from funsies import (
     shell,
     take,
 )
-from funsies._constants import DAG_INDEX, DAG_RUNNING, hash_t, join
+from funsies._constants import DAG_RUNNING, hash_t, join
 from funsies.utils import concat
 
 

@@ -33,15 +33,14 @@ def test_map_reduce() -> None:
     def combine(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
         return {"out": funsies.utils.concat(*[el["cat"] for el in inp], join="\n")}
 
-    with funsies.Fun(Redis(), funsies.options(distributed=False)) as db:
+    with funsies.Fun(Redis(), funsies.options(distributed=False)):
         num1 = funsies.put("1 2 3 4 5")
         num2 = funsies.put("11 10 11 10 11")
 
-        operation = dynamic.map_reduce(
+        outputs = dynamic.sac(
             split, apply, combine, inp={"a": num1, "b": num2}, out=["out"]
         )
-        g = Artefact.grab(db, operation.out["out"])
-        final = funsies.morph(lambda x: x, g)
+        final = funsies.morph(lambda x: x, outputs["out"])
         funsies.execute(final)
         print(final.hash)
 
@@ -73,19 +72,19 @@ def test_nested_map_reduce(nworkers: int) -> None:
         return out
 
     def apply(inp: dict[str, Artefact]) -> dict[str, Artefact]:
-        operation = dynamic.map_reduce(
+        outputs = dynamic.sac(
             split2,
             apply2,
             combine2,
             inp={"in": inp["out"]},
             out=["out"],
         )
-        return {"out": Artefact.grab(funsies._context.get_db(), operation.out["out"])}
+        return outputs
 
     def combine(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
         return {"out": funsies.utils.concat(*[el["out"] for el in inp], join=",,")}
 
-    with funsies.ManagedFun(nworkers=nworkers) as db:
+    with funsies.ManagedFun(nworkers=nworkers):
         num = funsies.put("1 2\n3 4 7\n10 12\n1")
         # split -> 1 2\n 3 4 7\n10 12\n1
         # apply -> split2 -> 1, 2 | 3,4,7|10,12|1
@@ -93,11 +92,8 @@ def test_nested_map_reduce(nworkers: int) -> None:
         # combine2 -> 5|17|24|2
         # combine -> 5,,17,,24,,2
 
-        operation = dynamic.map_reduce(
-            split, apply, combine, inp={"in": num}, out=["out"]
-        )
-        g = Artefact.grab(db, operation.out["out"])
-        final = funsies.morph(lambda x: x, g)
+        outputs = dynamic.sac(split, apply, combine, inp={"in": num}, out=["out"])
+        final = funsies.morph(lambda x: x, outputs["out"])
         funsies.execute(final)
         funsies.wait_for(final)
         assert funsies.take(final) == b"5,,17,,24,,2"

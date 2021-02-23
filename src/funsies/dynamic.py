@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 # std
-import time
 from typing import (
     Callable,
     Dict,
@@ -10,39 +9,21 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
-    overload,
     Union,
 )
 
 # external
 from redis import Redis
 
-# python 3.7 imports Literal from typing_extensions
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type:ignore
-
 # module
-from ._constants import _AnyPath, hash_t
+from ._constants import _AnyPath
 from ._context import get_db, get_options
-from ._dag import descendants, start_dag_execution
 from ._graph import (
     Artefact,
-    constant_artefact,
-    delete_artefact,
-    get_data,
-    get_status,
     make_op,
-    Operation,
 )
-from ._logging import logger
-from ._pyfunc import python_funsie
-from ._run import is_it_cached
 from ._subdag import subdag_funsie
-from ._short_hash import shorten_hash
 from .config import Options
-from .errors import Error, Result, unwrap
 from .ui import put
 
 # Types
@@ -51,8 +32,8 @@ _OUT_FILES = Iterable[_AnyPath]
 
 
 # --------------------------------------------------------------------------------
-# Map-Reduce
-def map_reduce(  # noqa:C901
+# Split-Apply-Combine
+def sac(  # noqa:C901
     split: Callable[[Dict[str, bytes]], Sequence[Dict[str, bytes]]],
     apply: Callable[[Dict[str, Artefact]], Dict[str, Artefact]],
     combine: Callable[[list[Dict[str, Artefact]]], Dict[str, Artefact]],
@@ -62,8 +43,8 @@ def map_reduce(  # noqa:C901
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Operation:
-    """Perform a map-reduce using three functions."""
+) -> Dict[str, Artefact]:
+    """Perform a generic split/apply/combine dynamic DAG."""
     opt = get_options(opt)
     db = get_db(connection)
 
@@ -108,4 +89,7 @@ def map_reduce(  # noqa:C901
         map_reduce, list(inputs.keys()), outputs, name=fun_name, strict=True
     )
     operation = make_op(db, cmd, inputs, opt)
-    return operation
+    output_artefacts = {}
+    for key, val in operation.out.items():
+        output_artefacts[key] = Artefact.grab(db, val)
+    return output_artefacts
