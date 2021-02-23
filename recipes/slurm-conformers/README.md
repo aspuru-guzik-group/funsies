@@ -50,29 +50,54 @@ functions.
 
 ### 3. Deploy and execute
 This workflow was executed on [Compute Canada's Niagara
-cluster](https://docs.computecanada.ca/wiki/Niagara) using the conda env
-described above and local installations of Q-Chem and CREST. (See TODO for an
-example of containerized deployement.)
+cluster](https://docs.computecanada.ca/wiki/Niagara) using a conda environment
+and local installations of Q-Chem and CREST. (See TODO for an example of
+containerized deployement.)
 
-To deploy, 
-
-
-
-
-Then, we use Q-Chem to run expensive DFT calculation in order to optimize
-conformer structures and compute their energies. Finally, we will use Q-Chem's
-Freezing String method to find barriers between those conformations.
-
-This is the kind of workflow where HPC resources are important, as it involves
-difficult computations and expensive software. However, this won't be an issue
-for you, the folks at home, because we have paired an already evaluated
-funsies database to this problem! So go ahead, try running it on your laptop
-or smartwatch or whatever!
-
-To setup, we use a conda environment, installable from the `.yml` file in the
-current directory,
+To deploy, we first setup the conda environment using
 ```bash
 conda env create -f environment.yml
 ```
+This will create an environment with xtb, openbabel, funsies and their
+dependencies. Then, we need to download and install CREST,
+```bash
+wget https://github.com/grimme-lab/crest/releases/download/v2.11/crest.tgz
+tar -xzf crest.tgz $HOME/.local/bin
+```
+Now that all this is setup, we submit using [a standard SLURM submission
+script](./slurm-submit.sh),
+```bash
+sbatch slurm-submit.sh
+```
+This script instantiate a redis server, starts eight workers on individual,
+distributed nodes, runs the python workflow (and block until it finishes) then
+shutdown workers and server.
+
+That's it!
+
+### 4. Data analysis
+The final step of the job dumps an image of the redis database in
+`results.rdb`. This image includes all temporary results. To run a "mock"
+version of the computation, simply rename or copy the file to `dump.rdb` and
+start a server. For example, doing
+```bash
+cp results.rdb dump.rdb
+redis-server &
+python workflow.py
+```
+will run through the workflow again locally, but without recomputing anything.
+To look at the computational graph using graphviz one can simply do,
+```bash
+cp results.rdb dump.rdb
+redis-server &
+funsies graph > graph.dot
+dot -Tpdf graph.dot > graph.pdf
+```
+
+TODO: Do some error checking
+
+TODO: Data analysis / graphs
+
+
 
 

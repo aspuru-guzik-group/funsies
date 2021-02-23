@@ -367,6 +367,7 @@ with f.Fun():
         optimized,
     )
     f.execute(fsm_ts)
-
     print(f"input:  {smiles.hash[:6]}")
     print(f"output: {fsm_ts.hash[:6]}")
+    f.wait_for(fsm_ts)
+
