@@ -33,6 +33,7 @@ from ._graph import (
     get_status,
     make_op,
     Operation,
+    resolve_link,
 )
 from ._logging import logger
 from ._pyfunc import python_funsie
@@ -178,10 +179,6 @@ def shell(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Data transformers
-# class __LaxMapping(Protocol):
-#     def __call__(
-
-
 def mapping(  # noqa:C901
     fun: Callable,  # type:ignore
     *inp: Union[Artefact, str, bytes],
@@ -476,7 +473,7 @@ def wait_for(
     if isinstance(thing, Artefact):
 
         def __stat() -> bool:
-            return get_status(db, thing.hash) > 0
+            return get_status(db, resolve_link(db, thing.hash)) > 0
 
     else:
         if isinstance(thing, Operation):

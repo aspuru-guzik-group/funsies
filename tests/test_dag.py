@@ -1,13 +1,24 @@
-"""Test of Funsies shell capabilities."""
-# std
+"""Tests of funsies dag traversal."""
+from __future__ import annotations
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _dag, execute, Fun, morph, options, put, shell, take
-from funsies._constants import DAG_INDEX, DAG_STORE, hash_t
+from funsies import (
+    _dag,
+    _graph,
+    _subdag,
+    execute,
+    Fun,
+    morph,
+    options,
+    put,
+    shell,
+    take,
+)
+from funsies._constants import DAG_RUNNING, hash_t, join
 from funsies.utils import concat
 
 
@@ -20,15 +31,15 @@ def test_dag_build() -> None:
         output = step2.stdout
 
         _dag.build_dag(db, output.hash)
-        assert len(db.smembers(DAG_STORE + output.hash)) == 2
+        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 2
 
         # test deletion
         _dag.delete_all_dags(db)
-        assert len(db.smembers(DAG_STORE + output.hash)) == 0
+        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 0
 
         # test new _dag
         _dag.build_dag(db, step1.hash)
-        assert len(db.smembers(DAG_STORE + step1.hash)) == 1
+        assert len(db.smembers(join(DAG_RUNNING, step1.hash))) == 1
 
         assert len(_dag.descendants(db, step1.parent)) == 1
         # assert len(_dag.descendants(db, step1.hash)) == 1
@@ -140,24 +151,6 @@ def test_dag_execute_same_root() -> None:
         assert out == b"BLA BLA"
 
 
-def test_dag_cleanup() -> None:
-    """Test _dag cleanups."""
-    with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
-        step1 = morph(lambda x: x.decode().upper().encode(), dat)
-        step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
-
-        execute(step2)
-        out = take(step2.stdout)
-        assert out == b"BLA BLAbla bla"
-
-    with Fun(db, options(distributed=False), cleanup=False):
-        assert len(db.smembers(DAG_INDEX)) == 1
-
-    with Fun(db, options(distributed=False), cleanup=True):
-        assert len(db.smembers(DAG_INDEX)) == 0
-
-
 def test_dag_large() -> None:
     """Test that DAG building doesn't do extra work for large operations."""
     with Fun(Redis()) as db:
@@ -175,3 +168,31 @@ def test_dag_large() -> None:
         final = concat(*outputs, join="\n")
         _dag.build_dag(db, final.hash)
         assert len(_dag._dag_dependents(db, final.hash, hash_t("root"))) == 100
+
+
+def test_subdag() -> None:
+    """Test that subdags execute properly."""
+
+    def map_reduce(inputs: dict[str, bytes]) -> dict[str, _graph.Artefact]:
+        """Basic map reduce."""
+        inp_data = inputs["inp"].split(b" ")
+        out = []
+        for el in inp_data:
+            out += [morph(lambda x: x.upper(), el, opt=options(distributed=False))]
+        return {"out": concat(*out, join="-")}
+
+    with Fun(Redis(), options(distributed=False)) as db:
+        dat = put("bla bla lol what")
+        inp = {"inp": dat}
+        cmd = _subdag.subdag_funsie(map_reduce, ["inp"], ["out"])
+        operation = _graph.make_op(db, cmd, inp, options())
+        out = _graph.Artefact.grab(db, operation.out["out"])
+
+        final = shell(
+            "cat file1 file2",
+            inp=dict(file1=out, file2="something"),
+        )
+
+        execute(final)
+        data = take(final.stdout)
+        assert data == b"BLA-BLA-LOL-WHATsomething"

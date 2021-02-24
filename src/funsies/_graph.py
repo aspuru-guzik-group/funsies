@@ -43,6 +43,7 @@ class ArtefactStatus(IntEnum):
     done = 1
     const = 2
     error = 3
+    linked = 4
 
 
 def get_status(db: Redis[bytes], address: hash_t) -> ArtefactStatus:
@@ -140,6 +141,31 @@ def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
     db.delete(join(ARTEFACTS, address, "data"))
 
 
+# Make an artefact point to another artefact
+def create_link(db: Redis[bytes], afrom: hash_t, ato: hash_t) -> None:
+    """Set the status of a given operation or artefact."""
+    assert is_artefact(db, afrom)
+    assert is_artefact(db, ato)
+    old = get_status(db, afrom)
+    if old == ArtefactStatus.const:
+        logger.error("attempted to mark done a const artefact.")
+    else:
+        set_status(db, afrom, ArtefactStatus.linked)
+        key = join(ARTEFACTS, afrom, "links_to")
+        db.set(key, ato)
+
+
+def resolve_link(db: Redis[bytes], address: hash_t) -> hash_t:
+    """Resolve any link recursively."""
+    key = join(ARTEFACTS, address, "links_to")
+    link = db.get(key)
+    if link is None:
+        return address
+    else:
+        out = hash_t(link.decode())
+        return resolve_link(db, out)
+
+
 def _set_block_size(n: int) -> None:
     """Change block size."""
     global BLOCK_SIZE
@@ -151,6 +177,7 @@ def get_data(
     store: Redis[bytes],
     where: Union[hash_t, Artefact],
     carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
 ) -> Result[bytes]:
     """Retrieve data corresponding to an artefact."""
     if isinstance(where, Artefact):
@@ -158,9 +185,20 @@ def get_data(
     else:
         address = where
 
+    if do_resolve_link:
+        address = resolve_link(store, address)
+
     # First check the status
     stat = get_status(store, address)
-    if stat == ArtefactStatus.error:
+
+    # if it's a link, we move over to the link
+    if stat == ArtefactStatus.linked:
+        return Error(
+            kind=ErrorKind.UnresolvedLink,
+            details=f"artefact at {address} is a link and thus has no data",
+            source=carry_error,
+        )
+    elif stat == ArtefactStatus.error:
         return Error.grab(store, address)
     elif stat <= ArtefactStatus.no_data:
         return Error(
@@ -360,7 +398,11 @@ def make_op(
     root = True
     for k in inp_art.keys():
         v = inp[k]
+        # register op as dependent of artefacts
+        pipe.sadd(join(ARTEFACTS, v.hash, "dependents"), ophash)
+
         if v.parent != "root":
+            # register ops as dependents of other ops
             pipe.sadd(join(OPERATIONS, ophash, "parents"), v.parent)
             pipe.sadd(join(OPERATIONS, v.parent, "children"), ophash)
             root = False

@@ -19,10 +19,12 @@ hash_t = NewType("hash_t", str)
 ARTEFACTS = "funsies.artefacts"
 FUNSIES = "funsies.funsies"
 OPERATIONS = "funsies.ops"
+PARAMETRIC = "funsies.parametric"
 HASH_INDEX = "funsies.hash_index"
 
 # DAGs
-DAG_STORE = "funsies.dags.run."
+DAG_RUNNING = "funsies.dags.run"
+DAG_DONE = "funsies.dags.done"
 DAG_INDEX = "funsies.dags.index"
 
 # Max size of continuous data

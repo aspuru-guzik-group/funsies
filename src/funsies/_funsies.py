@@ -32,6 +32,7 @@ class FunsieHow(IntEnum):
 
     python = 0
     shell = 1
+    subdag = 2
 
 
 @dataclass

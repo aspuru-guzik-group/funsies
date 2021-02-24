@@ -17,7 +17,6 @@ from rq.local import LocalStack
 
 # module
 from ._constants import _AnyPath
-from ._dag import delete_all_dags
 from ._logging import logger
 from .config import Options
 
@@ -33,9 +32,6 @@ def cleanup_funsies(connection: Redis[bytes]) -> None:
     for queue in queues:
         queue.delete(delete_jobs=True)
 
-    # Now we cleanup all the old dags that are lying around
-    delete_all_dags(connection)
-
 
 # --------------------------------------------------------------------------------
 # Main DB context manager
@@ -47,8 +43,8 @@ def Fun(
 ) -> Iterator[Redis[bytes]]:
     """Context manager for redis connections."""
     if connection is None:
-        connection = Redis(decode_responses=False)
         logger.warning("Opening new redis connection with default settings...")
+        connection = Redis(decode_responses=False)
 
     if defaults is None:
         defaults = Options()

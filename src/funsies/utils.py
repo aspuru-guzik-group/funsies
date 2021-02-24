@@ -12,7 +12,7 @@ from redis import Redis
 from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
-from .ui import reduce
+from .ui import mapping, morph, reduce
 
 Tin = TypeVar("Tin")
 Tout1 = TypeVar("Tout1")
@@ -38,23 +38,63 @@ def match_results(
 def concat(
     *inp: Union[Artefact, str, bytes],
     join: Union[Artefact, str, bytes] = b"",
+    strip: bool = False,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Concatenate artefacts."""
 
-    def concatenation(joiner: bytes, *args: Result[bytes]) -> bytes:
+    def concatenation(joiner: bytes, strip_flag: bytes, *args: Result[bytes]) -> bytes:
+        do_strip = strip_flag.decode() == "1"
         lines = match_results(args, lambda x: x)
         out = b""
         for i, l in enumerate(lines):
-            out += l
+            if do_strip:
+                out += l.strip()
+            else:
+                out += l
+
             if i != len(lines) - 1:
                 out += joiner
         return out
 
+    if strip:
+        sflag = "1"
+    else:
+        sflag = "0"
     return reduce(
-        concatenation, join, *inp, strict=strict, connection=connection, opt=opt
+        concatenation, join, sflag, *inp, strict=strict, connection=connection, opt=opt
+    )
+
+
+def truncate(
+    inp: Union[Artefact, str, bytes],
+    top: int = 0,
+    bottom: int = 0,
+    separator: Union[Artefact, str, bytes] = b"\n",
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact:
+    """Truncate an artefact."""
+
+    def __truncate(inp: bytes, top: bytes, bottom: bytes, sep: bytes) -> bytes:
+        data = inp.split(sep)
+        i = int(top.decode())
+        j = len(data) - int(bottom.decode())
+        return sep.join(data[i:j])
+
+    return reduce(
+        __truncate,
+        inp,
+        f"{top}".encode(),
+        f"{bottom}".encode(),
+        separator,
+        name="truncate",
+        strict=strict,
+        opt=opt,
+        connection=connection,
     )
 
 
@@ -74,7 +114,26 @@ def stop_if(
 
     fun_name = f"stop_if:{fun.__qualname__}"
     return reduce(
-        __stop_if, inp, name=fun_name, strict=False, connection=connection, opt=opt
+        __stop_if, inp, name=fun_name, strict=True, connection=connection, opt=opt
+    )
+
+
+def not_empty(
+    inp: Union[Artefact, str, bytes],
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact:
+    """Stop DAG on empty files."""
+
+    def __not_empty(inp: bytes) -> bytes:
+        if len(inp):
+            return inp
+        else:
+            raise RuntimeError("")
+
+    fun_name = "not an empty file"
+    return morph(
+        __not_empty, inp, name=fun_name, strict=True, connection=connection, opt=opt
     )
 
 
@@ -97,3 +156,17 @@ def pickled(fun: Callable[..., Any], noutputs: int = 1) -> Callable[..., Any]:
 
     pickled_fun.__qualname__ = fun.__qualname__ + "_pickled"
     return pickled_fun
+
+
+def identity(
+    *inp: Union[Artefact, str, bytes],
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> tuple[Artefact, ...]:
+    """Add a no-op on the call graph."""
+
+    def __I(*inp: Result[bytes]) -> tuple[Result[bytes], ...]:
+        return inp
+
+    return mapping(__I, *inp, noutputs=len(inp), name="no op", strict=strict, opt=opt)

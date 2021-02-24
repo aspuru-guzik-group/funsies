@@ -18,6 +18,7 @@ import funsies, subprocess, hashlib, loguru  # noqa
 
 # Local
 from . import __version__, types
+from ._constants import hash_t
 from ._graph import get_status
 from ._logging import logger
 
@@ -292,7 +293,7 @@ def wait(  # noqa:C901
 @click.pass_context
 def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print to stdout a DOT-formatted graph to visualize DAGs."""
-    import funsies.graphviz
+    import funsies._graphviz
 
     db = ctx.obj()
     with funsies._context.Fun(db):
@@ -302,19 +303,19 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 [dag.decode() for dag in db.smembers(funsies._constants.DAG_INDEX)]
             )
 
-        all_data = []
+        all_data: list[hash_t] = []
         for hash in hashes:
-            things = funsies.get(hash)
+            things = funsies.get(hash.split("/")[-1])
             if len(things) == 0:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
                 if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    all_data += [t.hash]
+                    all_data += [hash_t(hash)]
 
         if len(all_data):
             logger.info(f"writing graph for {len(all_data)} objects")
-            out = funsies.graphviz.format_dot(
-                *funsies.graphviz.export(db, all_data), targets=all_data
+            out = funsies._graphviz.format_dot(
+                *funsies._graphviz.export(db, all_data), targets=all_data
             )
             sys.stdout.write(out)
             logger.success("done")

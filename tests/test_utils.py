@@ -78,3 +78,13 @@ def test_pickled() -> None:
         assert pickle.loads(take(out_int)) == 9
         assert pickle.loads(take(out_bytes)) == 14
         assert pickle.loads(take(out_both)) == 23
+
+
+def test_truncate() -> None:
+    """Test truncation."""
+    with Fun(Redis()) as db:
+        inp = "\n".join([f"{k}" for k in range(10)])
+        dat1 = put(inp)
+        trunc = utils.truncate(dat1, 2, 3)
+        run_op(db, trunc.parent)
+        assert take(trunc) == ("\n".join(inp.split("\n")[2:-3])).encode()

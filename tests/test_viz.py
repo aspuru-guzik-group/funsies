@@ -54,8 +54,10 @@ def test_dag_dump() -> None:
         wait_for(step4b)
         reset(step4)
 
-        nodes, artefacts, labels = _graphviz.export(db, [out.hash, step4b.hash])
-        dot = _graphviz.format_dot(nodes, artefacts, labels, [out.hash, step4b.hash])
+        nodes, artefacts, labels, links = _graphviz.export(db, [out.hash, step4b.hash])
+        dot = _graphviz.format_dot(
+            nodes, artefacts, labels, links, [out.hash, step4b.hash]
+        )
         assert len(dot) > 0
 
         # TODO pass through dot for testing?
