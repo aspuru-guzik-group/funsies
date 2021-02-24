@@ -24,6 +24,7 @@ class Options:
 
     Options for the rq Queue:
         - distributed: Whether jobs should run async on workers. Defaults to True.
+        - queue: Name of the queue this should be executed on.
 
 
     """
@@ -40,6 +41,7 @@ class Options:
 
     # Queue options
     distributed: bool = True
+    queue: str = 'default'
 
     @property
     def job_args(self: "Options") -> Mapping[str, Any]:

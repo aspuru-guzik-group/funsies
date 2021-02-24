@@ -147,7 +147,7 @@ def enqueue_dependents(
     for dependent in depen:
         # Run the dependent task
         options = get_op_options(db, dependent)
-        queue = Queue(connection=db, **options.queue_args)
+        queue = Queue(options.queue, connection=db, **options.queue_args)
 
         logger.info(f"-> {shorten_hash(dependent)}")
         queue.enqueue_call(
@@ -234,7 +234,7 @@ def start_dag_execution(
     # enqueue everything starting from root
     for element in _dag_dependents(db, dag_of, hash_t("root")):
         options = get_op_options(db, element)
-        queue = Queue(connection=db, **options.queue_args)
+        queue = Queue(options.queue, connection=db, **options.queue_args)
         queue.enqueue_call(
             task,
             args=(dag_of, element),
