@@ -249,23 +249,11 @@ def run_op(  # noqa:C901
             )
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
-
         elif funsie.how == FunsieHow.subdag:
-            create_link(db, op.out[key], cast(Artefact, val).hash)
-
-        elif not isinstance(val, bytes):
-            logger.error(f"output {key} not bytes")
-            mark_error(
-                db,
-                op.out[key],
-                error=Error(
-                    kind=ErrorKind.Mismatch,
-                    source=op.hash,
-                    details="returned output not instance of bytes",
-                ),
-            )
-
+            assert isinstance(val, Artefact)
+            create_link(db, op.out[key], val.hash)
         else:
+            assert not isinstance(val, Artefact)
             set_data(db, op.out[key], val, status=ArtefactStatus.done)
 
     if funsie.how == FunsieHow.subdag:

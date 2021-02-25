@@ -57,3 +57,61 @@ def test_operation_pack() -> None:
 
     with pytest.raises(RuntimeError):
         op = _graph.Operation.grab(store, hash_t("b"))
+
+
+def test_artefact_wrong_type() -> None:
+    """Test storing non-bytes in implicit artefacts."""
+    store = Redis()
+    art = _graph.variable_artefact(store, hash_t("1"), "file")
+    _graph.set_data(store, art.hash, "what", _graph.ArtefactStatus.done)  # type:ignore
+    out = _graph.get_data(store, art)
+    assert isinstance(out, Error)
+    assert out.kind == ErrorKind.ExceptionRaised
+
+
+def test_artefact_wrong_type2() -> None:
+    """Test storing non-bytes in implicit artefacts."""
+    import tempfile
+
+    with tempfile.SpooledTemporaryFile(mode="w+") as f:
+        for _ in range(10):
+            f.write("12412413294230472839401923741209347219347293847")
+
+        # rewind
+        f.seek(0)
+
+        store = Redis()
+        art = _graph.variable_artefact(store, hash_t("1"), "file")
+        _graph.set_data(store, art.hash, f, _graph.ArtefactStatus.done)  # type:ignore
+        out = _graph.get_data(store, art)
+        assert isinstance(out, Error)
+        print(out)
+        assert out.kind == ErrorKind.WrongType
+
+
+def test_artefact_buffered() -> None:
+    """Test storing non-bytes in implicit artefacts."""
+    import tempfile
+
+    _graph._set_block_size(10)
+    data = 10 * b"1234512345111"
+
+    with tempfile.SpooledTemporaryFile(mode="w+b") as f:
+        f.write(data)
+
+        # rewind
+        f.seek(0)
+
+        store = Redis()
+        art = _graph.variable_artefact(store, hash_t("1"), "file")
+        _graph.set_data(store, art.hash, f, _graph.ArtefactStatus.done)
+        out = _graph.get_data(store, art.hash)
+        assert out == data
+
+    with tempfile.SpooledTemporaryFile(mode="w+b") as f:
+        _graph.write_data(store, art, f)
+        f.flush()
+
+        # rewind
+        f.seek(0)
+        assert f.read() == data

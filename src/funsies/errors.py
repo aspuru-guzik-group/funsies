@@ -4,7 +4,7 @@ from __future__ import annotations
 # std
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Type, TypeVar, Union
+from typing import Callable, Optional, Type, TypeVar, Union
 
 # external
 from redis import Redis
@@ -24,6 +24,7 @@ class ErrorKind(str, Enum):
 
     NotFound = "NotFound"
     Mismatch = "Mismatch"
+    WrongType = "WrongType"
     MissingOutput = "MissingOutput"
     MissingInput = "MissingInput"
     ExceptionRaised = "ExceptionRaised"
@@ -111,3 +112,17 @@ def unwrap(it: Result[T]) -> T:
         )
     else:
         return it
+
+
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+
+
+def match(
+    result: Result[T], some: Callable[[T], T1], none: Callable[[Error], T2]
+) -> Union[T1, T2]:
+    """Pattern matching on Results."""
+    if isinstance(result, Error):
+        return none(result)
+    else:
+        return some(result)

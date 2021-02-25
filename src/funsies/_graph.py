@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-from typing import Optional, Type, Union
+import traceback
+from typing import IO, Optional, Type, Union
 
 # external
 from redis import Redis
@@ -24,7 +25,7 @@ from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
 from .config import Options
-from .errors import Error, ErrorKind, Result
+from .errors import Error, ErrorKind, Result, match
 
 # Max redis value size in bytes
 MIB = 1024 * 1024
@@ -172,14 +173,13 @@ def _set_block_size(n: int) -> None:
     BLOCK_SIZE = n
 
 
-# Save and load artefacts
-def get_data(
+def __get_data_loc(
     store: Redis[bytes],
     where: Union[hash_t, Artefact],
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[bytes]:
-    """Retrieve data corresponding to an artefact."""
+) -> Result[str]:
+    """Perform all the prior step before actually retrieving data."""
     if isinstance(where, Artefact):
         address = where.hash
     else:
@@ -215,13 +215,44 @@ def get_data(
                 source=carry_error,
             )
         else:
-            return b"".join(store.lrange(key, 0, -1))
+            return key
+
+
+# Save and load artefacts
+def get_data(
+    store: Redis[bytes],
+    source: Union[hash_t, Artefact],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[bytes]:
+    """Retrieve data corresponding to an artefact."""
+    return match(
+        __get_data_loc(store, source, carry_error, do_resolve_link),
+        some=lambda x: b"".join(store.lrange(x, 0, -1)),
+        none=lambda x: x,
+    )
+
+
+def write_data(
+    store: Redis[bytes],
+    source: Union[hash_t, Artefact],
+    destination: IO[bytes],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[bytes]:
+    """Retrieve data corresponding to an artefact."""
+    key = __get_data_loc(store, source, carry_error, do_resolve_link)
+    if isinstance(key, Error):
+        raise IOError("Data contains error")
+
+    for i in range(store.llen(key)):
+        destination.write(store.lindex(key, i))
 
 
 def set_data(
     store: Redis[bytes],
     address: hash_t,
-    value: Union[bytes, io.BytesIO],
+    value: Union[bytes, IO[bytes]],
     status: ArtefactStatus,
 ) -> None:
     """Update an artefact with a value."""
@@ -243,11 +274,42 @@ def set_data(
     pipe = store.pipeline(transaction=True)
     pipe.delete(key)
     while True:
-        dat = buf.read(BLOCK_SIZE)
+        try:
+            dat = buf.read(BLOCK_SIZE)
+        except Exception:
+            # Trouble! mark the artefact as error instead to avoid problems but
+            # log it.
+            tb_exc = traceback.format_exc()
+            mark_error(
+                store,
+                address,
+                error=Error(
+                    kind=ErrorKind.ExceptionRaised,
+                    source=address,
+                    details=tb_exc,
+                ),
+            )
+            return
+
+        if not isinstance(dat, bytes):
+            # Trouble! mark the artefact as error instead to avoid problems but
+            # log it.
+            mark_error(  # type:ignore
+                store,
+                address,
+                Error(
+                    ErrorKind.WrongType,
+                    source=address,
+                    details="attempted to set data for an artefact using"
+                    + " a non-bytes object.",
+                ),
+            )
+            return
+
         if len(dat) == 0 and not first:
             break
         else:
-            pipe.lpush(key, dat)
+            pipe.rpush(key, dat)
         first = False
     set_status(pipe, address, status)
     pipe.execute()
