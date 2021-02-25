@@ -2,20 +2,19 @@
 from __future__ import annotations
 
 # std
-import signal
-from types import FrameType
 from typing import Optional
 
 # external
 from redis import Redis
 import rq
 from rq.queue import Queue
+from rq.worker import Worker
 
 # module
-from ._constants import DAG_DONE, DAG_INDEX, DAG_RUNNING, hash_t, join, OPERATIONS
+from ._constants import DAG_INDEX, DAG_OPERATIONS, DAG_STATUS, hash_t, join, OPERATIONS
 from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
-from ._run import run_op, RunStatus, SignalError
+from ._run import run_op, RunStatus
 from ._short_hash import shorten_hash
 
 
@@ -35,16 +34,15 @@ def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
 def _dag_dependents(db: Redis[bytes], dag_of: hash_t, op_from: hash_t) -> set[hash_t]:
     """Get dependents of an op within a given DAG."""
     return __set_as_hashes(
-        db, join(DAG_RUNNING, dag_of), join(OPERATIONS, op_from, "children")
+        db, join(DAG_OPERATIONS, dag_of), join(OPERATIONS, op_from, "children")
     )
 
 
 def delete_all_dags(db: Redis[bytes]) -> None:
     """Delete all currently stored DAGs."""
     for dag in db.smembers(DAG_INDEX):
-        db.delete(join(DAG_RUNNING, dag.decode()))  # type:ignore
-        db.delete(join(DAG_DONE, dag.decode()))  # type:ignore
-
+        db.delete(join(DAG_OPERATIONS, dag.decode()))  # type:ignore
+        db.delete(join(DAG_STATUS, dag.decode()))  # type:ignore
     # Remove old index
     db.delete(DAG_INDEX)
 
@@ -121,15 +119,17 @@ def build_dag(
     else:
         dag_of = hash_t(f"{subdag}/{address}")
 
-    # delete old data
-    db.delete(join(DAG_RUNNING, dag_of))
-    db.delete(join(DAG_DONE, dag_of))
+    table = join(DAG_STATUS, dag_of)
+    ops = join(DAG_OPERATIONS, dag_of)
 
-    pipe = db.pipeline(transaction=False)
-    key = join(DAG_RUNNING, dag_of)
-    pipe.sadd(key, node.hash)  # need to run this at least
-    for k in ancs:
-        pipe.sadd(key, k)
+    # Initialize the dependencies count for each DAG operation.
+    pipe = db.pipeline(transaction=True)
+    pipe.delete(table)  # get rid of previous status data
+    for address in ancs.union([node.hash]):
+        ndepen = db.scard(join(OPERATIONS, address, "parents"))
+        pipe.hset(table, address, ndepen)
+        pipe.sadd(ops, address)
+
     pipe.sadd(DAG_INDEX, dag_of)
     pipe.execute()
 
@@ -142,21 +142,27 @@ def enqueue_dependents(
     job = rq.get_current_job()
     db: Redis[bytes] = job.connection
     depen = _dag_dependents(db, dag_of, current)
-    logger.info(f"enqueuing {len(depen)} dependents")
+    logger.info(f"has {len(depen)} dependents")
 
+    dagtable = join(DAG_STATUS, dag_of)
     for dependent in depen:
-        # Run the dependent task
-        options = get_op_options(db, dependent)
-        queue = Queue(options.queue, connection=db, **options.queue_args)
+        # First, atomically update dependencies status
+        ndepen = db.hincrby(dagtable, dependent, -1)
 
-        logger.info(f"-> {shorten_hash(dependent)}")
-        queue.enqueue_call(
-            task,
-            args=(dag_of, dependent),
-            kwargs=options.task_args,
-            **options.job_args,
-        )
+        if ndepen == 0:
+            # Operation is ready to be executed.
+            options = get_op_options(db, dependent)
+            queue = Queue(options.queue, connection=db, **options.queue_args)
 
+            logger.info(f"-> {shorten_hash(dependent)}")
+            queue.enqueue_call(
+                task,
+                args=(dag_of, dependent),
+                kwargs=options.task_args,
+                **options.job_args,
+            )
+
+    # We may want to execute a subdag dependent
     components = dag_of.split("/")
     if len(components) > 1:
         evaluating = components[-1]
@@ -171,9 +177,44 @@ def enqueue_dependents(
             )
             enqueue_dependents(hash_t("/".join(in_parent_dag)), hash_t(from_op))
 
-    # Finally, if we have enqueued dependents it means that this specific
-    # operation can now be removed from the active ones.
-    db.smove(join(DAG_RUNNING, dag_of), join(DAG_DONE, dag_of), current)  # type:ignore
+
+def acquire_task(db: Redis[bytes], op_hash: hash_t, worker_name: str) -> bool:
+    """Check if someone else is currently executing this job."""
+    owner_key = join(OPERATIONS, op_hash, "owner")
+    response = db.setnx(owner_key, worker_name)
+    if response:
+        return True
+    else:
+        holder = db.get(owner_key).decode()
+        logger.info(f"job currently held by {holder}")
+        if holder == worker_name:
+            logger.error("other worker is myself! HOW!?")
+            return True
+
+        # grab other holder
+        worker = Worker.find_by_key(
+            Worker.redis_worker_namespace_prefix + holder, connection=db
+        )
+        if worker is None:
+            # holder is gooooonnnneee. let's take over.
+            db.set(owner_key, worker_name)
+            logger.warning("other worker is gone, I'm taking over")
+            return True
+        else:
+            if worker.state == "busy":
+                # get other worker's job
+                ojob = worker.get_current_job()
+                if op_hash in ojob.description:
+                    logger.info("will try again later")
+                    return False
+                else:
+                    db.set(owner_key, worker_name)
+                    logger.error("other worker has moved on, I'm taking over")
+                    return True
+            else:
+                db.set(owner_key, worker_name)
+                logger.error("other worker is not working, I'm taking over")
+                return True
 
 
 def task(
@@ -183,39 +224,47 @@ def task(
     evaluate: bool = True,
 ) -> RunStatus:
     """Worker evaluation of a given step in a DAG."""
-    #
-    # register signals so that can fail gracefully and not block the dag if
-    # killed.
-    def _signal_failure(signum: signal.Signals, frame: FrameType) -> None:
-        raise SignalError(str(signum))
-
-    signal.signal(signal.SIGINT, _signal_failure)
-    signal.signal(signal.SIGTERM, _signal_failure)
-
     # load database
-    logger.debug(f"executing {current} on worker.")
     job = rq.get_current_job()
     db: Redis[bytes] = job.connection
+    worker_name: str = job.worker_name
+    logger.debug(f"attempting {current} on {worker_name}.")
 
-    # Load operation
-    op = Operation.grab(db, current)
+    # Run job
+    with logger.contextualize(op=shorten_hash(current)):
+        # Start by checking if another worker is currently executing this operation
+        acquired = acquire_task(db, current, worker_name)
+        if not acquired:
+            # Do job later
+            options = get_op_options(db, current)
+            queue = Queue(name=options.queue, connection=db, **options.queue_args)
+            queue.enqueue_in(
+                options.timedelta,
+                task,
+                args=(dag_of, current),
+                kwargs=options.task_args,
+                **options.job_args,
+            )
+            stat = RunStatus.delayed
+        else:
+            # Run operation
+            op = Operation.grab(db, current)
+            stat = run_op(db, op, evaluate=evaluate)
 
-    with logger.contextualize(op=shorten_hash(op.hash)):
-        # Now we run the job
-        stat = run_op(db, op, evaluate=evaluate)
+            if stat == RunStatus.subdag_ready:
+                # We have created a subdag
+                for value in op.out.values():
+                    ln = resolve_link(db, value)
+                    art = Artefact.grab(db, ln)
+                    logger.info(f"starting subdag -> {shorten_hash(art.parent)}")
+                    start_dag_execution(db, art.parent, subdag=f"{dag_of}/{current}")
 
-        if stat == RunStatus.subdag_ready:
-            # We have created a subdag
-            for value in op.out.values():
-                ln = resolve_link(db, value)
-                art = Artefact.grab(db, ln)
-                logger.info(f"starting subdag -> {shorten_hash(art.parent)}")
-                start_dag_execution(db, art.parent, subdag=f"{dag_of}/{current}")
+            if stat > 0:
+                # Success! Let's (possibly) enqueue dependents.
+                enqueue_dependents(dag_of, current)
 
-        if stat > 0:
-            # Success! Let's enqueue dependents.
-            enqueue_dependents(dag_of, current)
-
+    # reset lock
+    db.delete(join(OPERATIONS, current, "owner"))
     return stat
 
 

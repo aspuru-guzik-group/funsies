@@ -80,7 +80,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
             burst_mode = ""
         logger.success(f"working on queues={', '.join(queues)}{burst_mode}")
         w = Worker(queues, log_job_description=False)
-        w.work(burst=burst, logging_level=rq_log_level)
+        w.work(burst=burst, logging_level=rq_log_level, with_scheduler=True)
 
 
 @main.command()

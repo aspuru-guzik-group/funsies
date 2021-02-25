@@ -18,7 +18,7 @@ from funsies import (
     shell,
     take,
 )
-from funsies._constants import DAG_RUNNING, hash_t, join
+from funsies._constants import DAG_OPERATIONS, hash_t, join
 from funsies.utils import concat
 
 
@@ -31,15 +31,15 @@ def test_dag_build() -> None:
         output = step2.stdout
 
         _dag.build_dag(db, output.hash)
-        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 2
+        assert len(db.smembers(join(DAG_OPERATIONS, output.hash))) == 2
 
         # test deletion
         _dag.delete_all_dags(db)
-        assert len(db.smembers(join(DAG_RUNNING, output.hash))) == 0
+        assert len(db.smembers(join(DAG_OPERATIONS, output.hash))) == 0
 
         # test new _dag
         _dag.build_dag(db, step1.hash)
-        assert len(db.smembers(join(DAG_RUNNING, step1.hash))) == 1
+        assert len(db.smembers(join(DAG_OPERATIONS, step1.hash))) == 1
 
         assert len(_dag.descendants(db, step1.parent)) == 1
         # assert len(_dag.descendants(db, step1.hash)) == 1

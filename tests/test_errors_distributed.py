@@ -153,7 +153,7 @@ def test_job_killed(nworkers: int, sig: int) -> None:
 @pytest.mark.parametrize("nworkers", [1, 2, 8])
 def test_data_race(nworkers: int) -> None:
     """Test a data race when execute calls are interleaved."""
-    with f.ManagedFun(nworkers=nworkers):
+    with f.ManagedFun(nworkers=nworkers, defaults=f.options(requeue_time=0.2)):
         dat = f.put(b"bla bla")
         step1 = f.morph(lambda x: x.decode().upper().encode(), dat)
         step2 = f.shell(
@@ -166,3 +166,41 @@ def test_data_race(nworkers: int) -> None:
         f.execute(step2)
         f.wait_for(step1, timeout=1.0)
         f.wait_for(step2, timeout=1.0)
+
+
+@pytest.mark.parametrize("nworkers", [1, 2, 8])
+def test_double_execution(nworkers: int) -> None:
+    """Test multiple executions of the same task."""
+    # This test will fail if a job is re-executed multiple times.
+    from rq.job import get_current_job
+
+    def track_runs(inp: bytes) -> bytes:
+        job = get_current_job()
+        db: Redis[bytes] = job.connection
+        val = db.incrby("sentinel", 1)  # type:ignore
+        time.sleep(0.5)
+        return str(val).encode()
+
+    with f.ManagedFun(nworkers=nworkers, defaults=f.options(requeue_time=0.2)) as db:
+        # wait_for_workers(db, nworkers)
+        dat = f.put(b"bla bla")
+        step1 = f.morph(track_runs, dat)
+
+        step1a = f.shell(
+            "cat file1",
+            inp=dict(file1=step1),
+        )
+
+        step1b = f.shell(
+            "cat file2",
+            inp=dict(file2=step1),
+        )
+
+        f.execute(step1a)
+        f.execute(step1b)
+        f.wait_for(step1a, timeout=1.0)
+        f.wait_for(step1b, timeout=1.0)
+        assert f.take(step1a.stdout) == b"1"
+
+
+# test_double_execution(2)

@@ -2,6 +2,7 @@
 # std
 from dataclasses import asdict, dataclass
 import json
+import datetime
 from typing import Any, Mapping, Type
 
 
@@ -26,6 +27,9 @@ class Options:
         - distributed: Whether jobs should run async on workers. Defaults to True.
         - queue: Name of the queue this should be executed on.
 
+    Options for funsies logic:
+        - requeue_time: How long before we re-enqueue the job if someone else
+        is currently doing it.
 
     """
 
@@ -42,6 +46,9 @@ class Options:
     # Queue options
     distributed: bool = True
     queue: str = "default"
+
+    # Funsie options
+    requeue_time: float = ONE_MINUTE
 
     @property
     def job_args(self: "Options") -> Mapping[str, Any]:
@@ -64,6 +71,10 @@ class Options:
     def queue_args(self: "Options") -> Mapping[str, Any]:
         """Return a dictionary of arguments for rq.Queue."""
         return dict(is_async=self.distributed)
+
+    @property
+    def timedelta(self: "Options") -> datetime.timedelta:
+        return datetime.timedelta(seconds=self.requeue_time)
 
     def pack(self: "Options") -> str:
         """Pack an Options instance to a bytestring."""

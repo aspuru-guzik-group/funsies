@@ -23,8 +23,8 @@ PARAMETRIC = "funsies.parametric"
 HASH_INDEX = "funsies.hash_index"
 
 # DAGs
-DAG_RUNNING = "funsies.dags.run"
-DAG_DONE = "funsies.dags.done"
+DAG_OPERATIONS = "funsies.dags.operations"
+DAG_STATUS = "funsies.dags.status.done"
 DAG_INDEX = "funsies.dags.index"
 
 # Max size of continuous data

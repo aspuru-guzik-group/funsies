@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 # std
+from contextlib import ContextDecorator
 from enum import IntEnum
+import signal
 import traceback
+from types import FrameType
 from typing import cast, Dict, Optional, Union
 
 # external
@@ -40,17 +43,49 @@ RUNNERS = {
 out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact]]]
 
 
+# ----------------------------------------------------------------------------- #
+# Context manager for signals
+HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM]
+
+
 class SignalError(Exception):
     """Error raised by signal handler."""
 
     pass
 
 
+def _signal_failure(signum: signal.Signals, frame: FrameType) -> None:
+    raise SignalError(str(signum))
+
+
+class catch_signals(ContextDecorator):
+    """Decorator to catch termination signals."""
+
+    def __init__(self: "catch_signals") -> None:
+        """Start handler."""
+        pass
+
+    def __enter__(self: "catch_signals") -> None:
+        """Enter signal handler."""
+        self.original_handlers = dict(
+            [(s, signal.getsignal(s)) for s in HANDLED_SIGNALS]
+        )
+        for s in HANDLED_SIGNALS:
+            signal.signal(s, _signal_failure)
+
+    def __exit__(self: "catch_signals", exc_type, exc, exc_tb):  # noqa
+        """Exit signal handler."""
+        for key, val in self.original_handlers.items():
+            signal.signal(key, val)
+
+
+# ----------------------------------------------------------------------------- #
 class RunStatus(IntEnum):
     """Possible status of running an operation."""
 
     # <= 0 -> issue prevented running job.
     subdag_ready = -5
+    delayed = -3
     unmet_dependencies = -2
     not_ready = -1
     # > 0 -> executed, can run dependents.
@@ -92,6 +127,7 @@ def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
     return True
 
 
+@catch_signals()
 def run_op(  # noqa:C901
     db: Redis[bytes], op: Union[Operation, hash_t], evaluate: bool = True
 ) -> RunStatus:

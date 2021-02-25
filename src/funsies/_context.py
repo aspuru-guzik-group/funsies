@@ -165,12 +165,12 @@ def ManagedFun(
             yield db
     finally:
         logger.debug("terminating worker pool and server")
-        time.sleep(0.1)
-        # stop db
         for w in worker_pool:
             w.kill()
             w.wait()
-        redis_server.kill()
+        # stop db
+        db.shutdown()
+        db.connection_pool.disconnect()
         redis_server.wait()
         if directory is None:
             shutil.rmtree(dir)
