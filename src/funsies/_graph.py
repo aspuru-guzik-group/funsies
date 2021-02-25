@@ -25,7 +25,7 @@ from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
 from .config import Options
-from .errors import Error, ErrorKind, Result, match
+from .errors import Error, ErrorKind, match, Result
 
 # Max redis value size in bytes
 MIB = 1024 * 1024
@@ -233,22 +233,6 @@ def get_data(
     )
 
 
-def write_data(
-    store: Redis[bytes],
-    source: Union[hash_t, Artefact],
-    destination: IO[bytes],
-    carry_error: Optional[hash_t] = None,
-    do_resolve_link: bool = True,
-) -> Result[bytes]:
-    """Retrieve data corresponding to an artefact."""
-    key = __get_data_loc(store, source, carry_error, do_resolve_link)
-    if isinstance(key, Error):
-        raise IOError("Data contains error")
-
-    for i in range(store.llen(key)):
-        destination.write(store.lindex(key, i))
-
-
 def set_data(
     store: Redis[bytes],
     address: hash_t,
@@ -267,7 +251,7 @@ def set_data(
     if isinstance(value, bytes):
         buf = io.BytesIO(value)
     else:
-        buf = value
+        buf = value  # type:ignore
 
     # write
     first = True  # this workaround is to make sure that writing no data is ok.

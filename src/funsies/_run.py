@@ -7,7 +7,7 @@ from enum import IntEnum
 import signal
 import traceback
 from types import FrameType
-from typing import cast, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 # external
 from redis import Redis

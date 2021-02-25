@@ -87,31 +87,3 @@ def test_artefact_wrong_type2() -> None:
         assert isinstance(out, Error)
         print(out)
         assert out.kind == ErrorKind.WrongType
-
-
-def test_artefact_buffered() -> None:
-    """Test storing non-bytes in implicit artefacts."""
-    import tempfile
-
-    _graph._set_block_size(10)
-    data = 10 * b"1234512345111"
-
-    with tempfile.SpooledTemporaryFile(mode="w+b") as f:
-        f.write(data)
-
-        # rewind
-        f.seek(0)
-
-        store = Redis()
-        art = _graph.variable_artefact(store, hash_t("1"), "file")
-        _graph.set_data(store, art.hash, f, _graph.ArtefactStatus.done)
-        out = _graph.get_data(store, art.hash)
-        assert out == data
-
-    with tempfile.SpooledTemporaryFile(mode="w+b") as f:
-        _graph.write_data(store, art, f)
-        f.flush()
-
-        # rewind
-        f.seek(0)
-        assert f.read() == data
