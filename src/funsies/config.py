@@ -41,7 +41,7 @@ class Options:
 
     # Queue options
     distributed: bool = True
-    queue: str = 'default'
+    queue: str = "default"
 
     @property
     def job_args(self: "Options") -> Mapping[str, Any]:
