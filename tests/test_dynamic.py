@@ -95,5 +95,5 @@ def test_nested_map_reduce(nworkers: int) -> None:
         outputs = dynamic.sac(split, apply, combine, inp={"in": num}, out=["out"])
         final = funsies.morph(lambda x: x, outputs["out"])
         funsies.execute(final)
-        funsies.wait_for(final, timeout=3.0)
+        funsies.wait_for(final, timeout=10.0)
         assert funsies.take(final) == b"5,,17,,24,,2"

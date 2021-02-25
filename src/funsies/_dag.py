@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+import time
 from typing import Optional
 
 # external
@@ -178,14 +179,24 @@ def enqueue_dependents(
             enqueue_dependents(hash_t("/".join(in_parent_dag)), hash_t(from_op))
 
 
-def acquire_task(db: Redis[bytes], op_hash: hash_t, worker_name: str) -> bool:
+def acquire_task(db: Redis[bytes], op_hash: hash_t, worker_name: Optional[str]) -> bool:
     """Check if someone else is currently executing this job."""
+    if worker_name is None:
+        # running in non-distributed mode
+        return True
     owner_key = join(OPERATIONS, op_hash, "owner")
-    response = db.setnx(owner_key, worker_name)
+    response = db.setnx(owner_key, worker_name)  # type:ignore
     if response:
         return True
     else:
-        holder = db.get(owner_key).decode()
+        key = db.get(owner_key)
+        if key is None:
+            # the other worker just just drop off like right now
+            # to avoid a race condition, will wait till later.
+            logger.info("issue acquiring lock, will try again later")
+            return False
+
+        holder = key.decode()
         logger.info(f"job currently held by {holder}")
         if holder == worker_name:
             logger.error("other worker is myself! HOW!?")
@@ -227,7 +238,7 @@ def task(
     # load database
     job = rq.get_current_job()
     db: Redis[bytes] = job.connection
-    worker_name: str = job.worker_name
+    worker_name: Optional[str] = job.worker_name
     logger.debug(f"attempting {current} on {worker_name}.")
 
     # Run job
@@ -236,13 +247,14 @@ def task(
         acquired = acquire_task(db, current, worker_name)
         if not acquired:
             # Do job later
+            time.sleep(0.5)  # delay so as to not hit the db too often
             options = get_op_options(db, current)
             queue = Queue(name=options.queue, connection=db, **options.queue_args)
-            queue.enqueue_in(
-                options.timedelta,
+            queue.enqueue_call(
                 task,
                 args=(dag_of, current),
                 kwargs=options.task_args,
+                at_front=False,
                 **options.job_args,
             )
             stat = RunStatus.delayed

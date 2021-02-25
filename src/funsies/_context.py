@@ -169,7 +169,7 @@ def ManagedFun(
             w.kill()
             w.wait()
         # stop db
-        db.shutdown()
+        db.shutdown()  # type:ignore
         db.connection_pool.disconnect()
         redis_server.wait()
         if directory is None:
