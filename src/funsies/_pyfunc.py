@@ -3,14 +3,14 @@ from __future__ import annotations
 
 # std
 import time
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional
 
 # external
 import cloudpickle
 
 
 # module
-from ._constants import DataType, JsonData
+from ._constants import _Data, DataType, JsonData
 from ._funsies import Funsie, FunsieHow
 from ._logging import logger
 from .errors import Result
@@ -69,7 +69,7 @@ def python_funsie(
 
 def run_python_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[Union[bytes, JsonData]]]:
+) -> dict[str, Optional[_Data]]:
     """Execute a python function."""
     logger.info("python function")
     fun: pyfunc_t = cloudpickle.loads(funsie.extra["pickled function"])
@@ -82,7 +82,7 @@ def run_python_funsie(
     t2 = time.time()
 
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
-    out: dict[str, Optional[object]] = {}
+    out: dict[str, Optional[_Data]] = {}
     for output in funsie.out.keys():
         if output in outfun:
             out[output] = outfun[output]

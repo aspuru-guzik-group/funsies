@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # std
 from typing import (
+    Any,
     Callable,
     Optional,
     Sequence,
@@ -25,7 +26,7 @@ from .ui import _Target, put
 
 
 def sac(
-    split_fun: Callable[..., Sequence[_Data]],
+    split_fun: Callable[..., Any],
     apply_fun: Callable[[Artefact], Artefact],
     combine_fun: Callable[[Sequence[Artefact]], Artefact],
     *inp: _Target,

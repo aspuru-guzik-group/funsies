@@ -1,5 +1,6 @@
 """Test of artefacts save / restore."""
 # std
+from typing import cast, IO
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -91,7 +92,7 @@ def test_artefact_wrong_type2() -> None:
 
         store = Redis()
         art = _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
-        _graph.set_data(store, art, f, _graph.ArtefactStatus.done)
+        _graph.set_data(store, art, cast(IO[bytes], f), _graph.ArtefactStatus.done)
         out = _graph.get_data(store, art)
         assert isinstance(out, Error)
         print(out)

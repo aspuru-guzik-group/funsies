@@ -18,9 +18,11 @@ from redis.client import Pipeline
 from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
+    _Data,
     DataType,
     hash_t,
     join,
+    JsonData,
     OPERATIONS,
 )
 from ._funsies import Funsie
@@ -227,7 +229,7 @@ def get_data(
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
     raw_binary: bool = False,
-) -> Union[Result[bytes], Result[object]]:
+) -> Result[_Data]:
     """Retrieve data corresponding to an artefact."""
     raw = match(
         __get_data_loc(store, source, carry_error, do_resolve_link),
@@ -241,13 +243,13 @@ def get_data(
     elif source.kind == DataType.blob:
         return raw
     else:
-        return cast(object, json.loads(raw.decode()))
+        return cast(JsonData, json.loads(raw.decode()))
 
 
 def set_data(
     store: Redis[bytes],
     dest: Artefact,
-    value: Union[object, bytes, IO[bytes]],
+    value: Union[_Data, IO[bytes]],
     status: ArtefactStatus,
 ) -> None:
     """Update an artefact with a value."""
@@ -327,7 +329,7 @@ def set_data(
     pipe.execute()
 
 
-def constant_artefact(store: Redis[bytes], value: Union[bytes, object]) -> Artefact:
+def constant_artefact(store: Redis[bytes], value: _Data) -> Artefact:
     """Store an artefact with a defined value."""
     if isinstance(value, bytes):
         data = value

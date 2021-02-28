@@ -7,6 +7,7 @@ import time
 from typing import (
     Any,
     Callable,
+    cast,
     Iterable,
     Mapping,
     Optional,
@@ -417,7 +418,7 @@ def put(
     return _artefact(db, value)
 
 
-def __log_error(where: hash_t, dat: Result[_Data]) -> None:
+def __log_error(where: hash_t, dat: Result[object]) -> None:
     if isinstance(dat, Error):
         logger.warning(f"data error at hash {shorten_hash(where)}")
 
@@ -438,7 +439,7 @@ def take(
     where: Artefact,
     strict: bool = True,
     connection: Optional[Redis[bytes]] = None,
-) -> Result[_Data]:
+) -> Union[_Data, Result[_Data]]:
     """Take data corresponding to a given artefact from Redis.
 
     `take()` returns the currently held value of pointed to by the
@@ -474,7 +475,7 @@ def take(
     dat = get_data(db, where)
     __log_error(where.hash, dat)
     if strict:
-        return unwrap(dat)
+        return cast(_Data, unwrap(dat))
     else:
         return dat
 
