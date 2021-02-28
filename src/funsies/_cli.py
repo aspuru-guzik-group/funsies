@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # std
+import json
 import sys
 import time
 from typing import Optional
@@ -139,9 +140,16 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                     if res.details is not None:
                         sys.stderr.buffer.write((res.details + "\n").encode())
                     logger.warning(f"error source: {res.source}")
-                else:
+                elif isinstance(res, bytes):
                     sys.stdout.buffer.write(res)
                     logger.success(f"{hash} output to stdout")
+                elif isinstance(res, str):
+                    sys.stdout.buffer.write(res.encode())
+                    logger.success(f"{hash} output to stdout")
+                else:
+                    sys.stdout.buffer.write(json.dumps(res).encode())
+                    logger.success(f"{hash} output to stdout")
+
             elif isinstance(art, types.Operation):
                 logger.error("not an artefact")
                 logger.info("did you mean...")

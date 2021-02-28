@@ -1,5 +1,6 @@
 """Test of Funsies user routines."""
 # std
+import json
 import tempfile
 from typing import Tuple
 
@@ -10,7 +11,7 @@ import pytest
 # module
 from funsies import _graph, Fun, options, ui
 from funsies._run import run_op
-from funsies.types import UnwrapError
+from funsies.types import DataType, UnwrapError
 
 
 def test_shell_run() -> None:
@@ -19,8 +20,8 @@ def test_shell_run() -> None:
         s = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
         run_op(db, s.hash)
         assert _graph.get_data(db, s.stderr) == b""
-        assert _graph.get_data(db, s.returncode) == b"0"
-        assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
+        assert _graph.get_data(db, s.returncode) == 0
+        assert _graph.get_data(db, s.inp["file1"]) == "wawa"
         assert _graph.get_data(db, s.stdout) == b""
         assert ui.take(s.out["file2"]) == b"wawa"
 
@@ -46,8 +47,9 @@ def test_store_cache() -> None:
     with Fun(Redis()):
         s = ui.put("bla bla")
         s2 = ui.put(b"bla bla")
-        assert s == s2
-        assert ui.take(s) == b"bla bla"
+        assert s != s2
+        assert ui.take(s) == "bla bla"
+        assert ui.take(s2) == b"bla bla"
 
 
 def test_rm() -> None:
@@ -59,13 +61,13 @@ def test_rm() -> None:
             ui.reset(dat)
         ui.take(dat)
 
-        def upper(x: bytes) -> bytes:
-            return x.decode().upper().encode()
+        def upper(x: str) -> str:
+            return x.upper()
 
         m1 = ui.morph(upper, dat)
         m2 = ui.morph(lambda x: x + x, m1)
         ui.execute(m2)
-        assert ui.take(m2) == b"BLA BLABLA BLA"
+        assert ui.take(m2) == "BLA BLABLA BLA"
 
         ui.reset(m1)
         with pytest.raises(UnwrapError):
@@ -78,79 +80,69 @@ def test_rm() -> None:
 
         # re run
         ui.execute(m2)
-        assert ui.take(m2) == b"BLA BLABLA BLA"
+        assert ui.take(m2) == "BLA BLABLA BLA"
 
 
 def test_morph() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
-        dat = ui.put("bla bla")
+        dat = ui.put(b"bla bla")
         morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
         run_op(db, morph.parent)
         assert ui.take(morph) == b"BLA BLA"
+
+        dat = ui.put("bla bla")
+        morph = ui.morph(lambda x: x.upper(), dat)
+        run_op(db, morph.parent)
+        assert ui.take(morph) == "BLA BLA"
 
 
 def test_reduce() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
+        morph = ui.morph(lambda x: x.upper(), dat)
 
-        def join(x: bytes, y: bytes) -> bytes:
+        def join(x: str, y: str) -> str:
             return x + y
 
         red = ui.reduce(join, morph, dat)
 
         run_op(db, morph.parent)
         run_op(db, red.parent)
-        assert ui.take(red) == b"BLA BLAbla bla"
+        assert ui.take(red) == "BLA BLAbla bla"
 
 
 def test_multi_reduce() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
+        morph = ui.morph(lambda x: x.upper(), dat)
 
-        def join(*x: bytes) -> bytes:
-            out = b""
+        def join(*x: str) -> str:
+            out = ""
             for el in x:
                 out += el
             return out
 
-        red = ui.reduce(join, morph, dat, b"|wat")
+        # with pytest.raises(TypeError):
+        #     red = ui.reduce(join, morph, dat, b"|wat")
+
+        red = ui.reduce(join, morph, dat, "|wat")
 
         run_op(db, morph.parent)
         run_op(db, red.parent)
-        assert ui.take(red) == b"BLA BLAbla bla|wat"
+        assert ui.take(red) == "BLA BLAbla bla|wat"
 
 
 def test_store_takeout() -> None:
     """Test store for caching."""
     with Fun(Redis()):
-        s = ui.put("bla bla")
+        s = ui.put(3)
         with tempfile.NamedTemporaryFile() as f:
             ui.takeout(s, f.name)
-            with open(f.name, "rb") as f2:
-                assert f2.read() == b"bla bla"
-
-
-def test_mapping() -> None:
-    """Test the mapping() function."""
-    with Fun(Redis()) as db:
-        dat = ui.put("bla bla")
-        m = ui.mapping(lambda x: x.decode().upper().encode(), dat, noutputs=1)[0]
-        run_op(db, m.parent)
-        assert ui.take(m) == b"BLA BLA"
-
-        def switch(x: bytes, y: bytes, z: bytes) -> Tuple[bytes, bytes]:
-            return z + y, z + x
-
-        m1, m2 = ui.mapping(switch, dat, m, "k", noutputs=2)
-        run_op(db, m1.parent)
-
-        assert ui.take(m1) == b"kBLA BLA"
-        assert ui.take(m2) == b"kbla bla"
+            with open(f.name, "r") as f2:
+                assert json.loads(f2.read()) == 3
 
 
 def test_wait() -> None:

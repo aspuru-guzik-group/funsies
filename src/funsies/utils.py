@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 # std
-import pickle
-from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import Callable, Optional, overload, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
 
 # module
+from ._constants import DataType
 from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
-from .ui import mapping, morph, reduce
+from .ui import _Target, py
 
 Tin = TypeVar("Tin")
 Tout1 = TypeVar("Tout1")
@@ -36,8 +36,8 @@ def match_results(
 
 
 def concat(
-    *inp: Union[Artefact, str, bytes],
-    join: Union[Artefact, str, bytes] = b"",
+    *inp: _Target,
+    join: Union[str, bytes] = b"",
     strip: bool = False,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -45,8 +45,7 @@ def concat(
 ) -> Artefact:
     """Concatenate artefacts."""
 
-    def concatenation(joiner: bytes, strip_flag: bytes, *args: Result[bytes]) -> bytes:
-        do_strip = strip_flag.decode() == "1"
+    def concatenation(joiner: bytes, do_strip: bool, *args: Result[bytes]) -> bytes:
         lines = match_results(args, lambda x: x)
         out = b""
         for i, l in enumerate(lines):
@@ -59,48 +58,63 @@ def concat(
                 out += joiner
         return out
 
-    if strip:
-        sflag = "1"
-    else:
-        sflag = "0"
-    return reduce(
-        concatenation, join, sflag, *inp, strict=strict, connection=connection, opt=opt
-    )
+    # type convert str to bytes
+    if isinstance(join, str):
+        join = join.encode()
+    inputs = [k.encode() if isinstance(k, str) else k for k in inp]
+
+    return py(
+        concatenation,
+        join,
+        strip,
+        *inputs,
+        out=[DataType.blob],
+        strict=strict,
+        connection=connection,
+        opt=opt,
+    )[0]
 
 
 def truncate(
-    inp: Union[Artefact, str, bytes],
+    inp: _Target,
     top: int = 0,
     bottom: int = 0,
-    separator: Union[Artefact, str, bytes] = b"\n",
+    separator: Union[str, bytes] = b"\n",
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Truncate an artefact."""
 
-    def __truncate(inp: bytes, top: bytes, bottom: bytes, sep: bytes) -> bytes:
+    def __truncate(inp: bytes, top: int, bottom: int, sep: bytes) -> bytes:
         data = inp.split(sep)
-        i = int(top.decode())
-        j = len(data) - int(bottom.decode())
+        i = top
+        j = len(data) - bottom
         return sep.join(data[i:j])
 
-    return reduce(
+    # type convert str to bytes
+    if isinstance(inp, str):
+        inp = inp.encode()
+    if isinstance(separator, str):
+        separator = separator.encode()
+
+    return py(
         __truncate,
         inp,
-        f"{top}".encode(),
-        f"{bottom}".encode(),
+        top,
+        bottom,
         separator,
+        out=[DataType.blob],
         name="truncate",
         strict=strict,
         opt=opt,
         connection=connection,
-    )
+    )[0]
 
 
 def stop_if(
     fun: Callable[[bytes], bool],
-    inp: Union[Artefact, str, bytes],
+    inp: _Target,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
@@ -113,13 +127,13 @@ def stop_if(
             return inp
 
     fun_name = f"stop_if:{fun.__qualname__}"
-    return reduce(
+    return py(
         __stop_if, inp, name=fun_name, strict=True, connection=connection, opt=opt
-    )
+    )[0]
 
 
 def not_empty(
-    inp: Union[Artefact, str, bytes],
+    inp: _Target,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
@@ -132,41 +146,60 @@ def not_empty(
             raise RuntimeError("")
 
     fun_name = "not an empty file"
-    return morph(
+    return py(
         __not_empty, inp, name=fun_name, strict=True, connection=connection, opt=opt
-    )
+    )[0]
 
 
-def pickled(fun: Callable[..., Any], noutputs: int = 1) -> Callable[..., Any]:
-    """Wrap a function so that args and return value are automatically pickled."""
-
-    def pickled_fun(*inp: bytes) -> Any:
-        unpickled = []
-        for i in inp:
-            try:
-                unpickled += [pickle.loads(i)]
-            except pickle.PickleError:
-                unpickled += [i]
-
-        out = fun(*unpickled)
-        if noutputs == 1:
-            return pickle.dumps(out)
-        else:
-            return tuple(pickle.dumps(o) for o in out)
-
-    pickled_fun.__qualname__ = fun.__qualname__ + "_pickled"
-    return pickled_fun
-
-
+@overload
 def identity(
-    *inp: Union[Artefact, str, bytes],
+    __inp: Artefact,
+    *,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> tuple[Artefact, ...]:
+) -> Artefact:
+    ...
+
+
+@overload
+def identity(
+    __inp: Artefact,
+    __inp2: Artefact,
+    *,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> tuple[Artefact, Artefact]:
+    ...
+
+
+@overload
+def identity(
+    __inp: Artefact,
+    __inp2: Artefact,
+    __inp3: Artefact,
+    *,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> tuple[Artefact, Artefact, Artefact]:
+    ...
+
+
+def identity(
+    *inp: Artefact,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Union[Artefact, tuple[Artefact, ...]]:
     """Add a no-op on the call graph."""
 
     def __I(*inp: Result[bytes]) -> tuple[Result[bytes], ...]:
         return inp
 
-    return mapping(__I, *inp, noutputs=len(inp), name="no op", strict=strict, opt=opt)
+    out = py(__I, *inp, out=[i.kind for i in inp], name="no op", strict=strict, opt=opt)
+    if len(out) == 1:
+        return out[0]
+    else:
+        return out

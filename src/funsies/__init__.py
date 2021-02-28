@@ -11,7 +11,6 @@ from ._getter import get
 from .errors import unwrap
 from .ui import (
     execute,
-    mapping,
     morph,
     put,
     reduce,

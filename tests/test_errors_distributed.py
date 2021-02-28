@@ -107,7 +107,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
     with f.ManagedFun(nworkers=nworkers) as db:
         wait_for_workers(db, nworkers)
         s1 = f.reduce(
-            kill_funsies_worker, "bla bla", "bla bla", opt=f.options(timeout=3)
+            kill_funsies_worker, b"bla bla", b"bla bla", opt=f.options(timeout=3)
         )
         s1b = f.morph(cap, s1)
         f.execute(s1b)
@@ -201,6 +201,3 @@ def test_double_execution(nworkers: int) -> None:
         f.wait_for(step1a, timeout=10.0)
         f.wait_for(step1b, timeout=10.0)
         assert f.take(step1a.stdout) == b"1"
-
-
-# test_double_execution(2)

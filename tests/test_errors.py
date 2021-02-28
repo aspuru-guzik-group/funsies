@@ -9,7 +9,7 @@ import pytest
 import funsies
 from funsies import _graph, Fun, options
 from funsies._run import run_op
-from funsies.types import Error, hash_t, Result, UnwrapError
+from funsies.types import DataType, Error, hash_t, Result, UnwrapError
 
 
 def test_artefact_add() -> None:
@@ -31,8 +31,8 @@ def test_artefact_load_errors() -> None:
     _graph.constant_artefact(store, b"bla bla")
     _graph.constant_artefact(store, b"bla bla")
 
-    _graph.variable_artefact(store, hash_t("1"), "file")
-    _graph.variable_artefact(store, hash_t("1"), "file")
+    _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
+    _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
 
 
 def test_artefact_update() -> None:
@@ -40,7 +40,7 @@ def test_artefact_update() -> None:
     store = Redis()
     art = _graph.constant_artefact(store, b"bla bla")
     with pytest.raises(TypeError):
-        _graph.set_data(store, art.hash, b"b", _graph.ArtefactStatus.done)
+        _graph.set_data(store, art, b"b", _graph.ArtefactStatus.done)
 
 
 def test_not_generated() -> None:
@@ -48,7 +48,7 @@ def test_not_generated() -> None:
     with Fun(Redis()) as db:
         s = funsies.shell("cp file1 file2", inp=dict(file1="bla"), out=["file3"])
         run_op(db, s.op.hash)
-        assert funsies.take(s.returncode) == b"0"
+        assert funsies.take(s.returncode) == 0
         with pytest.raises(UnwrapError):
             funsies.take(s.out["file3"])
 

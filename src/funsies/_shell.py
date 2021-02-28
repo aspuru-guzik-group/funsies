@@ -7,13 +7,13 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Mapping, Optional, Sequence
+from typing import Mapping, Optional, Sequence, Union
 
 # external
 from redis import Redis
 
 # module
-from ._constants import hash_t
+from ._constants import _Data, DataType, hash_t, JsonData
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._logging import logger
@@ -28,15 +28,21 @@ RETURNCODE = f"{SPECIAL}/returncode"
 
 def shell_funsie(
     cmds: Sequence[str],
-    input_files: Sequence[str],
+    input_files: dict[str, DataType],
     output_files: Sequence[str],
     env: Optional[dict[str, str]] = None,
     strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
-    out = list(output_files)
+    out = {}
+    for fn in output_files:
+        out[fn] = DataType.blob
+        # TODO: files that end with .json
+
     for k in range(len(cmds)):
-        out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
+        out[f"{STDOUT}{k}"] = DataType.blob
+        out[f"{STDERR}{k}"] = DataType.blob
+        out[f"{RETURNCODE}{k}"] = DataType.json
 
     ierr = 1
     if strict:
@@ -46,8 +52,8 @@ def shell_funsie(
 
     return Funsie(
         how=FunsieHow.shell,
-        what=";".join(cmds),
-        inp=list(input_files),
+        what=" && ".join(cmds),
+        inp=input_files,
         out=out,
         error_tolerant=ierr,
         extra=extra,
@@ -55,8 +61,8 @@ def shell_funsie(
 
 
 def run_shell_funsie(  # noqa:C901
-    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[bytes]]:
+    funsie: Funsie, input_values: Mapping[str, Result[_Data]]
+) -> dict[str, Optional[Union[bytes, JsonData]]]:
     """Execute a shell command."""
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
@@ -65,8 +71,15 @@ def run_shell_funsie(  # noqa:C901
             if isinstance(val, Error):
                 pass
             else:
+                if isinstance(val, bytes):
+                    data = val
+                elif isinstance(val, str):
+                    data = val.encode()
+                else:
+                    data = json.dumps(val).encode()
+
                 with open(os.path.join(dir, fn), "wb") as f:
-                    f.write(val)
+                    f.write(data)
 
         cmds = json.loads(funsie.extra["cmds"].decode())
         new_env = json.loads(funsie.extra["env"].decode())
@@ -75,7 +88,7 @@ def run_shell_funsie(  # noqa:C901
             env = os.environ.copy()
             env.update(new_env)
 
-        out: dict[str, Optional[bytes]] = {}
+        out: dict[str, Optional[Union[bytes, JsonData]]] = {}
 
         for k, c in enumerate(cmds):
             t1 = time.time()
@@ -86,7 +99,7 @@ def run_shell_funsie(  # noqa:C901
 
             out[f"{STDOUT}{k}"] = proc.stdout
             out[f"{STDERR}{k}"] = proc.stderr
-            out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+            out[f"{RETURNCODE}{k}"] = int(proc.returncode)
             if proc.returncode:
                 logger.warning(f"nonzero returncode={proc.returncode}")
 

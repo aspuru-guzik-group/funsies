@@ -162,7 +162,7 @@ def run_op(  # noqa:C901
     # we don't have to pop it later because this process is going to die
 
     # load input files
-    input_data: dict[str, Result[bytes]] = {}
+    input_data: dict[str, Result[Union[object, bytes]]] = {}
     for key, val in op.inp.items():
         artefact = Artefact.grab(db, val)
         dat = get_data(db, artefact, carry_error=op.hash)
@@ -254,7 +254,9 @@ def run_op(  # noqa:C901
             create_link(db, op.out[key], val.hash)
         else:
             assert not isinstance(val, Artefact)
-            set_data(db, op.out[key], val, status=ArtefactStatus.done)
+            set_data(
+                db, Artefact.grab(db, op.out[key]), val, status=ArtefactStatus.done
+            )
 
     if funsie.how == FunsieHow.subdag:
         logger.success("DONE: subdag ready.")

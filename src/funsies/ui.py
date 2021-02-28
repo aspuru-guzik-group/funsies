@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 # std
+import json
 import time
 from typing import (
+    Any,
     Callable,
     Iterable,
     Mapping,
     Optional,
     overload,
+    Sequence,
     Union,
 )
 
@@ -22,7 +25,7 @@ except ImportError:
     from typing_extensions import Literal  # type:ignore
 
 # module
-from ._constants import _AnyPath, hash_t
+from ._constants import _AnyPath, _Data, DataType, hash_t
 from ._context import get_db, get_options
 from ._dag import descendants, start_dag_execution
 from ._graph import (
@@ -35,6 +38,7 @@ from ._graph import (
     Operation,
     resolve_link,
 )
+from ._infer import output_types
 from ._logging import logger
 from ._pyfunc import python_funsie
 from ._run import is_it_cached
@@ -44,8 +48,16 @@ from .config import Options
 from .errors import Error, Result, unwrap
 
 # Types
-_INP_FILES = Optional[Mapping[_AnyPath, Union[Artefact, str, bytes]]]
+_Target = Union[Artefact, _Data]
+_INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
+
+
+def _artefact(db: Redis[bytes], data: _Target) -> Artefact:
+    if isinstance(data, Artefact):
+        return data
+    else:
+        return constant_artefact(db, data)
 
 
 # --------------------------------------------------------------------------------
@@ -159,11 +171,7 @@ def shell(  # noqa:C901
     # multiple input files as a mapping
     elif isinstance(inp, Mapping):
         for key, val in inp.items():
-            skey = str(key)
-            if isinstance(val, Artefact):
-                inputs[skey] = val
-            else:
-                inputs[skey] = put(val, connection=db)
+            inputs[str(key)] = _artefact(db, val)
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -172,35 +180,35 @@ def shell(  # noqa:C901
     else:
         outputs = [str(o) for o in out]
 
-    funsie = shell_funsie(cmds, list(inputs.keys()), outputs, env, strict=strict)
+    inputs_types = dict([(k, v.kind) for k, v in inputs.items()])
+    funsie = shell_funsie(cmds, inputs_types, outputs, env, strict=strict)
     operation = make_op(db, funsie, inputs, opt)
     return ShellOutput(db, operation)
 
 
 # --------------------------------------------------------------------------------
 # Data transformers
-def mapping(  # noqa:C901
+def py(  # noqa:C901
     fun: Callable,  # type:ignore
-    *inp: Union[Artefact, str, bytes],
-    noutputs: int,
+    *inp: _Target,
+    out: Optional[Sequence[DataType]] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> tuple[Artefact, ...]:
-    """Add a many-to-many python function to the workflow.
+    """Add a python function to the workflow.
 
-    `mapping()` puts a python function `fun` on the workflow and returns its
-    output artefact. `fun` should have the following signature,
-
-        fun(bytes, bytes, ...) -> bytes, bytes, ...
+    `py(fun, *inp)` puts a python function `fun` on the workflow and returns
+    its output artefact.
 
     As many arguments will be passed to `fun()` as there are input
     `types.Artefact` instances in `*inp` and `fun()` should return as many
-    outputs as the value of `noutputs`.
+    outputs as there are data types in `out=`. By default, `out=` will be
+    inferred from annotations.
 
     If `strict=False`, the function is taken to do it's own error handling and
-    arguments will be of type `errors.Result[bytes]` instead of `bytes`. See
+    arguments will be of type `errors.Result[T]` instead of `T`. See
     `utils.match_results()` for a convenient way to process these values.
 
     Python function hashes are generated based on their names (as given by
@@ -214,18 +222,18 @@ def mapping(  # noqa:C901
         `name=` argument) will not recompute the graph.
 
     It is the therefore the caller's responsibility to `reset()` one of the
-    return value of `mapping()` or call it with `options(reset=True)` if
-    the function is modified to ensure re-excution of its dependents.
-
-    This function is a convenience wrapper around the more general `mapping()`
-    function. Conversely, the `morph()` function is a special case of this one
-    with only one input.
+    return value of `py()` or call it with `options(reset=True)` if the
+    function is modified to ensure re-excution of its dependents.
 
     Args:
         fun: Python function that operates on input artefacts and produces a
             single output artefact.
         *inp: Input artefacts.
-        noutputs: Number of outputs of function `fun()`.
+        out (optional): List of DataType, one for each output of fun. These
+            are the kind of serialization-deserialization used for the output
+            variables. If None, `out=` is inferred using the type hint of
+            `fun()`: `DataType.blob` for all `bytes` outputs and
+            `DataType.json` for anything else.
         name (optional): Override the name of `fun()` used in hash generation.
         strict (optional): If `False`, error handling will be deferred to
             `fun()` by passing it argument of type `errors.Result[bytes]` instead
@@ -239,63 +247,53 @@ def mapping(  # noqa:C901
         A tuple of `types.Artefact` instances that corresponds to the mapping
         `noutputs` return values.
 
+    Raises:
+        TypeError: The output types could not be determined and were not given.
+
     """
+    # Attempt to infer output
+    if out is None:
+        out = output_types(fun)
+
     opt = get_options(opt)
     db = get_db(connection)
-    arg_names = []
     inputs = {}
     for k, arg in enumerate(inp):
-        arg_names += [f"in{k}"]
-        if isinstance(arg, Artefact):
-            inputs[arg_names[-1]] = arg
-        else:
-            inputs[arg_names[-1]] = put(arg, connection=db)
+        inputs[f"in{k}"] = _artefact(db, arg)
 
-    # output slots
-    if noutputs == 1:
-        outputs = ["out"]  # for legacy reasons
-    else:
-        outputs = [f"out{k}" for k in range(noutputs)]
+    in_types = dict([(k, val.kind) for k, val in inputs.items()])
+
+    noutputs = len(out)
+    out_type = dict([(f"out{k}", out[k]) for k in range(noutputs)])
+    out_keys = list(out_type.keys())
+    in_keys = list(in_types.keys())
 
     if name is not None:
         fun_name = name
     else:
         fun_name = f"mapping_{len(inp)}:{fun.__qualname__}"
 
-    # This copy paste is a MyPy exclusive! :S
-    if strict:
+    def __map(inpd: Mapping[str, _Data]) -> dict[str, _Data]:
+        """Perform a reduction."""
+        args = [inpd[key] for key in in_keys]
+        out = fun(*args)
+        if noutputs == 1:
+            out = (out,)
+        return dict(zip(out_keys, out))
 
-        def strict_map(inpd: dict[str, bytes]) -> dict[str, bytes]:
-            """Perform a reduction."""
-            args = [inpd[key] for key in arg_names]
-            out = fun(*args)
-            if noutputs == 1:
-                out = (out,)
-            return dict(zip(outputs, out))
-
-        funsie = python_funsie(
-            strict_map, arg_names, outputs, name=fun_name, strict=True
-        )
-    else:
-
-        def lax_map(inpd: dict[str, Result[bytes]]) -> dict[str, bytes]:
-            """Perform a reduction."""
-            args = [inpd[key] for key in arg_names]
-            out = fun(*args)
-            if noutputs == 1:
-                out = (out,)
-            return dict(zip(outputs, out))
-
-        funsie = python_funsie(lax_map, arg_names, outputs, name=fun_name, strict=False)
-
+    funsie = python_funsie(__map, in_types, out_type, name=fun_name, strict=strict)
     operation = make_op(db, funsie, inputs, opt)
-    return tuple([Artefact.grab(db, operation.out[o]) for o in outputs])
+    returnval = tuple([Artefact.grab(db, operation.out[o]) for o in out_keys])
+    return returnval
 
 
+# --------------------------------------------------------------------------------
+# Convenience functions
 def morph(
-    fun: Callable[[bytes], bytes],
-    inp: Union[Artefact, str, bytes],
+    fun: Callable,  # type:ignore
+    inp: _Target,
     *,  # noqa:DAR101,DAR201
+    out: Optional[DataType] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -303,20 +301,45 @@ def morph(
 ) -> Artefact:
     """Add to workflow a one-to-one python function `y = f(x)`.
 
-    This is syntactic sugar around `mapping()`.
+    This is syntactic sugar around `py()`. By default, the output type will
+    match the input type if it can't be inferred, but it can be set using the
+    out= keyword.
     """
+    db = get_db(connection)
+    inp2 = _artefact(db, inp)
+    if out is None:
+        try:
+            typ = output_types(fun)
+            if len(typ) > 1:
+                raise TypeError(
+                    "Attempted to use morph but the function has more than "
+                    + "one output."
+                )
+            else:
+                out = typ[0]
+        except TypeError:
+            out = inp2.kind
+
     if name is not None:
         morpher_name = name
     else:
         morpher_name = f"morph:{fun.__qualname__}"
-
-    # It's really just another name for a 1-input mapping
-    return mapping(fun, inp, noutputs=1, name=morpher_name, strict=strict, opt=opt)[0]
+    out_type = [out]
+    return py(
+        fun,
+        inp2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )[0]
 
 
 def reduce(
-    fun: Callable[..., bytes],
-    *inp: Union[Artefact, str, bytes],  # noqa:DAR101,DAR201
+    fun: Callable,  # type:ignore
+    *inp: _Target,  # noqa:DAR101,DAR201
+    out: Optional[DataType] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -324,19 +347,48 @@ def reduce(
 ) -> Artefact:
     """Add to workflow a many-to-one python function `y = f(*x)`.
 
-    This is syntactic sugar around `mapping()`.
+    This is syntactic sugar around `py()`. By default, the output type will
+    match the type of the first input if it can't be inferred, but it can be
+    set using the out= keyword.
+
     """
+    inps = list(inp)
+    db = get_db(connection)
+    inp2 = _artefact(db, inps[0])
+    inps[0] = inp2
+    if out is None:
+        try:
+            typ = output_types(fun)
+            if len(typ) > 1:
+                raise TypeError(
+                    "Attempted to use morph but the function has more than "
+                    + "one output."
+                )
+            else:
+                out = typ[0]
+        except TypeError:
+            out = inp2.kind
+
     if name is not None:
-        red_name = name
+        morpher_name = name
     else:
-        red_name = f"reduce_{len(inp)}:{fun.__qualname__}"
-    return mapping(fun, *inp, noutputs=1, name=red_name, strict=strict, opt=opt)[0]
+        morpher_name = f"reduce:{fun.__qualname__}"
+    out_type = [out]
+    return py(
+        fun,
+        *inps,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )[0]
 
 
 # --------------------------------------------------------------------------------
 # Data loading and saving
 def put(
-    value: Union[bytes, str],
+    value: _Data,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Save data to Redis and return an Artefact.
@@ -360,32 +412,24 @@ def put(
 
     Returns:
         An `types.Artefact` instance with status `const`.
-
-    Raises:
-        TypeError: if `value` is not of type bytes or str.
     """
     db = get_db(connection)
-    if isinstance(value, str):
-        return constant_artefact(db, value.encode())
-    elif isinstance(value, bytes):
-        return constant_artefact(db, value)
-    else:
-        raise TypeError(f"value of type {type(value)} not bytes or string")
+    return _artefact(db, value)
 
 
-def __log_error(where: hash_t, dat: Result[bytes]) -> None:
+def __log_error(where: hash_t, dat: Result[_Data]) -> None:
     if isinstance(dat, Error):
         logger.warning(f"data error at hash {shorten_hash(where)}")
 
 
 # fmt:off
 @overload
-def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> bytes:  # noqa
+def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> _Data:  # noqa
     ...
 
 
 @overload
-def take(where: Artefact, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[bytes]:  # noqa
+def take(where: Artefact, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[_Data]:  # noqa
     ...
 # fmt:on
 
@@ -394,7 +438,7 @@ def take(
     where: Artefact,
     strict: bool = True,
     connection: Optional[Redis[bytes]] = None,
-) -> Result[bytes]:
+) -> Result[_Data]:
     """Take data corresponding to a given artefact from Redis.
 
     `take()` returns the currently held value of pointed to by the
@@ -445,9 +489,11 @@ def takeout(
     This is syntactic sugar around `take()`. This function is always strict.
     """
     db = get_db(connection)
-    dat = get_data(db, where)
+    dat = get_data(db, where, raw_binary=True)
     __log_error(where.hash, dat)
     dat = unwrap(dat)
+    if not isinstance(dat, bytes):
+        dat = json.dumps(dat).encode()
     with open(filename, "wb") as f:
         f.write(dat)
 

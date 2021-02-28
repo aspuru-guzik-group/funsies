@@ -25,6 +25,7 @@ class ErrorKind(str, Enum):
     NotFound = "NotFound"
     Mismatch = "Mismatch"
     WrongType = "WrongType"
+    JSONEncodingError = "JSONEncodingError"
     MissingOutput = "MissingOutput"
     MissingInput = "MissingInput"
     ExceptionRaised = "ExceptionRaised"

@@ -18,14 +18,14 @@ from funsies import (
     shell,
     take,
 )
-from funsies._constants import DAG_OPERATIONS, hash_t, join
+from funsies._constants import DAG_OPERATIONS, DataType, hash_t, join
 from funsies.utils import concat
 
 
 def test_dag_build() -> None:
     """Test simple DAG build."""
     with Fun(Redis()) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
@@ -48,7 +48,7 @@ def test_dag_build() -> None:
 def test_dag_efficient() -> None:
     """Test that DAG building doesn't do extra work."""
     with Fun(Redis()) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell(
             "cat file1 file2", inp=dict(file1=step1, file2=dat), out=["file2"]
@@ -72,7 +72,7 @@ def test_dag_cached() -> None:
     """Test that DAG caching works."""
     db = Redis()
     with Fun(db, options(distributed=False)):
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2b = shell("echo 'not'", inp=dict(file1=step1))
         merge = shell(
@@ -82,7 +82,7 @@ def test_dag_cached() -> None:
 
     with Fun(db, options(distributed=False, evaluate=False)):
         # Same as above, should run through with no evaluation
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2b = shell("echo 'not'", inp=dict(file1=step1))
         merge = shell(
@@ -91,7 +91,7 @@ def test_dag_cached() -> None:
         execute(merge)
 
     with Fun(db, options(distributed=False, evaluate=False)):
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         # DIFFERENT HERE: Trigger re-evaluation and raise
         step2b = shell("echo 'knot'", inp=dict(file1=step1))
@@ -105,7 +105,7 @@ def test_dag_cached() -> None:
 def test_dag_execute() -> None:
     """Test execution of a _dag."""
     with Fun(Redis(), options(distributed=False)):
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         output = step2.stdout
@@ -119,7 +119,7 @@ def test_dag_execute() -> None:
 def test_dag_execute2() -> None:
     """Test execution of a _dag."""
     with Fun(Redis(), options(distributed=False)):
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         step11 = shell("echo 'bla'")
@@ -137,7 +137,7 @@ def test_dag_execute2() -> None:
 def test_dag_execute_same_root() -> None:
     """Test execution of two dags that share the same origin."""
     with Fun(Redis(), options(distributed=False)):
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         step2b = shell("cat file1", inp=dict(file1=step1))
@@ -156,16 +156,16 @@ def test_dag_large() -> None:
     with Fun(Redis()) as db:
         outputs = []
         for i in range(100):
-            dat = put(f"bla{i}")
+            dat = put(f"bla{i}".encode())
             step1 = morph(lambda x: x.decode().upper().encode(), dat)
             step2 = shell(
                 "cat file1 file2",
                 inp=dict(file1=step1, file2="something"),
                 out=["file2"],
             )
-            outputs += [concat(step1, step1, step2.stdout, join=" ")]
+            outputs += [concat(step1, step1, step2.stdout, join=b" ")]
 
-        final = concat(*outputs, join="\n")
+        final = concat(*outputs, join=b"\n")
         _dag.build_dag(db, final.hash)
         assert len(_dag._dag_dependents(db, final.hash, hash_t("root"))) == 100
 
@@ -182,9 +182,11 @@ def test_subdag() -> None:
         return {"out": concat(*out, join="-")}
 
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla lol what")
+        dat = put(b"bla bla lol what")
         inp = {"inp": dat}
-        cmd = _subdag.subdag_funsie(map_reduce, ["inp"], ["out"])
+        cmd = _subdag.subdag_funsie(
+            map_reduce, {"inp": DataType.blob}, {"out": DataType.blob}
+        )
         operation = _graph.make_op(db, cmd, inp, options())
         out = _graph.Artefact.grab(db, operation.out["out"])
 

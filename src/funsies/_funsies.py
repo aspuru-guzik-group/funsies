@@ -11,14 +11,14 @@ from typing import Type
 from redis import Redis
 
 # module
-from ._constants import FUNSIES, hash_t, join
+from ._constants import DataType, FUNSIES, hash_t, join
 from ._short_hash import hash_save
 
 
-def _to_list(inp: dict[bytes, bytes]) -> list[str]:
-    out = []
-    for i in range(len(inp)):
-        out += [inp[f"{i}".encode()].decode()]
+def _artefacts(inp: dict[bytes, bytes]) -> dict[str, DataType]:
+    out = {}
+    for key, val in inp.items():
+        out[key.decode()] = DataType(val.decode())
     return out
 
 
@@ -52,8 +52,8 @@ class Funsie:
 
     how: FunsieHow
     what: str
-    inp: list[str]
-    out: list[str]
+    inp: dict[str, DataType]
+    out: dict[str, DataType]
     extra: dict[str, bytes]
     error_tolerant: int = 0
     hash: hash_t = field(init=False)
@@ -71,11 +71,13 @@ class Funsie:
         )
         if self.inp:
             db.hset(  # type:ignore
-                join(FUNSIES, self.hash, "inp"), mapping=dict(list(enumerate(self.inp)))
+                join(FUNSIES, self.hash, "inp"),
+                mapping=dict([(k, v.value) for k, v in self.inp.items()]),
             )
         if self.out:
             db.hset(  # type:ignore
-                join(FUNSIES, self.hash, "out"), mapping=dict(list(enumerate(self.out)))
+                join(FUNSIES, self.hash, "out"),
+                mapping=dict([(k, v.value) for k, v in self.out.items()]),
             )
         if self.extra:
             db.hset(  # type:ignore
@@ -99,8 +101,8 @@ class Funsie:
             how=FunsieHow(int(metadata[b"how"].decode())),
             what=metadata[b"what"].decode(),
             error_tolerant=int(metadata[b"error_tolerant"].decode()),
-            inp=_to_list(inp),
-            out=_to_list(out),
+            inp=_artefacts(inp),
+            out=_artefacts(out),
             extra=dict([(k.decode(), v) for k, v in extra.items()]),
         )
 
@@ -112,10 +114,10 @@ class Funsie:
         # When hashes change, previous databases become deprecated. This
         # (will) require a change in version number!
         out = f"how={self.how}\n" + f"what={self.what}\n"
-        for key in sorted(self.inp):
-            out += f"input:{key}\n"
-        for key in sorted(self.out):
-            out += f"output:{key}\n"
+        for key in sorted(self.inp.keys()):
+            out += f"input:{key} -> {self.inp[key].value}\n"
+        for key in sorted(self.out.keys()):
+            out += f"output:{key} -> {self.out[key].value}\n"
         out += f"error tolerant:{self.error_tolerant}\n"
         # ==============================================================
         return out
