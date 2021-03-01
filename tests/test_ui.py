@@ -87,6 +87,7 @@ def test_morph() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put(b"bla bla")
+        reveal_type(dat)
         morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
         run_op(db, morph.parent)
         assert ui.take(morph) == b"BLA BLA"

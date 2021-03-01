@@ -13,6 +13,7 @@ from typing import (
     Optional,
     overload,
     Sequence,
+    TypeVar,
     Union,
 )
 
@@ -52,6 +53,8 @@ from .errors import Error, Result, unwrap
 _Target = Union[Artefact, _Data]
 _INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
+
+T = TypeVar("T", bound=_Data)
 
 
 def _artefact(db: Redis[bytes], data: _Target) -> Artefact:
@@ -388,8 +391,10 @@ def reduce(
 
 # --------------------------------------------------------------------------------
 # Data loading and saving
+
+
 def put(
-    value: _Data,
+    value: T,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:
     """Save data to Redis and return an Artefact.
