@@ -223,6 +223,21 @@ def __get_data_loc(
             return key
 
 
+def get_bytes(
+    store: Redis[bytes],
+    source: Artefact[Any],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[bytes]:
+    """Retrieve bytes corresponding to an artefact."""
+    raw = match(
+        __get_data_loc(store, source, carry_error, do_resolve_link),
+        some=lambda x: b"".join(store.lrange(x, 0, -1)),
+        none=lambda x: x,
+    )
+    return raw
+
+
 # Save and load artefacts
 def get_data(
     store: Redis[bytes],
@@ -231,11 +246,7 @@ def get_data(
     do_resolve_link: bool = True,
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
-    raw = match(
-        __get_data_loc(store, source, carry_error, do_resolve_link),
-        some=lambda x: b"".join(store.lrange(x, 0, -1)),
-        none=lambda x: x,
-    )
+    raw = get_bytes(store, source, carry_error, do_resolve_link)
     if isinstance(raw, Error):
         return raw
     elif source.kind == Encoding.blob:

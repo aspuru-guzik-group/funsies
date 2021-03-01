@@ -34,6 +34,7 @@ from ._graph import (
     Artefact,
     constant_artefact,
     delete_artefact,
+    get_bytes,
     get_data,
     get_status,
     make_op,
@@ -53,8 +54,9 @@ from .errors import Error, Result, unwrap
 _Target = Union[Artefact, _Data]
 _INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
-
 T = TypeVar("T", bound=_Data)
+T1 = TypeVar("T1", bound=_Data)
+T2 = TypeVar("T2", bound=_Data)
 
 
 def _artefact(db: Redis[bytes], data: _Target) -> Artefact:
@@ -193,7 +195,7 @@ def shell(  # noqa:C901
 # --------------------------------------------------------------------------------
 # Data transformers
 def py(  # noqa:C901
-    fun: Callable,  # type:ignore
+    fun: Callable[..., Any],
     *inp: _Target,
     out: Optional[Sequence[Encoding]] = None,
     name: Optional[str] = None,
@@ -287,22 +289,24 @@ def py(  # noqa:C901
 
     funsie = python_funsie(__map, in_types, out_type, name=fun_name, strict=strict)
     operation = make_op(db, funsie, inputs, opt)
-    returnval = tuple([Artefact.grab(db, operation.out[o]) for o in out_keys])
+    returnval = tuple(
+        [Artefact.grab(db, operation.out[o]) for o in out_keys]  # type:ignore
+    )
     return returnval
 
 
 # --------------------------------------------------------------------------------
 # Convenience functions
 def morph(
-    fun: Callable,  # type:ignore
-    inp: _Target,
+    fun: Callable[[T1], T2],
+    inp: Union[T1, Artefact[T1]],
     *,  # noqa:DAR101,DAR201
     out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact:
+) -> Artefact[T2]:
     """Add to workflow a one-to-one python function `y = f(x)`.
 
     This is syntactic sugar around `py()`. By default, the output type will
@@ -341,14 +345,14 @@ def morph(
 
 
 def reduce(
-    fun: Callable,  # type:ignore
+    fun: Callable[..., T],
     *inp: _Target,  # noqa:DAR101,DAR201
     out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact:
+) -> Artefact[T]:
     """Add to workflow a many-to-one python function `y = f(*x)`.
 
     This is syntactic sugar around `py()`. By default, the output type will
@@ -396,7 +400,7 @@ def reduce(
 def put(
     value: T,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact:
+) -> Artefact[T]:
     """Save data to Redis and return an Artefact.
 
     `put()` explicitly saves `value`, a bytes or string value, to the database
@@ -430,21 +434,21 @@ def __log_error(where: hash_t, dat: Result[object]) -> None:
 
 # fmt:off
 @overload
-def take(where: Artefact, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> _Data:  # noqa
+def take(where: Artefact[T], strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
     ...
 
 
 @overload
-def take(where: Artefact, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[_Data]:  # noqa
+def take(where: Artefact[T], strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
     ...
 # fmt:on
 
 
 def take(
-    where: Artefact,
+    where: Artefact[T],
     strict: bool = True,
     connection: Optional[Redis[bytes]] = None,
-) -> Union[_Data, Result[_Data]]:
+) -> Union[T, Result[T]]:
     """Take data corresponding to a given artefact from Redis.
 
     `take()` returns the currently held value of pointed to by the
@@ -480,7 +484,7 @@ def take(
     dat = get_data(db, where)
     __log_error(where.hash, dat)
     if strict:
-        return cast(_Data, unwrap(dat))
+        return unwrap(dat)
     else:
         return dat
 
@@ -495,11 +499,9 @@ def takeout(
     This is syntactic sugar around `take()`. This function is always strict.
     """
     db = get_db(connection)
-    dat = get_data(db, where, raw_binary=True)
+    dat = get_bytes(db, where)
     __log_error(where.hash, dat)
     dat = unwrap(dat)
-    if not isinstance(dat, bytes):
-        dat = json.dumps(dat).encode()
     with open(filename, "wb") as f:
         f.write(dat)
 

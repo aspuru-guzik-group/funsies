@@ -7,7 +7,7 @@ from enum import IntEnum
 import signal
 import traceback
 from types import FrameType
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 # external
 from redis import Redis
@@ -40,7 +40,7 @@ RUNNERS = {
     FunsieHow.python: run_python_funsie,
     FunsieHow.subdag: run_subdag_funsie,
 }
-out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact]]]
+out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact[Any]]]]
 
 
 # ----------------------------------------------------------------------------- #
@@ -164,7 +164,7 @@ def run_op(  # noqa:C901
     # load input files
     input_data: dict[str, Result[Union[object, bytes]]] = {}
     for key, val in op.inp.items():
-        artefact = Artefact.grab(db, val)
+        artefact = Artefact[Any].grab(db, val)
         dat = get_data(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
@@ -255,7 +255,7 @@ def run_op(  # noqa:C901
         else:
             assert not isinstance(val, Artefact)
             set_data(
-                db, Artefact.grab(db, op.out[key]), val, status=ArtefactStatus.done
+                db, Artefact[Any].grab(db, op.out[key]), val, status=ArtefactStatus.done
             )
 
     if funsie.how == FunsieHow.subdag:

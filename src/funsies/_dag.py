@@ -3,7 +3,7 @@ from __future__ import annotations
 
 # std
 import time
-from typing import Optional
+from typing import Any, Optional
 
 # external
 from redis import Redis
@@ -94,21 +94,20 @@ def build_dag(
     except RuntimeError:
         # one possibility is that address is an artefact...
         try:
-            art = Artefact.grab(db, address)
+            art = Artefact[Any].grab(db, address)
             logger.debug(f"artefact at {address[:6]}")
         except RuntimeError:
             raise RuntimeError(
                 f"address {address} neither a valid operation nor a valid artefact."
             )
 
-    if art is not None:
-        if art.parent == root:
-            # We have basically just a single artefact as the network...
-            logger.debug("no dependencies to execute")
-            return
-        else:
-            node = Operation.grab(db, art.parent)
-            logger.debug(f"building dag for op at {node.hash[:6]}")
+    if art.parent == root:
+        # We have basically just a single artefact as the network...
+        logger.debug("no dependencies to execute")
+        return
+    else:
+        node = Operation.grab(db, art.parent)
+        logger.debug(f"building dag for op at {node.hash[:6]}")
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.
@@ -267,7 +266,7 @@ def task(
                 # We have created a subdag
                 for value in op.out.values():
                     ln = resolve_link(db, value)
-                    art = Artefact.grab(db, ln)
+                    art = Artefact[Any].grab(db, ln)
                     logger.info(f"starting subdag -> {shorten_hash(art.parent)}")
                     start_dag_execution(db, art.parent, subdag=f"{dag_of}/{current}")
 

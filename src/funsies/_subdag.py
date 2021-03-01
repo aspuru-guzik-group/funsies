@@ -66,7 +66,7 @@ def subdag_funsie(
 
 def run_subdag_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[Artefact]]:
+) -> dict[str, Optional[Artefact[Any]]]:
     """Execute a subdag generator."""
     logger.info("subdag generator")
     fun: subdag_t = cloudpickle.loads(funsie.extra["pickled function"])
@@ -79,7 +79,7 @@ def run_subdag_funsie(
     t2 = time.time()
 
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
-    out: dict[str, Optional[Artefact]] = {}
+    out: dict[str, Optional[Artefact[Any]]] = {}
     for output in funsie.out:
         if output in outfun:
             out[output] = outfun[output]

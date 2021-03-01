@@ -7,7 +7,7 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Mapping, Optional, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 
 # external
 from redis import Redis
@@ -124,8 +124,8 @@ class ShellOutput:
 
     op: Operation
     hash: hash_t
-    out: dict[str, Artefact]
-    inp: dict[str, Artefact]
+    out: dict[str, Artefact[bytes]]
+    inp: dict[str, Artefact[Any]]
 
     def __init__(self: "ShellOutput", store: Redis[bytes], op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
@@ -143,19 +143,19 @@ class ShellOutput:
                 if RETURNCODE in key:
                     self.n += 1  # count the number of commands
             else:
-                self.out[key] = Artefact.grab(store, val)
+                self.out[key] = Artefact[bytes].grab(store, val)
 
         self.inp = {}
         for key, val in op.inp.items():
-            self.inp[key] = Artefact.grab(store, val)
+            self.inp[key] = Artefact[Any].grab(store, val)
 
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
         for i in range(self.n):
-            self.stdouts += [Artefact.grab(store, op.out[f"{STDOUT}{i}"])]
-            self.stderrs += [Artefact.grab(store, op.out[f"{STDERR}{i}"])]
-            self.returncodes += [Artefact.grab(store, op.out[f"{RETURNCODE}{i}"])]
+            self.stdouts += [Artefact[bytes].grab(store, op.out[f"{STDOUT}{i}"])]
+            self.stderrs += [Artefact[bytes].grab(store, op.out[f"{STDERR}{i}"])]
+            self.returncodes += [Artefact[int].grab(store, op.out[f"{RETURNCODE}{i}"])]
 
     def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:
@@ -164,19 +164,19 @@ class ShellOutput:
             )
 
     @property
-    def returncode(self: "ShellOutput") -> Artefact:
+    def returncode(self: "ShellOutput") -> Artefact[int]:
         """Return code of a shell command."""
         self.__check_len()
         return self.returncodes[0]
 
     @property
-    def stdout(self: "ShellOutput") -> Artefact:
+    def stdout(self: "ShellOutput") -> Artefact[bytes]:
         """Stdout of a shell command."""
         self.__check_len()
         return self.stdouts[0]
 
     @property
-    def stderr(self: "ShellOutput") -> Artefact:
+    def stderr(self: "ShellOutput") -> Artefact[bytes]:
         """Stderr of a shell command."""
         self.__check_len()
         return self.stderrs[0]

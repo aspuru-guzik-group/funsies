@@ -47,7 +47,7 @@ def test_store_cache() -> None:
     with Fun(Redis()):
         s = ui.put("bla bla")
         s2 = ui.put(b"bla bla")
-        assert s != s2
+        assert s != s2  # type:ignore
         assert ui.take(s) == "bla bla"
         assert ui.take(s2) == b"bla bla"
 
@@ -87,7 +87,6 @@ def test_morph() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put(b"bla bla")
-        reveal_type(dat)
         morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
         run_op(db, morph.parent)
         assert ui.take(morph) == b"BLA BLA"
