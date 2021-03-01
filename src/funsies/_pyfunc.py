@@ -3,7 +3,7 @@ from __future__ import annotations
 
 # std
 import time
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, Union
 
 # external
 import cloudpickle

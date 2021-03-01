@@ -43,10 +43,12 @@ def test_shell_run() -> None:
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.inp["file1"]))
+    dat = _graph.get_data(db, _graph.Artefact[bytes].grab(db, operation.inp["file1"]))
     assert dat == b"bla bla"
 
-    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.out[f"{s.STDOUT}0"]))
+    dat = _graph.get_data(
+        db, _graph.Artefact[bytes].grab(db, operation.out[f"{s.STDOUT}0"])
+    )
     assert dat == b"bla bla"
 
 
@@ -65,10 +67,10 @@ def test_pyfunc_run() -> None:
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.inp["inp"]))
+    dat = _graph.get_data(db, _graph.Artefact[str].grab(db, operation.inp["inp"]))
     assert dat == "bla bla"
 
-    dat = _graph.get_data(db, _graph.Artefact.grab(db, operation.out["inp"]))
+    dat = _graph.get_data(db, _graph.Artefact[str].grab(db, operation.out["inp"]))
     assert dat == "BLA BLA"
 
 
@@ -166,13 +168,17 @@ def test_subdag() -> None:
 
         # test output data
         dat = _graph.get_data(
-            db, _graph.Artefact.grab(db, operation.out["out"]), do_resolve_link=False
+            db,
+            _graph.Artefact[bytes].grab(db, operation.out["out"]),
+            do_resolve_link=False,
         )
         assert isinstance(dat, f.errors.Error)
         assert dat.kind == "UnresolvedLink"
 
         datl = _graph.get_data(
-            db, _graph.Artefact.grab(db, operation.out["out"]), do_resolve_link=True
+            db,
+            _graph.Artefact[bytes].grab(db, operation.out["out"]),
+            do_resolve_link=True,
         )
         assert isinstance(datl, f.errors.Error)
         assert datl.kind == "NotFound"

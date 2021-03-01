@@ -16,7 +16,7 @@ def test_artefact_add() -> None:
     """Test adding const artefacts."""
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.Artefact.grab(store, a.hash)
+    b = _graph.Artefact[bytes].grab(store, a.hash)
     assert b is not None
     assert a == b
 
@@ -40,7 +40,7 @@ def test_artefact_update() -> None:
     store = Redis()
     art = _graph.constant_artefact(store, b"bla bla")
     with pytest.raises(TypeError):
-        _graph.set_data(store, art, b"b", _graph.ArtefactStatus.done)
+        _graph.set_data(store, art.hash, b"b", _graph.ArtefactStatus.done)
 
 
 def test_not_generated() -> None:
@@ -130,7 +130,8 @@ def test_error_propagation_shell() -> None:
     run_op(store, s3.op.hash)
     with Fun(store):
         assert funsies.take(s3.stderr) != b""
-        assert funsies.take(s3.returncode) != b"0"
+        assert isinstance(funsies.take(s3.returncode), int)
+        assert funsies.take(s3.returncode) != 0
 
 
 def test_error_tolerant() -> None:

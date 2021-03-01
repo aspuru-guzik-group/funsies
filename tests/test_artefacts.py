@@ -8,7 +8,7 @@ import pytest
 
 # module
 from funsies import _funsies as f
-from funsies import _graph, options
+from funsies import _graph, _serdes, options
 from funsies.types import Encoding, Error, ErrorKind, hash_t
 
 
@@ -17,7 +17,7 @@ def test_artefact_add() -> None:
     options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.Artefact.grab(store, a.hash)
+    b = _graph.Artefact[bytes].grab(store, a.hash)
     assert b is not None
     assert a == b
 
@@ -68,32 +68,22 @@ def test_artefact_wrong_type() -> None:
     """Test storing non-bytes in implicit artefacts."""
     store = Redis()
     art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
-    _graph.set_data(store, art, "what", _graph.ArtefactStatus.done)
+    _graph.set_data(
+        store,
+        art.hash,
+        _serdes.encode(art.kind, "what"),
+        _graph.ArtefactStatus.done,
+    )  # type:ignore
     out = _graph.get_data(store, art)
     assert isinstance(out, Error)
-    assert out.kind == ErrorKind.ExceptionRaised
+    assert out.kind == ErrorKind.WrongType
 
     art = _graph.variable_artefact(store, hash_t("2"), "file", Encoding.json)
-    _graph.set_data(store, art, ["what", 1], _graph.ArtefactStatus.done)
+    _graph.set_data(
+        store,
+        art.hash,
+        _serdes.encode(art.kind, ["what", 1]),
+        _graph.ArtefactStatus.done,
+    )
     out = _graph.get_data(store, art)
     assert out == ["what", 1]
-
-
-def test_artefact_wrong_type2() -> None:
-    """Test storing non-bytes in implicit artefacts."""
-    import tempfile
-
-    with tempfile.SpooledTemporaryFile(mode="w+") as f:
-        for _ in range(10):
-            f.write("12412413294230472839401923741209347219347293847")
-
-        # rewind
-        f.seek(0)
-
-        store = Redis()
-        art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
-        _graph.set_data(store, art, cast(IO[bytes], f), _graph.ArtefactStatus.done)
-        out = _graph.get_data(store, art)
-        assert isinstance(out, Error)
-        print(out)
-        assert out.kind == ErrorKind.WrongType

@@ -62,7 +62,7 @@ def shell_funsie(
 
 def run_shell_funsie(  # noqa:C901
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[Union[bytes, JsonData]]]:
+) -> dict[str, Optional[_Data]]:
     """Execute a shell command."""
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
@@ -81,7 +81,7 @@ def run_shell_funsie(  # noqa:C901
             env = os.environ.copy()
             env.update(new_env)
 
-        out: dict[str, Optional[Union[bytes, JsonData]]] = {}
+        out: dict[str, Optional[_Data]] = {}
 
         for k, c in enumerate(cmds):
             t1 = time.time()

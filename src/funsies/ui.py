@@ -401,8 +401,6 @@ def reduce(
 
 # --------------------------------------------------------------------------------
 # Data loading and saving
-
-
 def put(
     value: T,
     connection: Optional[Redis[bytes]] = None,

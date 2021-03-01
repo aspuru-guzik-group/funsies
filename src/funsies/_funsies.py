@@ -67,8 +67,7 @@ class Funsie:
         out = {}
         for key, enc in self.inp.items():
             element = input_data[key]
-            if not isinstance(element, Error):
-                out[key] = _serdes.decode(enc, element)
+            out[key] = _serdes.decode(enc, element)
         return out
 
     def put(self: Funsie, db: Redis[bytes]) -> None:

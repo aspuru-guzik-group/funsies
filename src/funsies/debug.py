@@ -146,7 +146,7 @@ def python(
         raise RuntimeError(f"Operation is of type {funsie.how}, not a python function.")
 
     for key, v in target.inp.items():
-        val = Artefact.grab(db, v)
+        val = Artefact[Any].grab(db, v)
         try:
             p = os.path.join(inp, key)
             os.makedirs(os.path.dirname(p), exist_ok=True)

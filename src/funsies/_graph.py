@@ -331,7 +331,7 @@ def variable_artefact(
     parent_hash: hash_t,
     name: str,
     kind: Encoding,
-) -> Artefact[T]:
+) -> Artefact[Any]:
     """Store an artefact with a generated value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT

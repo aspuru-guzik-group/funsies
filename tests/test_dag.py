@@ -173,10 +173,10 @@ def test_dag_large() -> None:
 def test_subdag() -> None:
     """Test that subdags execute properly."""
 
-    def map_reduce(inputs: dict[str, bytes]) -> dict[str, _graph.Artefact]:
+    def map_reduce(inputs: dict[str, bytes]) -> dict[str, _graph.Artefact[bytes]]:
         """Basic map reduce."""
         inp_data = inputs["inp"].split(b" ")
-        out = []
+        out: list[_graph.Artefact[bytes]] = []
         for el in inp_data:
             out += [morph(lambda x: x.upper(), el, opt=options(distributed=False))]
         return {"out": concat(*out, join="-")}
@@ -188,11 +188,11 @@ def test_subdag() -> None:
             map_reduce, {"inp": Encoding.blob}, {"out": Encoding.blob}
         )
         operation = _graph.make_op(db, cmd, inp, options())
-        out = _graph.Artefact.grab(db, operation.out["out"])
+        out = _graph.Artefact[bytes].grab(db, operation.out["out"])
 
         final = shell(
             "cat file1 file2",
-            inp=dict(file1=out, file2="something"),
+            inp=dict(file1=out, file2=b"something"),
         )
 
         execute(final)
