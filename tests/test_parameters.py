@@ -25,7 +25,7 @@ def test_subgraph() -> None:
         # random not included ops
         stepA = shell("echo 'bla'")
         _ = concat(dat, dat)
-        _ = morph(capitalize, "another word")
+        _ = morph(capitalize, b"another word")
 
         final = shell(
             "cat file1 file2", inp={"file1": stepA.stdout, "file2": step2.stdout}
@@ -52,7 +52,7 @@ def test_toposort() -> None:
         # random not included ops
         stepA = shell("echo 'bla'")
         _ = concat(dat, dat)
-        _ = morph(capitalize, "another word")
+        _ = morph(capitalize, b"another word")
 
         final = shell(
             "cat file1 file2", inp={"file1": stepA.stdout, "file2": step2.stdout}

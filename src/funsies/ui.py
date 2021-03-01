@@ -54,12 +54,12 @@ from .errors import Error, Result, unwrap
 _Target = Union[Artefact, _Data]
 _INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
-T = TypeVar("T", bound=_Data)
+T = TypeVar("T")
 T1 = TypeVar("T1", bound=_Data)
 T2 = TypeVar("T2", bound=_Data)
 
 
-def _artefact(db: Redis[bytes], data: _Target) -> Artefact:
+def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
     if isinstance(data, Artefact):
         return data
     else:

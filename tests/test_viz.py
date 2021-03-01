@@ -35,8 +35,8 @@ def upper(k: bytes) -> bytes:
 def test_dag_dump() -> None:
     """Test simple DAG dump to file."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
-        dat2 = put("blaXbla")
+        dat = put(b"bla bla")
+        dat2 = put(b"blaXbla")
         errorstep = morph(raises, dat2)
         step1 = morph(upper, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))

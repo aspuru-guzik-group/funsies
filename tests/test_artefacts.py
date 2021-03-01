@@ -73,7 +73,7 @@ def test_artefact_wrong_type() -> None:
         art.hash,
         _serdes.encode(art.kind, "what"),
         _graph.ArtefactStatus.done,
-    )  # type:ignore
+    )
     out = _graph.get_data(store, art)
     assert isinstance(out, Error)
     assert out.kind == ErrorKind.WrongType

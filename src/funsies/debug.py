@@ -6,7 +6,7 @@ from dataclasses import asdict
 import json
 import os
 import os.path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 # external
 from redis import Redis
