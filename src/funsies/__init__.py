@@ -11,15 +11,14 @@ from ._getter import get
 from .errors import unwrap
 from .ui import (
     execute,
-    morph,
     put,
-    reduce,
     reset,
     shell,
     take,
     takeout,
     wait_for,
 )
+from .py import py, reduce, morph
 
 
 __all__ = [

@@ -12,7 +12,8 @@ from ._constants import Encoding
 from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
-from .ui import _Target, py
+from .ui import _Target
+from .py import py
 
 Tin = TypeVar("Tin")
 Tout1 = TypeVar("Tout1")
