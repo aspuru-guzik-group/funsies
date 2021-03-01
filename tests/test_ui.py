@@ -2,14 +2,13 @@
 # std
 import json
 import tempfile
-from typing import Tuple
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # module
-from funsies import _graph, Fun, options, ui
+from funsies import _graph, Fun, options, ui, py
 from funsies._run import run_op
 from funsies.types import Encoding, UnwrapError
 
@@ -64,8 +63,8 @@ def test_rm() -> None:
         def upper(x: str) -> str:
             return x.upper()
 
-        m1 = ui.morph(upper, dat)
-        m2 = ui.morph(lambda x: x + x, m1)
+        m1 = py.morph(upper, dat)
+        m2 = py.morph(lambda x: x + x, m1)
         ui.execute(m2)
         assert ui.take(m2) == "BLA BLABLA BLA"
 
@@ -87,12 +86,12 @@ def test_morph() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put(b"bla bla")
-        morph = ui.morph(lambda x: x.decode().upper().encode(), dat)
+        morph = py.morph(lambda x: x.decode().upper().encode(), dat)
         run_op(db, morph.parent)
         assert ui.take(morph) == b"BLA BLA"
 
         dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.upper(), dat)
+        morph = py.morph(lambda x: x.upper(), dat)
         run_op(db, morph.parent)
         assert ui.take(morph) == "BLA BLA"
 
@@ -101,12 +100,12 @@ def test_reduce() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.upper(), dat)
+        morph = py.morph(lambda x: x.upper(), dat)
 
         def join(x: str, y: str) -> str:
             return x + y
 
-        red = ui.reduce(join, morph, dat)
+        red = py.reduce(join, morph, dat)
 
         run_op(db, morph.parent)
         run_op(db, red.parent)
@@ -117,7 +116,7 @@ def test_multi_reduce() -> None:
     """Test store for caching."""
     with Fun(Redis()) as db:
         dat = ui.put("bla bla")
-        morph = ui.morph(lambda x: x.upper(), dat)
+        morph = py.morph(lambda x: x.upper(), dat)
 
         def join(*x: str) -> str:
             out = ""
@@ -128,7 +127,7 @@ def test_multi_reduce() -> None:
         # with pytest.raises(TypeError):
         #     red = ui.reduce(join, morph, dat, b"|wat")
 
-        red = ui.reduce(join, morph, dat, "|wat")
+        red = py.reduce(join, morph, dat, "|wat")
 
         run_op(db, morph.parent)
         run_op(db, red.parent)

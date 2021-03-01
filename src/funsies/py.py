@@ -70,7 +70,7 @@ def py(  # noqa:C901
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> tuple[Artefact, ...]:
+) -> Union[Artefact, tuple[Artefact, ...]]:
     """Add a python function to the workflow.
 
     `py(fun, *inp)` puts a python function `fun` on the workflow and returns
@@ -160,7 +160,10 @@ def py(  # noqa:C901
     returnval = tuple(
         [Artefact.grab(db, operation.out[o]) for o in out_keys]  # type:ignore
     )
-    return returnval
+    if len(returnval) == 1:
+        return returnval[0]
+    else:
+        return returnval
 
 
 # --------------------------------------------------------------------------------
@@ -211,50 +214,7 @@ def morph(
         strict=strict,
         opt=opt,
         connection=db,
-    )[0]
-
-
-# fmt:off
-@overload
-def reduce(fun: Callable[[Tin1], Tout1], __inp1: _inp[Tin1], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Tin1, Tin2], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Tin1, Tin2, Tin3], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Tin1, Tin2, Tin3, Tin4], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], __inp4: _inp[Tin4], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[VarArg(Tin1)], Tout1], *__inp1: _inp[Tin1], out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Result[Tin1]], Tout1], __inp1: _inp[Tin1], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(
-    fun: Callable[[Result[Tin1], Result[Tin2]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Result[Tin1], Result[Tin2], Result[Tin3]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[Result[Tin1], Result[Tin2], Result[Tin3], Result[Tin4]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], __inp4: _inp[Tin4], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
-
-
-@overload
-def reduce(fun: Callable[[VarArg(Result[Tin1])], Tout1], *__inp1: _inp[Tin1], out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
-# fmt:on
+    )
 
 
 def reduce(
@@ -303,4 +263,4 @@ def reduce(
         strict=strict,
         opt=opt,
         connection=db,
-    )[0]
+    )
