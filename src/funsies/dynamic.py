@@ -14,7 +14,7 @@ from typing import (
 from redis import Redis
 
 # module
-from ._constants import _Data, DataType, JsonData
+from ._constants import _Data, Encoding, JsonData
 from ._context import get_db, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._subdag import subdag_funsie
@@ -30,7 +30,7 @@ def sac(
     apply_fun: Callable[[Artefact], Artefact],
     combine_fun: Callable[[Sequence[Artefact]], Artefact],
     *inp: _Target,
-    out: DataType,
+    out: Encoding,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,

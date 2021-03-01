@@ -10,7 +10,7 @@ import pytest
 # module
 import funsies
 from funsies import dynamic
-from funsies.types import Artefact, DataType
+from funsies.types import Artefact, Encoding
 
 
 def test_map_reduce() -> None:
@@ -34,7 +34,7 @@ def test_map_reduce() -> None:
         return out
 
     def combine(inp: Sequence[Artefact]) -> Artefact:
-        out = [funsies.morph(lambda y: y.encode(), x, out=DataType.blob) for x in inp]
+        out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
         return funsies.utils.concat(*out)
 
     with funsies.Fun(Redis(), funsies.options(distributed=False)):
@@ -47,7 +47,7 @@ def test_map_reduce() -> None:
             combine,
             num1,
             num2,
-            out=DataType.blob,
+            out=Encoding.blob,
         )
         funsies.execute(outputs)
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
@@ -86,20 +86,20 @@ def test_nested_map_reduce(nworkers: int) -> None:
             apply_inner,
             combine_inner,
             inp,
-            out=DataType.json,
+            out=Encoding.json,
         )
         return outputs
 
     def combine_outer(inp: Sequence[Artefact]) -> Artefact:
         out = [
-            funsies.morph(lambda y: f"{y}".encode(), x, out=DataType.blob) for x in inp
+            funsies.morph(lambda y: f"{y}".encode(), x, out=Encoding.blob) for x in inp
         ]
         return funsies.utils.concat(*out, join=b",,")
 
     with funsies.ManagedFun(nworkers=nworkers):
         num1 = funsies.put("1 2 3 4 5")
         outputs = dynamic.sac(
-            split_inner, apply_inner, combine_inner, num1, out=DataType.json
+            split_inner, apply_inner, combine_inner, num1, out=Encoding.json
         )
         funsies.execute(outputs)
         funsies.wait_for(outputs, timeout=10.0)
@@ -121,7 +121,7 @@ def test_nested_map_reduce(nworkers: int) -> None:
             combine_outer,
             num,
             factor,
-            out=DataType.blob,
+            out=Encoding.blob,
         )
         funsies.execute(outputs)
         funsies.wait_for(outputs, timeout=20.0)

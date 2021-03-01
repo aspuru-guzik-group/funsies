@@ -4,18 +4,18 @@ import os
 
 # module
 from funsies import _shell as s
-from funsies.types import DataType
+from funsies.types import Encoding
 
 
 def test_shell_wrap() -> None:
     """Test the instantiation of a shell Funsie."""
-    out = s.shell_funsie(["cat file1"], {"file1": DataType.blob}, [])
+    out = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
     assert out is not None
 
 
 def test_shell_run() -> None:
     """Test runnign shell commands."""
-    cmd = s.shell_funsie(["cat file1"], {"file1": DataType.blob}, [])
+    cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
     inp = {"file1": b"bla bla"}
     out = s.run_shell_funsie(cmd, inp)
     assert out[f"{s.STDOUT}0"] == b"bla bla"
@@ -23,7 +23,7 @@ def test_shell_run() -> None:
 
 def test_shell_cp() -> None:
     """Test runnign shell commands."""
-    cmd = s.shell_funsie(["cp file1 file2"], {"file1": DataType.json}, ["file2"])
+    cmd = s.shell_funsie(["cp file1 file2"], {"file1": Encoding.json}, ["file2"])
     inp = {"file1": b"bla bla"}
     out = s.run_shell_funsie(cmd, inp)
     assert out[f"{s.STDOUT}0"] == b""

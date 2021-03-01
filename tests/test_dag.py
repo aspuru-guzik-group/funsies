@@ -18,7 +18,7 @@ from funsies import (
     shell,
     take,
 )
-from funsies._constants import DAG_OPERATIONS, DataType, hash_t, join
+from funsies._constants import DAG_OPERATIONS, Encoding, hash_t, join
 from funsies.utils import concat
 
 
@@ -185,7 +185,7 @@ def test_subdag() -> None:
         dat = put(b"bla bla lol what")
         inp = {"inp": dat}
         cmd = _subdag.subdag_funsie(
-            map_reduce, {"inp": DataType.blob}, {"out": DataType.blob}
+            map_reduce, {"inp": Encoding.blob}, {"out": Encoding.blob}
         )
         operation = _graph.make_op(db, cmd, inp, options())
         out = _graph.Artefact.grab(db, operation.out["out"])

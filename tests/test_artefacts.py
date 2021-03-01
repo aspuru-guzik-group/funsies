@@ -9,7 +9,7 @@ import pytest
 # module
 from funsies import _funsies as f
 from funsies import _graph, options
-from funsies.types import DataType, Error, ErrorKind, hash_t
+from funsies.types import Encoding, Error, ErrorKind, hash_t
 
 
 def test_artefact_add() -> None:
@@ -26,7 +26,7 @@ def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     options()
     store = Redis()
-    art = _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
+    art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
     out = _graph.get_data(store, art)
     assert isinstance(out, Error)
     assert out.kind == ErrorKind.NotFound
@@ -41,8 +41,8 @@ def test_operation_pack() -> None:
     fun = f.Funsie(
         how=f.FunsieHow.shell,
         what="cat infile",
-        inp={"infile": DataType.blob},
-        out={"out": DataType.json},
+        inp={"infile": Encoding.blob},
+        out={"out": Encoding.json},
         extra={},
     )
     op = _graph.make_op(store, fun, {"infile": a}, opt)
@@ -67,13 +67,13 @@ def test_operation_pack() -> None:
 def test_artefact_wrong_type() -> None:
     """Test storing non-bytes in implicit artefacts."""
     store = Redis()
-    art = _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
+    art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
     _graph.set_data(store, art, "what", _graph.ArtefactStatus.done)
     out = _graph.get_data(store, art)
     assert isinstance(out, Error)
     assert out.kind == ErrorKind.ExceptionRaised
 
-    art = _graph.variable_artefact(store, hash_t("2"), "file", DataType.json)
+    art = _graph.variable_artefact(store, hash_t("2"), "file", Encoding.json)
     _graph.set_data(store, art, ["what", 1], _graph.ArtefactStatus.done)
     out = _graph.get_data(store, art)
     assert out == ["what", 1]
@@ -91,7 +91,7 @@ def test_artefact_wrong_type2() -> None:
         f.seek(0)
 
         store = Redis()
-        art = _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
+        art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
         _graph.set_data(store, art, cast(IO[bytes], f), _graph.ArtefactStatus.done)
         out = _graph.get_data(store, art)
         assert isinstance(out, Error)

@@ -13,7 +13,7 @@ from typing import Mapping, Optional, Sequence, Union
 from redis import Redis
 
 # module
-from ._constants import _Data, DataType, hash_t, JsonData
+from ._constants import _Data, Encoding, hash_t, JsonData
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._logging import logger
@@ -28,7 +28,7 @@ RETURNCODE = f"{SPECIAL}/returncode"
 
 def shell_funsie(
     cmds: Sequence[str],
-    input_files: dict[str, DataType],
+    input_files: dict[str, Encoding],
     output_files: Sequence[str],
     env: Optional[dict[str, str]] = None,
     strict: bool = True,
@@ -36,13 +36,13 @@ def shell_funsie(
     """Wrap a shell command."""
     out = {}
     for fn in output_files:
-        out[fn] = DataType.blob
+        out[fn] = Encoding.blob
         # TODO: files that end with .json
 
     for k in range(len(cmds)):
-        out[f"{STDOUT}{k}"] = DataType.blob
-        out[f"{STDERR}{k}"] = DataType.blob
-        out[f"{RETURNCODE}{k}"] = DataType.json
+        out[f"{STDOUT}{k}"] = Encoding.blob
+        out[f"{STDERR}{k}"] = Encoding.blob
+        out[f"{RETURNCODE}{k}"] = Encoding.json
 
     ierr = 1
     if strict:

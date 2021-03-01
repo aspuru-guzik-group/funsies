@@ -11,14 +11,14 @@ from typing import Type
 from redis import Redis
 
 # module
-from ._constants import DataType, FUNSIES, hash_t, join
+from ._constants import Encoding, FUNSIES, hash_t, join
 from ._short_hash import hash_save
 
 
-def _artefacts(inp: dict[bytes, bytes]) -> dict[str, DataType]:
+def _artefacts(inp: dict[bytes, bytes]) -> dict[str, Encoding]:
     out = {}
     for key, val in inp.items():
-        out[key.decode()] = DataType(val.decode())
+        out[key.decode()] = Encoding(val.decode())
     return out
 
 
@@ -52,8 +52,8 @@ class Funsie:
 
     how: FunsieHow
     what: str
-    inp: dict[str, DataType]
-    out: dict[str, DataType]
+    inp: dict[str, Encoding]
+    out: dict[str, Encoding]
     extra: dict[str, bytes]
     error_tolerant: int = 0
     hash: hash_t = field(init=False)

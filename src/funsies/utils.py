@@ -8,7 +8,7 @@ from typing import Callable, Optional, overload, Sequence, TypeVar, Union
 from redis import Redis
 
 # module
-from ._constants import DataType
+from ._constants import Encoding
 from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
@@ -68,7 +68,7 @@ def concat(
         join,
         strip,
         *inputs,
-        out=[DataType.blob],
+        out=[Encoding.blob],
         strict=strict,
         connection=connection,
         opt=opt,
@@ -104,7 +104,7 @@ def truncate(
         top,
         bottom,
         separator,
-        out=[DataType.blob],
+        out=[Encoding.blob],
         name="truncate",
         strict=strict,
         opt=opt,

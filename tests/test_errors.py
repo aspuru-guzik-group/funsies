@@ -9,7 +9,7 @@ import pytest
 import funsies
 from funsies import _graph, Fun, options
 from funsies._run import run_op
-from funsies.types import DataType, Error, hash_t, Result, UnwrapError
+from funsies.types import Encoding, Error, hash_t, Result, UnwrapError
 
 
 def test_artefact_add() -> None:
@@ -31,8 +31,8 @@ def test_artefact_load_errors() -> None:
     _graph.constant_artefact(store, b"bla bla")
     _graph.constant_artefact(store, b"bla bla")
 
-    _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
-    _graph.variable_artefact(store, hash_t("1"), "file", DataType.blob)
+    _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
+    _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
 
 
 def test_artefact_update() -> None:

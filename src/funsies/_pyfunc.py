@@ -10,7 +10,7 @@ import cloudpickle
 
 
 # module
-from ._constants import _Data, DataType, JsonData
+from ._constants import _Data, Encoding, JsonData
 from ._funsies import Funsie, FunsieHow
 from ._logging import logger
 from .errors import Result
@@ -22,8 +22,8 @@ pyfunc_t = Callable[..., Any]
 
 def python_funsie(
     fun: pyfunc_t,
-    inputs: dict[str, DataType],
-    outputs: dict[str, DataType],
+    inputs: dict[str, Encoding],
+    outputs: dict[str, Encoding],
     name: Optional[str] = None,
     strict: bool = True,
 ) -> Funsie:

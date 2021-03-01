@@ -34,17 +34,17 @@ def test_infer() -> None:
     def test_fun6(a: int, b: int) -> Tuple[int, ...]:
         ...
 
-    # assert _infer.output_types(test_fun) == (types.DataType.blob,)
+    # assert _infer.output_types(test_fun) == (types.Encoding.blob,)
     # with pytest.raises(TypeError):
     #     assert _infer.output_types(test_fun4) is None
 
     # assert _infer.output_types(test_fun2) == ()
     # assert _infer.output_types(test_fun3) == _infer.output_types(test_fun3b)
     assert _infer.output_types(test_fun5) == (
-        types.DataType.blob,
-        types.DataType.json,
-        types.DataType.json,
-        types.DataType.blob,
+        types.Encoding.blob,
+        types.Encoding.json,
+        types.Encoding.json,
+        types.Encoding.blob,
     )
     with pytest.raises(TypeError):
         assert _infer.output_types(test_fun6) is None

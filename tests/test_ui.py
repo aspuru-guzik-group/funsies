@@ -11,7 +11,7 @@ import pytest
 # module
 from funsies import _graph, Fun, options, ui
 from funsies._run import run_op
-from funsies.types import DataType, UnwrapError
+from funsies.types import Encoding, UnwrapError
 
 
 def test_shell_run() -> None:

@@ -11,19 +11,19 @@ try:
 except ImportError:
     from typing_extensions import get_args, get_origin
 
-from ._constants import DataType
+from ._constants import Encoding
 from ._logging import logger
 
 
-def __translate(x: Union[Type[Any], str]) -> DataType:
+def __translate(x: Union[Type[Any], str]) -> Encoding:
     if x is bytes or x == "bytes":
-        return DataType.blob
+        return Encoding.blob
     else:
-        return DataType.json
+        return Encoding.json
 
 
 # Type a function
-def output_types(fun: Callable[..., Any]) -> tuple[DataType, ...]:
+def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
     """Infer number of return values from a function's type hint."""
     sig = inspect.signature(fun)
     returns = sig.return_annotation

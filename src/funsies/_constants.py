@@ -24,7 +24,7 @@ _Data = Union[bytes, JsonData]
 """All output data types."""
 
 
-class DataType(str, Enum):
+class Encoding(str, Enum):
     """Types for data objects.
 
     Funsies does not support a full-blown type system. For this, we defer to

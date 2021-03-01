@@ -9,7 +9,7 @@ from typing import Any, Callable, Mapping, Optional
 import cloudpickle
 
 # module
-from ._constants import DataType
+from ._constants import Encoding
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact
 from ._logging import logger
@@ -22,8 +22,8 @@ subdag_t = Callable[..., Any]
 
 def subdag_funsie(
     fun: subdag_t,
-    inputs: dict[str, DataType],
-    outputs: dict[str, DataType],
+    inputs: dict[str, Encoding],
+    outputs: dict[str, Encoding],
     name: Optional[str] = None,
     strict: bool = True,
 ) -> Funsie:

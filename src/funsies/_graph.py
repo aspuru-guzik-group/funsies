@@ -19,7 +19,7 @@ from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
     _Data,
-    DataType,
+    Encoding,
     hash_t,
     join,
     JsonData,
@@ -79,7 +79,7 @@ class Artefact(Generic[T]):
 
     hash: hash_t
     parent: hash_t
-    kind: DataType
+    kind: Encoding
 
     def put(self: Artefact[Any], db: Redis[bytes]) -> None:
         """Save an artefact to Redis."""
@@ -101,7 +101,7 @@ class Artefact(Generic[T]):
         return Artefact[T](
             hash=hash_t(data[b"hash"].decode()),
             parent=hash_t(data[b"parent"].decode()),
-            kind=DataType(data[b"kind"].decode()),
+            kind=Encoding(data[b"kind"].decode()),
         )
 
 
@@ -238,7 +238,7 @@ def get_data(
     )
     if isinstance(raw, Error):
         return raw
-    elif source.kind == DataType.blob:
+    elif source.kind == Encoding.blob:
         return cast(T, raw)
     else:
         return cast(T, json.loads(raw.decode()))
@@ -260,7 +260,7 @@ def set_data(
 
     key = join(ARTEFACTS, address, "data")
 
-    if dest.kind == DataType.blob:
+    if dest.kind == Encoding.blob:
         assert isinstance(value, bytes)
         buf = io.BytesIO(value)
     else:
@@ -312,10 +312,10 @@ def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
     """Store an artefact with a defined value."""
     if isinstance(value, bytes):
         data = value
-        type = DataType.blob
+        type = Encoding.blob
     else:
         data = json.dumps(value).encode()
-        type = DataType.json
+        type = Encoding.json
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -339,7 +339,7 @@ def variable_artefact(
     store: Redis[bytes],
     parent_hash: hash_t,
     name: str,
-    kind: DataType,
+    kind: Encoding,
 ) -> Artefact[T]:
     """Store an artefact with a generated value."""
     # ==============================================================

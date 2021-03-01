@@ -27,7 +27,7 @@ except ImportError:
     from typing_extensions import Literal  # type:ignore
 
 # module
-from ._constants import _AnyPath, _Data, DataType, hash_t
+from ._constants import _AnyPath, _Data, Encoding, hash_t
 from ._context import get_db, get_options
 from ._dag import descendants, start_dag_execution
 from ._graph import (
@@ -195,7 +195,7 @@ def shell(  # noqa:C901
 def py(  # noqa:C901
     fun: Callable,  # type:ignore
     *inp: _Target,
-    out: Optional[Sequence[DataType]] = None,
+    out: Optional[Sequence[Encoding]] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -233,11 +233,11 @@ def py(  # noqa:C901
         fun: Python function that operates on input artefacts and produces a
             single output artefact.
         *inp: Input artefacts.
-        out (optional): List of DataType, one for each output of fun. These
+        out (optional): List of Encoding, one for each output of fun. These
             are the kind of serialization-deserialization used for the output
             variables. If None, `out=` is inferred using the type hint of
-            `fun()`: `DataType.blob` for all `bytes` outputs and
-            `DataType.json` for anything else.
+            `fun()`: `Encoding.blob` for all `bytes` outputs and
+            `Encoding.json` for anything else.
         name (optional): Override the name of `fun()` used in hash generation.
         strict (optional): If `False`, error handling will be deferred to
             `fun()` by passing it argument of type `errors.Result[bytes]` instead
@@ -297,7 +297,7 @@ def morph(
     fun: Callable,  # type:ignore
     inp: _Target,
     *,  # noqa:DAR101,DAR201
-    out: Optional[DataType] = None,
+    out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -343,7 +343,7 @@ def morph(
 def reduce(
     fun: Callable,  # type:ignore
     *inp: _Target,  # noqa:DAR101,DAR201
-    out: Optional[DataType] = None,
+    out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,

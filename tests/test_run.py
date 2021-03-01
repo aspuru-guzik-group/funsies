@@ -11,7 +11,7 @@ from funsies import _shell as s
 from funsies import _subdag as sub
 from funsies import options
 from funsies._run import run_op
-from funsies.types import DataType, RunStatus
+from funsies.types import Encoding, RunStatus
 
 
 def capitalize(inputs: Dict[str, bytes]) -> Dict[str, bytes]:
@@ -34,7 +34,7 @@ def test_shell_run() -> None:
     """Test run on a shell command."""
     opt = options()
     db = Redis()
-    cmd = s.shell_funsie(["cat file1"], {"file1": DataType.blob}, [])
+    cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
     inp = {"file1": _graph.constant_artefact(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
     status = run_op(db, operation.hash)
@@ -55,7 +55,7 @@ def test_pyfunc_run() -> None:
     db = Redis()
     opt = options()
     cmd = p.python_funsie(
-        capitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="capit"
+        capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
     inp = {"inp": _graph.constant_artefact(db, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -77,7 +77,7 @@ def test_cached_run() -> None:
     db = Redis()
     opt = options()
     cmd = p.python_funsie(
-        capitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="capit"
+        capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
     inp = {"inp": _graph.constant_artefact(db, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -94,7 +94,7 @@ def test_cached_instances() -> None:
     db = Redis()
     opt = options()
     cmd = p.python_funsie(
-        capitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="capit"
+        capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
     inp = {"inp": _graph.constant_artefact(db, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -103,7 +103,7 @@ def test_cached_instances() -> None:
     assert status == RunStatus.executed
 
     cmd = p.python_funsie(
-        capitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="capit"
+        capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
     inp = {"inp": _graph.constant_artefact(db, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -116,11 +116,11 @@ def test_dependencies() -> None:
     db = Redis()
     opt = options()
     cmd = p.python_funsie(
-        capitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="capit"
+        capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
 
     cmd2 = p.python_funsie(
-        uncapitalize, {"inp": DataType.json}, {"inp": DataType.json}, name="uncap"
+        uncapitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="uncap"
     )
     operation = _graph.make_op(
         db, cmd, inp={"inp": _graph.constant_artefact(db, "bla bla")}, opt=opt
@@ -155,7 +155,7 @@ def test_subdag() -> None:
             return {"out": f.utils.concat(out, join="-")}
 
         cmd = sub.subdag_funsie(
-            map_reduce, {"inp": DataType.blob}, {"out": DataType.blob}
+            map_reduce, {"inp": Encoding.blob}, {"out": Encoding.blob}
         )
         inp = {"inp": _graph.constant_artefact(db, b"bla bla blo lol")}
         operation = _graph.make_op(db, cmd, inp, opt)

@@ -1,5 +1,5 @@
 """Object types."""
-from ._constants import DataType, hash_t
+from ._constants import Encoding, hash_t
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, ArtefactStatus, Operation
 from ._run import RunStatus
@@ -17,7 +17,7 @@ __all__ = [
     "FunsieHow",
     "Artefact",
     "ArtefactStatus",
-    "DataType",
+    "Encoding",
     "Operation",
     "ShellOutput",
     "hash_t",
