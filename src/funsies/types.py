@@ -1,5 +1,5 @@
 """Object types."""
-from ._constants import hash_t
+from ._constants import Encoding, hash_t
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, ArtefactStatus, Operation
 from ._run import RunStatus
@@ -11,11 +11,13 @@ from .errors import Error, ErrorKind, Result, UnwrapError
 Result = Result
 """see `funsies.errors.Result`."""
 
+
 __all__ = [
     "Funsie",
     "FunsieHow",
     "Artefact",
     "ArtefactStatus",
+    "Encoding",
     "Operation",
     "ShellOutput",
     "hash_t",

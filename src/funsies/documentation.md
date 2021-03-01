@@ -13,12 +13,11 @@ for incremental computation or by distributed version control systems such as [m
 
 Workflows are written in pure python using a set of primitives such as shell
 commands (using the `shell()` function) and python glue code (encoded with
-`morph()`, `reduce()` and `mapping()`). Errors are handled using a functional
-programming (a `errors.Result` monad) inspired by
-[Rust](https://doc.rust-lang.org/std/result/). In practice, python code can
-raise exceptions and shell commands can fail in specifc branches without
-compromising the execution of the whole workflow, and the origin of errors is
-readily traced.
+`py()`). Errors are handled using a functional programming (a `errors.Result`
+monad) inspired by [Rust](https://doc.rust-lang.org/std/result/). In practice,
+python code can raise exceptions and shell commands can fail in specifc
+branches without compromising the execution of the whole workflow, and the
+origin of errors is readily traced.
 
 
 

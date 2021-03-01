@@ -12,9 +12,8 @@ from redis import Redis
 # module
 from ._constants import (
     ARTEFACTS,
-    DAG_DONE,
     DAG_INDEX,
-    DAG_RUNNING,
+    DAG_OPERATIONS,
     FUNSIES,
     hash_t,
     join,
@@ -63,9 +62,7 @@ def export(
         logger.info("generating graph for")
         logger.info(f"{'/'.join([shorten_hash(a) for a in address.split('/')])}")
         # add node data
-        curr_nodes = db.sunion(
-            join(DAG_RUNNING, address), join(DAG_DONE, address)
-        )  # type:ignore
+        curr_nodes = db.smembers(join(DAG_OPERATIONS, address))
         logger.info(f"graph contains {len(curr_nodes)} nodes")
 
         for k, element in enumerate(curr_nodes):

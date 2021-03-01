@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 # std
+from contextlib import ContextDecorator
 from enum import IntEnum
+import signal
 import traceback
-from typing import cast, Dict, Optional, Union
+from types import FrameType
+from typing import Any, Dict, Optional, Union
 
 # external
 from redis import Redis
 import rq
 
 # module
+from . import _serdes
 from ._constants import ARTEFACTS, hash_t, join
 from ._context import _options_stack
 from ._funsies import Funsie, FunsieHow
@@ -18,7 +22,7 @@ from ._graph import (
     Artefact,
     ArtefactStatus,
     create_link,
-    get_data,
+    get_bytes,
     get_status,
     mark_error,
     Operation,
@@ -37,7 +41,12 @@ RUNNERS = {
     FunsieHow.python: run_python_funsie,
     FunsieHow.subdag: run_subdag_funsie,
 }
-out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact]]]
+out_data_t = Union[Dict[str, Optional[object]], Dict[str, Optional[Artefact[Any]]]]
+
+
+# ----------------------------------------------------------------------------- #
+# Context manager for signals
+HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM]
 
 
 class SignalError(Exception):
@@ -46,11 +55,38 @@ class SignalError(Exception):
     pass
 
 
+def _signal_failure(signum: signal.Signals, frame: FrameType) -> None:
+    raise SignalError(str(signum))
+
+
+class catch_signals(ContextDecorator):
+    """Decorator to catch termination signals."""
+
+    def __init__(self: "catch_signals") -> None:
+        """Start handler."""
+        pass
+
+    def __enter__(self: "catch_signals") -> None:
+        """Enter signal handler."""
+        self.original_handlers = dict(
+            [(s, signal.getsignal(s)) for s in HANDLED_SIGNALS]
+        )
+        for s in HANDLED_SIGNALS:
+            signal.signal(s, _signal_failure)
+
+    def __exit__(self: "catch_signals", exc_type, exc, exc_tb):  # noqa
+        """Exit signal handler."""
+        for key, val in self.original_handlers.items():
+            signal.signal(key, val)
+
+
+# ----------------------------------------------------------------------------- #
 class RunStatus(IntEnum):
     """Possible status of running an operation."""
 
     # <= 0 -> issue prevented running job.
     subdag_ready = -5
+    delayed = -3
     unmet_dependencies = -2
     not_ready = -1
     # > 0 -> executed, can run dependents.
@@ -92,6 +128,7 @@ def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
     return True
 
 
+@catch_signals()
 def run_op(  # noqa:C901
     db: Redis[bytes], op: Union[Operation, hash_t], evaluate: bool = True
 ) -> RunStatus:
@@ -128,8 +165,8 @@ def run_op(  # noqa:C901
     # load input files
     input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
-        artefact = Artefact.grab(db, val)
-        dat = get_data(db, artefact, carry_error=op.hash)
+        artefact = Artefact[Any].grab(db, val)
+        dat = get_bytes(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -213,11 +250,17 @@ def run_op(  # noqa:C901
             )
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
+        elif funsie.how == FunsieHow.subdag:
+            assert isinstance(val, Artefact)
+            create_link(db, op.out[key], val.hash)
         else:
-            if funsie.how == FunsieHow.subdag:
-                create_link(db, op.out[key], cast(Artefact, val).hash)
-            else:
-                set_data(db, op.out[key], cast(bytes, val), status=ArtefactStatus.done)
+            assert not isinstance(val, Artefact)
+            set_data(
+                db,
+                op.out[key],
+                _serdes.encode(funsie.out[key], val),
+                status=ArtefactStatus.done,
+            )
 
     if funsie.how == FunsieHow.subdag:
         logger.success("DONE: subdag ready.")

@@ -18,14 +18,14 @@ def capitalize(inp: bytes) -> bytes:
 def test_subgraph() -> None:
     """Test that we can isolate the required operators for parametrization."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
 
         # random not included ops
         stepA = shell("echo 'bla'")
         _ = concat(dat, dat)
-        _ = morph(capitalize, "another word")
+        _ = morph(capitalize, b"another word")
 
         final = shell(
             "cat file1 file2", inp={"file1": stepA.stdout, "file2": step2.stdout}
@@ -45,14 +45,14 @@ def test_subgraph() -> None:
 def test_toposort() -> None:
     """Test that we can topologically sort the subset."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
 
         # random not included ops
         stepA = shell("echo 'bla'")
         _ = concat(dat, dat)
-        _ = morph(capitalize, "another word")
+        _ = morph(capitalize, b"another word")
 
         final = shell(
             "cat file1 file2", inp={"file1": stepA.stdout, "file2": step2.stdout}
@@ -69,8 +69,8 @@ def test_toposort() -> None:
 def test_parametrize() -> None:
     """Test that parametrization works."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
-        dat2 = put("bla bla bla")
+        dat = put(b"bla bla")
+        dat2 = put(b"bla bla bla")
 
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -99,7 +99,7 @@ def test_parametrize() -> None:
 def test_parametric() -> None:
     """Test that parametric DAGs work."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         final = shell("cat file1 file3", inp={"file1": step1, "file3": step2.stdout})
@@ -112,7 +112,7 @@ def test_parametric() -> None:
 def test_parametric_eval() -> None:
     """Test that parametric evaluate properly."""
     with Fun(Redis(), options(distributed=False)) as db:
-        dat = put("bla bla")
+        dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         final = shell("cat file1 file3", inp={"file1": step1, "file3": step2.stdout})
@@ -120,7 +120,7 @@ def test_parametric_eval() -> None:
         # b'BLA BLABLA BLAbla bla'
 
         param = _p.make_parametric(db, {"input": dat}, {"output": final.stdout})
-        dat2 = put("lol lol")
+        dat2 = put(b"lol lol")
         out = param.evaluate(db, {"input": dat2})
         execute(out["output"])
         assert take(out["output"]) == b"LOL LOLLOL LOLlol lol"

@@ -7,8 +7,8 @@ import pytest
 
 # module
 from funsies import _funsies as f
-from funsies import _graph, options
-from funsies.types import Error, ErrorKind, hash_t
+from funsies import _graph, _serdes, options
+from funsies.types import Encoding, Error, ErrorKind, hash_t
 
 
 def test_artefact_add() -> None:
@@ -16,7 +16,7 @@ def test_artefact_add() -> None:
     options()
     store = Redis()
     a = _graph.constant_artefact(store, b"bla bla")
-    b = _graph.Artefact.grab(store, a.hash)
+    b = _graph.Artefact[bytes].grab(store, a.hash)
     assert b is not None
     assert a == b
 
@@ -25,7 +25,7 @@ def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     options()
     store = Redis()
-    art = _graph.variable_artefact(store, hash_t("1"), "file")
+    art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
     out = _graph.get_data(store, art)
     assert isinstance(out, Error)
     assert out.kind == ErrorKind.NotFound
@@ -38,7 +38,11 @@ def test_operation_pack() -> None:
     a = _graph.constant_artefact(store, b"bla bla")
     b = _graph.constant_artefact(store, b"bla bla bla")
     fun = f.Funsie(
-        how=f.FunsieHow.shell, what="cat infile", inp=["infile"], out=["out"], extra={}
+        how=f.FunsieHow.shell,
+        what="cat infile",
+        inp={"infile": Encoding.blob},
+        out={"out": Encoding.json},
+        extra={},
     )
     op = _graph.make_op(store, fun, {"infile": a}, opt)
     op2 = _graph.Operation.grab(store, op.hash)
@@ -57,3 +61,28 @@ def test_operation_pack() -> None:
 
     with pytest.raises(RuntimeError):
         op = _graph.Operation.grab(store, hash_t("b"))
+
+
+def test_artefact_wrong_type() -> None:
+    """Test storing non-bytes in implicit artefacts."""
+    store = Redis()
+    art = _graph.variable_artefact(store, hash_t("1"), "file", Encoding.blob)
+    _graph.set_data(
+        store,
+        art.hash,
+        _serdes.encode(art.kind, "what"),
+        _graph.ArtefactStatus.done,
+    )
+    out = _graph.get_data(store, art)
+    assert isinstance(out, Error)
+    assert out.kind == ErrorKind.WrongType
+
+    art = _graph.variable_artefact(store, hash_t("2"), "file", Encoding.json)
+    _graph.set_data(
+        store,
+        art.hash,
+        _serdes.encode(art.kind, ["what", 1]),
+        _graph.ArtefactStatus.done,
+    )
+    out = _graph.get_data(store, art)
+    assert out == ["what", 1]

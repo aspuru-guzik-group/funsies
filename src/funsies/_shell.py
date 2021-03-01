@@ -7,13 +7,13 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 # external
 from redis import Redis
 
 # module
-from ._constants import hash_t
+from ._constants import _Data, Encoding, hash_t
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._logging import logger
@@ -28,15 +28,21 @@ RETURNCODE = f"{SPECIAL}/returncode"
 
 def shell_funsie(
     cmds: Sequence[str],
-    input_files: Sequence[str],
+    input_files: dict[str, Encoding],
     output_files: Sequence[str],
     env: Optional[dict[str, str]] = None,
     strict: bool = True,
 ) -> Funsie:
     """Wrap a shell command."""
-    out = list(output_files)
+    out = {}
+    for fn in output_files:
+        out[fn] = Encoding.blob
+        # TODO: files that end with .json
+
     for k in range(len(cmds)):
-        out += [f"{STDOUT}{k}", f"{STDERR}{k}", f"{RETURNCODE}{k}"]
+        out[f"{STDOUT}{k}"] = Encoding.blob
+        out[f"{STDERR}{k}"] = Encoding.blob
+        out[f"{RETURNCODE}{k}"] = Encoding.json
 
     ierr = 1
     if strict:
@@ -46,8 +52,8 @@ def shell_funsie(
 
     return Funsie(
         how=FunsieHow.shell,
-        what=";".join(cmds),
-        inp=list(input_files),
+        what=" && ".join(cmds),
+        inp=input_files,
         out=out,
         error_tolerant=ierr,
         extra=extra,
@@ -56,7 +62,7 @@ def shell_funsie(
 
 def run_shell_funsie(  # noqa:C901
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[bytes]]:
+) -> dict[str, Optional[_Data]]:
     """Execute a shell command."""
     logger.info("shell command")
     with tempfile.TemporaryDirectory() as dir:
@@ -75,7 +81,7 @@ def run_shell_funsie(  # noqa:C901
             env = os.environ.copy()
             env.update(new_env)
 
-        out: dict[str, Optional[bytes]] = {}
+        out: dict[str, Optional[_Data]] = {}
 
         for k, c in enumerate(cmds):
             t1 = time.time()
@@ -86,7 +92,7 @@ def run_shell_funsie(  # noqa:C901
 
             out[f"{STDOUT}{k}"] = proc.stdout
             out[f"{STDERR}{k}"] = proc.stderr
-            out[f"{RETURNCODE}{k}"] = str(proc.returncode).encode()
+            out[f"{RETURNCODE}{k}"] = int(proc.returncode)
             if proc.returncode:
                 logger.warning(f"nonzero returncode={proc.returncode}")
 
@@ -111,8 +117,8 @@ class ShellOutput:
 
     op: Operation
     hash: hash_t
-    out: dict[str, Artefact]
-    inp: dict[str, Artefact]
+    out: dict[str, Artefact[bytes]]
+    inp: dict[str, Artefact[Any]]
 
     def __init__(self: "ShellOutput", store: Redis[bytes], op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
@@ -130,19 +136,19 @@ class ShellOutput:
                 if RETURNCODE in key:
                     self.n += 1  # count the number of commands
             else:
-                self.out[key] = Artefact.grab(store, val)
+                self.out[key] = Artefact[bytes].grab(store, val)
 
         self.inp = {}
         for key, val in op.inp.items():
-            self.inp[key] = Artefact.grab(store, val)
+            self.inp[key] = Artefact[Any].grab(store, val)
 
         self.stdouts = []
         self.stderrs = []
         self.returncodes = []
         for i in range(self.n):
-            self.stdouts += [Artefact.grab(store, op.out[f"{STDOUT}{i}"])]
-            self.stderrs += [Artefact.grab(store, op.out[f"{STDERR}{i}"])]
-            self.returncodes += [Artefact.grab(store, op.out[f"{RETURNCODE}{i}"])]
+            self.stdouts += [Artefact[bytes].grab(store, op.out[f"{STDOUT}{i}"])]
+            self.stderrs += [Artefact[bytes].grab(store, op.out[f"{STDERR}{i}"])]
+            self.returncodes += [Artefact[int].grab(store, op.out[f"{RETURNCODE}{i}"])]
 
     def __check_len(self: "ShellOutput") -> None:
         if self.n > 1:
@@ -151,19 +157,19 @@ class ShellOutput:
             )
 
     @property
-    def returncode(self: "ShellOutput") -> Artefact:
+    def returncode(self: "ShellOutput") -> Artefact[int]:
         """Return code of a shell command."""
         self.__check_len()
         return self.returncodes[0]
 
     @property
-    def stdout(self: "ShellOutput") -> Artefact:
+    def stdout(self: "ShellOutput") -> Artefact[bytes]:
         """Stdout of a shell command."""
         self.__check_len()
         return self.stdouts[0]
 
     @property
-    def stderr(self: "ShellOutput") -> Artefact:
+    def stderr(self: "ShellOutput") -> Artefact[bytes]:
         """Stderr of a shell command."""
         self.__check_len()
         return self.stderrs[0]

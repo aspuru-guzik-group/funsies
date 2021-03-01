@@ -26,6 +26,7 @@ class Options:
         - distributed: Whether jobs should run async on workers. Defaults to True.
         - queue: Name of the queue this should be executed on.
 
+    Options for funsies logic:
 
     """
 
@@ -41,7 +42,9 @@ class Options:
 
     # Queue options
     distributed: bool = True
-    queue: str = 'default'
+    queue: str = "default"
+
+    # Funsie options
 
     @property
     def job_args(self: "Options") -> Mapping[str, Any]:

@@ -9,12 +9,10 @@ from . import utils
 from ._context import Fun, ManagedFun, options
 from ._getter import get
 from .errors import unwrap
+from .fp import morph, py, reduce
 from .ui import (
     execute,
-    mapping,
-    morph,
     put,
-    reduce,
     reset,
     shell,
     take,
@@ -24,11 +22,13 @@ from .ui import (
 
 
 __all__ = [
-    # ui
+    # shell
     "shell",
-    "mapping",
+    # fp
+    "py",
     "reduce",
     "morph",
+    # artefact manipulation
     "take",
     "takeout",
     "put",
@@ -36,14 +36,17 @@ __all__ = [
     "wait_for",
     "reset",
     "get",
+    # contexts
     "Fun",
     "ManagedFun",
-    "unwrap",
     "options",
-    "utils",
-    "debug",
-    "dynamic",
+    # Error handling and types
+    "unwrap",
     "types",
+    "debug",
+    # utility
+    "utils",
+    "dynamic",
 ]
 
 

@@ -3,17 +3,19 @@
 import os
 import shutil
 import tempfile
+from typing import Dict
 
 # external
 import pytest
 
 # module
 from funsies import (
+    _serdes,
     execute,
     ManagedFun,
-    mapping,
     morph,
     put,
+    py,
     reduce,
     shell,
     take,
@@ -35,8 +37,8 @@ make_reference = False
 ref_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_data")
 
 # Versions
-VERSION_FAILING = ["0.1", "0.2"]
-VERSION_WORKING = ["0.3"]
+VERSION_FAILING = ["0.1", "0.2", "0.3"]
+VERSION_WORKING = ["0.6"]
 
 
 @pytest.mark.parametrize("reference", VERSION_WORKING)
@@ -68,10 +70,12 @@ def test_integration(reference: str, nworkers: int) -> None:
             echo.stdouts[1],
             name="merger",
         )
-        estdout, merge = mapping(
-            lambda x, y: (y, x), merge, echo.stdouts[1], noutputs=2
-        )
-        test_data["test1"] = merge
+
+        def tolist(x: bytes, y: bytes) -> Dict[int, str]:
+            return {1: x.decode(), 8: y.decode()}
+
+        A = py(tolist, merge, echo.stdouts[1])
+        test_data["test1"] = A
 
         def raises(inp: bytes) -> bytes:
             raise RuntimeError("an error was raised")
@@ -84,10 +88,9 @@ def test_integration(reference: str, nworkers: int) -> None:
         count = reduce(
             error_count, dat, dat, err, dat, err, err, echo.stdouts[0], strict=False
         )
-        cat = utils.concat(estdout, dat, err, count, echo.stdouts[1], strict=False)
+        cat = utils.concat(merge, dat, err, count, echo.stdouts[1], strict=False)
         test_data["test2"] = cat
 
-        # basic functionality
         execute(step1)
         wait_for(step1, timeout=10.0)
         execute(step2)
@@ -104,7 +107,9 @@ def test_integration(reference: str, nworkers: int) -> None:
                     execute(artefact)
                     wait_for(artefact, 10.0)
                     out = take(artefact)
-                    f.write(out)
+                    data2 = _serdes.encode(artefact.kind, out)
+                    assert isinstance(data2, bytes)
+                    f.write(data2)
 
             shutil.copy(
                 os.path.join(dir, "appendonly.aof"),
@@ -118,6 +123,9 @@ def test_integration(reference: str, nworkers: int) -> None:
                 with open(os.path.join(ref_dir, reference, name), "rb") as f:
                     data = f.read()
 
-                assert take(artefact) == data
+                out = take(artefact)
+                data_ref = _serdes.encode(artefact.kind, out)
+                assert isinstance(data_ref, bytes)
+                assert data == data_ref
 
     shutil.rmtree(dir)

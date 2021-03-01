@@ -3,18 +3,13 @@ from __future__ import annotations
 
 # std
 import time
-from typing import Callable, Dict, Mapping, Optional, overload, Sequence, Union
+from typing import Any, Callable, Mapping, Optional
 
 # external
 import cloudpickle
 
-# python 3.7 imports Literal from typing_extensions
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type:ignore
-
 # module
+from ._constants import Encoding
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact
 from ._logging import logger
@@ -22,28 +17,13 @@ from .errors import Result
 
 
 # types
-subdag_t = Callable[[Dict[str, bytes]], Dict[str, Artefact]]
-subdag_opt_t = Callable[[Dict[str, Result[bytes]]], Dict[str, Artefact]]
-subdag_opt_map_t = Callable[[Mapping[str, Result[bytes]]], Dict[str, Artefact]]
-
-
-# strict overload
-# fmt:off
-@overload
-def subdag_funsie(fun: Union[subdag_opt_t, subdag_t], inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[False] = False) -> Funsie:  # noqa
-    ...
-
-
-@overload
-def subdag_funsie(fun: subdag_t, inputs: Sequence[str], outputs: Sequence[str], name: Optional[str] = None, strict: Literal[True] = True) -> Funsie:  # noqa
-    ...
-# fmt:on
+subdag_t = Callable[..., Any]
 
 
 def subdag_funsie(
-    fun: Union[subdag_t, subdag_opt_t],
-    inputs: Sequence[str],
-    outputs: Sequence[str],
+    fun: subdag_t,
+    inputs: dict[str, Encoding],
+    outputs: dict[str, Encoding],
     name: Optional[str] = None,
     strict: bool = True,
 ) -> Funsie:
@@ -77,8 +57,8 @@ def subdag_funsie(
     return Funsie(
         how=FunsieHow.subdag,
         what=name,
-        inp=list(inputs),
-        out=list(outputs),
+        inp=inputs,
+        out=outputs,
         error_tolerant=ierr,
         extra={"pickled function": cloudpickle.dumps(fun)},
     )
@@ -86,20 +66,22 @@ def subdag_funsie(
 
 def run_subdag_funsie(
     funsie: Funsie, input_values: Mapping[str, Result[bytes]]
-) -> dict[str, Optional[Artefact]]:
+) -> dict[str, Optional[Artefact[Any]]]:
     """Execute a subdag generator."""
     logger.info("subdag generator")
-    fun: subdag_opt_map_t = cloudpickle.loads(funsie.extra["pickled function"])
+    fun: subdag_t = cloudpickle.loads(funsie.extra["pickled function"])
     name = funsie.what
     logger.info(f"$> {name} subdag generator")
 
+    decoded = funsie.decode(input_values)
+
     # run
     t1 = time.time()
-    outfun = fun(input_values)
+    outfun = fun(decoded)
     t2 = time.time()
 
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")
-    out: dict[str, Optional[Artefact]] = {}
+    out: dict[str, Optional[Artefact[Any]]] = {}
     for output in funsie.out:
         if output in outfun:
             out[output] = outfun[output]

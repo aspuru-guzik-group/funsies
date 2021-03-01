@@ -1,6 +1,8 @@
 """Tests of dynamic funsies."""
 from __future__ import annotations
 
+from typing import Sequence
+
 # external
 from fakeredis import FakeStrictRedis as Redis
 import pytest
@@ -8,92 +10,119 @@ import pytest
 # module
 import funsies
 from funsies import dynamic
-from funsies.types import Artefact
+from funsies.types import Artefact, Encoding
 
 
 def test_map_reduce() -> None:
     """Test simple map-reduce."""
 
-    def split(inp: dict[str, bytes]) -> list[dict[str, bytes]]:
-        a = inp["a"].split()
-        b = inp["b"].split()
+    def split(a: bytes, b: bytes) -> list[dict[str, int]]:
+        a = a.split()
+        b = b.split()
         out = []
         for ia, ib in zip(a, b):
             out += [
                 {
-                    "sum": str(int(ia.decode()) + int(ib.decode())).encode(),
-                    "product": str(int(ia.decode()) * int(ib.decode())).encode(),
+                    "sum": int(ia.decode()) + int(ib.decode()),
+                    "product": int(ia.decode()) * int(ib.decode()),
                 }
             ]
         return out
 
-    def apply(inp: dict[str, Artefact]) -> dict[str, Artefact]:
-        return {"cat": funsies.utils.concat(inp["sum"], inp["product"], join="//")}
+    def apply(inp: Artefact) -> Artefact:
+        out = funsies.morph(lambda x: f"{x['sum']}//{x['product']}", inp)
+        return out
 
-    def combine(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
-        return {"out": funsies.utils.concat(*[el["cat"] for el in inp], join="\n")}
+    def combine(inp: Sequence[Artefact]) -> Artefact:
+        out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
+        return funsies.utils.concat(*out)
 
     with funsies.Fun(Redis(), funsies.options(distributed=False)):
-        num1 = funsies.put("1 2 3 4 5")
-        num2 = funsies.put("11 10 11 10 11")
+        num1 = funsies.put(b"1 2 3 4 5")
+        num2 = funsies.put(b"11 10 11 10 11")
 
         outputs = dynamic.sac(
-            split, apply, combine, inp={"a": num1, "b": num2}, out=["out"]
+            split,
+            apply,
+            combine,
+            num1,
+            num2,
+            out=Encoding.blob,
         )
-        final = funsies.morph(lambda x: x, outputs["out"])
-        funsies.execute(final)
-        print(final.hash)
+        funsies.execute(outputs)
+        assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
 
 
 @pytest.mark.parametrize("nworkers", [1, 8])
 def test_nested_map_reduce(nworkers: int) -> None:
     """Test nested map-reduce."""
-
-    def sum_inputs(*inp: bytes) -> bytes:
+    # ------------------------------------------------------------------------
+    # Inner
+    def sum_inputs(*inp: int) -> int:
         out = 0
         for el in inp:
-            out += int(el.decode())
-        return str(out).encode()
-
-    def split2(inp: dict[str, bytes]) -> list[dict[str, bytes]]:
-        a = inp["in"].split(b" ")
-        out = [{"out": el} for el in a]
+            out += el
         return out
 
-    def apply2(inp: dict[str, Artefact]) -> dict[str, Artefact]:
-        return {"out": funsies.reduce(sum_inputs, inp["out"], "1")}
+    def split_inner(inp: str) -> list[int]:
+        a = inp.split(" ")
+        return [int(el) for el in a]
 
-    def combine2(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
-        return {"out": funsies.reduce(sum_inputs, *[el["out"] for el in inp])}
+    def apply_inner(inp: Artefact) -> Artefact:
+        return funsies.reduce(sum_inputs, inp, 1)
 
-    def split(inp: dict[str, bytes]) -> list[dict[str, bytes]]:
-        a = inp["in"].split(b"\n")
-        out = [{"out": el} for el in a]
+    def combine_inner(inp: Sequence[Artefact]) -> Artefact:
+        return funsies.reduce(sum_inputs, *inp)
+
+    # ------------------------------------------------------------------------
+    # outer
+    def split_outer(inp: list[str], fac: int) -> list[str]:
+        out = [x + f" {fac}" for x in inp]
         return out
 
-    def apply(inp: dict[str, Artefact]) -> dict[str, Artefact]:
+    def apply_outer(inp: Artefact) -> Artefact:
         outputs = dynamic.sac(
-            split2,
-            apply2,
-            combine2,
-            inp={"in": inp["out"]},
-            out=["out"],
+            split_inner,
+            apply_inner,
+            combine_inner,
+            inp,
+            out=Encoding.json,
         )
         return outputs
 
-    def combine(inp: list[dict[str, Artefact]]) -> dict[str, Artefact]:
-        return {"out": funsies.utils.concat(*[el["out"] for el in inp], join=",,")}
+    def combine_outer(inp: Sequence[Artefact]) -> Artefact:
+        out = [
+            funsies.morph(lambda y: f"{y}".encode(), x, out=Encoding.blob) for x in inp
+        ]
+        return funsies.utils.concat(*out, join=b",,")
 
     with funsies.ManagedFun(nworkers=nworkers):
-        num = funsies.put("1 2\n3 4 7\n10 12\n1")
-        # split -> 1 2\n 3 4 7\n10 12\n1
-        # apply -> split2 -> 1, 2 | 3,4,7|10,12|1
-        # apply2 -> 2, 3| 4,5,8|11,13|2
-        # combine2 -> 5|17|24|2
-        # combine -> 5,,17,,24,,2
+        num1 = funsies.put("1 2 3 4 5")
+        outputs = dynamic.sac(
+            split_inner, apply_inner, combine_inner, num1, out=Encoding.json
+        )
+        funsies.execute(outputs)
+        funsies.wait_for(outputs, timeout=10.0)
+        assert funsies.take(outputs) == 20
 
-        outputs = dynamic.sac(split, apply, combine, inp={"in": num}, out=["out"])
-        final = funsies.morph(lambda x: x, outputs["out"])
-        funsies.execute(final)
-        funsies.wait_for(final, timeout=3.0)
-        assert funsies.take(final) == b"5,,17,,24,,2"
+        # Now try the nested one
+        num = funsies.put(["1 2", "3 4 7", "10 12", "1"])
+        factor = funsies.put(-2)
+        # split -> 1 2 -2|3 4 7 -2|10 12 -2| 1 -2
+        # apply -> split2 -> 1, 2,-2 | 3,4,7,-2|10,12,-2|1,-2
+        # apply2 -> 2, 3,-1 | 4,5,8,-1|11,13,-1|2,-1
+        # combine2 -> 4|16|23|1
+        # combine -> 4,,16,,23,,1
+        ans = b"4,,16,,23,,1"
+
+        outputs = dynamic.sac(
+            split_outer,
+            apply_outer,
+            combine_outer,
+            num,
+            factor,
+            out=Encoding.blob,
+        )
+        funsies.execute(outputs)
+        funsies.wait_for(outputs, timeout=20.0)
+        assert funsies.take(outputs) == ans

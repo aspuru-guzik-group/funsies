@@ -6,16 +6,19 @@ from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-from typing import Optional, Type, Union
+import traceback
+from typing import Any, Generic, Mapping, Optional, Type, TypeVar
 
 # external
 from redis import Redis
 from redis.client import Pipeline
 
 # module
+from . import _serdes
 from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
+    Encoding,
     hash_t,
     join,
     OPERATIONS,
@@ -24,7 +27,7 @@ from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
 from .config import Options
-from .errors import Error, ErrorKind, Result
+from .errors import Error, ErrorKind, match, Result
 
 # Max redis value size in bytes
 MIB = 1024 * 1024
@@ -66,17 +69,21 @@ def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> No
 
 
 # --------------------------------------------------------------------------------
-# Artefact
+# Generic Artefacts
+T = TypeVar("T")
+
+
 @dataclass(frozen=True)
-class Artefact:
-    """An instantiated artefact."""
+class Artefact(Generic[T]):
+    """Artefacts are the main data structure."""
 
     hash: hash_t
     parent: hash_t
+    kind: Encoding
 
-    def put(self: "Artefact", db: Redis[bytes]) -> None:
+    def put(self: Artefact[Any], db: Redis[bytes]) -> None:
         """Save an artefact to Redis."""
-        data = dict(hash=self.hash, parent=self.parent)
+        data = dict(hash=self.hash, parent=self.parent, kind=self.kind.value)
         db.hset(  # type:ignore
             join(ARTEFACTS, self.hash),
             mapping=data,  # type:ignore
@@ -85,15 +92,16 @@ class Artefact:
         hash_save(db, self.hash)
 
     @classmethod
-    def grab(cls: Type["Artefact"], db: Redis[bytes], hash: hash_t) -> "Artefact":
+    def grab(cls: Type[Artefact[T]], db: Redis[bytes], hash: hash_t) -> Artefact[T]:
         """Grab an artefact from the Redis store."""
         if not db.exists(join(ARTEFACTS, hash)):
             raise RuntimeError(f"No artefact at {hash}")
 
         data = db.hgetall(join(ARTEFACTS, hash))
-        return Artefact(
+        return Artefact[T](
             hash=hash_t(data[b"hash"].decode()),
             parent=hash_t(data[b"parent"].decode()),
+            kind=Encoding(data[b"kind"].decode()),
         )
 
 
@@ -144,6 +152,7 @@ def delete_artefact(db: Redis[bytes], address: hash_t) -> None:
 # Make an artefact point to another artefact
 def create_link(db: Redis[bytes], afrom: hash_t, ato: hash_t) -> None:
     """Set the status of a given operation or artefact."""
+    # TODO do not link to artefact of different type!
     assert is_artefact(db, afrom)
     assert is_artefact(db, ato)
     old = get_status(db, afrom)
@@ -172,18 +181,14 @@ def _set_block_size(n: int) -> None:
     BLOCK_SIZE = n
 
 
-# Save and load artefacts
-def get_data(
+def __get_data_loc(
     store: Redis[bytes],
-    where: Union[hash_t, Artefact],
+    artefact: Artefact[Any],
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[bytes]:
-    """Retrieve data corresponding to an artefact."""
-    if isinstance(where, Artefact):
-        address = where.hash
-    else:
-        address = where
+) -> Result[str]:
+    """Perform all the prior step before actually retrieving data."""
+    address = artefact.hash
 
     if do_resolve_link:
         address = resolve_link(store, address)
@@ -215,13 +220,40 @@ def get_data(
                 source=carry_error,
             )
         else:
-            return b"".join(store.lrange(key, 0, -1))
+            return key
+
+
+def get_bytes(
+    store: Redis[bytes],
+    source: Artefact[Any],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[bytes]:
+    """Retrieve bytes corresponding to an artefact."""
+    raw = match(
+        __get_data_loc(store, source, carry_error, do_resolve_link),
+        some=lambda x: b"".join(store.lrange(x, 0, -1)),
+        none=lambda x: x,
+    )
+    return raw
+
+
+# Save and load artefacts
+def get_data(
+    store: Redis[bytes],
+    source: Artefact[T],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[T]:
+    """Retrieve data corresponding to an artefact."""
+    raw = get_bytes(store, source, carry_error, do_resolve_link)
+    return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
 def set_data(
     store: Redis[bytes],
     address: hash_t,
-    value: Union[bytes, io.BytesIO],
+    value: Result[bytes],
     status: ArtefactStatus,
 ) -> None:
     """Update an artefact with a value."""
@@ -231,30 +263,50 @@ def set_data(
         else:
             raise TypeError("Attempted to set data to a const artefact.")
 
-    key = join(ARTEFACTS, address, "data")
+    if isinstance(value, Error):
+        # fail gracefully
+        mark_error(store, address, error=value)
+        return
 
-    if isinstance(value, bytes):
-        buf = io.BytesIO(value)
-    else:
-        buf = value
+    key = join(ARTEFACTS, address, "data")
+    buf = io.BytesIO(value)
 
     # write
     first = True  # this workaround is to make sure that writing no data is ok.
     pipe = store.pipeline(transaction=True)
     pipe.delete(key)
     while True:
-        dat = buf.read(BLOCK_SIZE)
+        try:
+            dat = buf.read(BLOCK_SIZE)
+        except Exception:
+            tb_exc = traceback.format_exc()
+            mark_error(
+                store,
+                address,
+                error=Error(
+                    kind=ErrorKind.ExceptionRaised,
+                    source=address,
+                    details=tb_exc,
+                ),
+            )
+            return
+
         if len(dat) == 0 and not first:
             break
         else:
-            pipe.lpush(key, dat)
+            pipe.rpush(key, dat)
         first = False
     set_status(pipe, address, status)
     pipe.execute()
 
 
-def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
+def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
     """Store an artefact with a defined value."""
+    kind = _serdes.kind(value)
+    data = _serdes.encode(kind, value)
+    if isinstance(data, Error):
+        raise TypeError("constant artefacts could not be encoded.")
+
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
     # --------------------------------------------------------------
@@ -263,17 +315,22 @@ def constant_artefact(store: Redis[bytes], value: bytes) -> Artefact:
     m = hashlib.sha1()
     m.update(b"artefact\n")
     m.update(b"constant\n")
-    m.update(value)
+    m.update(f"kind:{str(kind)}\n".encode())
+    m.update(data)
     h = hash_t(m.hexdigest())
     # ==============================================================
-
-    node = Artefact(hash=h, parent=hash_t("root"))
+    node = Artefact[T](hash=h, parent=hash_t("root"), kind=kind)
     node.put(store)
-    set_data(store, node.hash, value, status=ArtefactStatus.const)
+    set_data(store, h, data, status=ArtefactStatus.const)
     return node
 
 
-def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Artefact:
+def variable_artefact(
+    store: Redis[bytes],
+    parent_hash: hash_t,
+    name: str,
+    kind: Encoding,
+) -> Artefact[Any]:
     """Store an artefact with a generated value."""
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -283,11 +340,12 @@ def variable_artefact(store: Redis[bytes], parent_hash: hash_t, name: str) -> Ar
     m = hashlib.sha1()
     m.update(b"artefact\n")
     m.update(b"variable\n")
+    m.update(f"kind:{str(kind)}\n".encode())
     m.update(f"parent:{parent_hash}\n".encode())
     m.update(f"name:{name}\n".encode())
     h = hash_t(m.hexdigest())
     # ==============================================================
-    node = Artefact(hash=h, parent=parent_hash)
+    node = Artefact[T](hash=h, parent=parent_hash, kind=kind)
     pipe: Pipeline = store.pipeline(transaction=False)
     node.put(pipe)
     set_status_nx(pipe, node.hash, ArtefactStatus.no_data)
@@ -349,7 +407,7 @@ class Operation:
 
 
 def make_op(
-    store: Redis[bytes], funsie: Funsie, inp: dict[str, Artefact], opt: Options
+    store: Redis[bytes], funsie: Funsie, inp: Mapping[str, Artefact[Any]], opt: Options
 ) -> Operation:
     """Store an artefact with a defined value."""
     # Setup the input artefacts.
@@ -357,6 +415,11 @@ def make_op(
     for key in inp:
         if key not in funsie.inp:
             raise AttributeError(f"Extra key {key} passed to funsie.")
+        if inp[key].kind != funsie.inp[key]:
+            raise TypeError(
+                f"Key {key} has type {inp[key].kind} but funsie"
+                + f" expects {funsie.inp[key]}"
+            )
 
     for key in funsie.inp:
         if key not in inp:
@@ -385,8 +448,8 @@ def make_op(
 
     # Setup the output artefacts.
     out_art = {}
-    for key in funsie.out:
-        out_art[key] = variable_artefact(pipe, ophash, key).hash
+    for key, type in funsie.out.items():
+        out_art[key] = variable_artefact(pipe, ophash, key, type).hash
 
     # Make the node
     node = Operation(ophash, funsie.hash, inp_art, out_art, opt)
