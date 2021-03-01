@@ -15,6 +15,7 @@ from redis import Redis
 from redis.client import Pipeline
 
 # module
+from . import _serdes
 from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
@@ -247,48 +248,29 @@ def get_data(
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
     raw = get_bytes(store, source, carry_error, do_resolve_link)
-    if isinstance(raw, Error):
-        return raw
-    elif source.kind == Encoding.blob:
-        return cast(T, raw)
-    else:
-        return cast(T, json.loads(raw.decode()))
+    return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
 def set_data(
     store: Redis[bytes],
-    dest: Artefact[T],
-    value: T,
+    address: hash_t,
+    value: Result[bytes],
     status: ArtefactStatus,
 ) -> None:
     """Update an artefact with a value."""
-    address = dest.hash
     if get_status(store, address) == ArtefactStatus.const:
         if status == ArtefactStatus.const:
             pass
         else:
             raise TypeError("Attempted to set data to a const artefact.")
 
-    key = join(ARTEFACTS, address, "data")
+    if isinstance(value, Error):
+        # fail gracefully
+        mark_error(store, address, error=value)
+        return
 
-    if dest.kind == Encoding.blob:
-        assert isinstance(value, bytes)
-        buf = io.BytesIO(value)
-    else:
-        try:
-            buf = io.BytesIO(json.dumps(value).encode())
-        except Exception:
-            tb_exc = traceback.format_exc()
-            mark_error(
-                store,
-                address,
-                error=Error(
-                    kind=ErrorKind.JSONEncodingError,
-                    source=address,
-                    details=tb_exc,
-                ),
-            )
-            return
+    key = join(ARTEFACTS, address, "data")
+    buf = io.BytesIO(value)
 
     # write
     first = True  # this workaround is to make sure that writing no data is ok.
@@ -321,12 +303,10 @@ def set_data(
 
 def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
     """Store an artefact with a defined value."""
-    if isinstance(value, bytes):
-        data = value
-        type = Encoding.blob
-    else:
-        data = json.dumps(value).encode()
-        type = Encoding.json
+    kind = _serdes.kind(value)
+    data = _serdes.encode(kind, value)
+    if isinstance(data, Error):
+        raise TypeError("constant artefacts could not be encoded.")
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -336,13 +316,13 @@ def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
     m = hashlib.sha1()
     m.update(b"artefact\n")
     m.update(b"constant\n")
-    m.update(f"kind:{str(type)}\n".encode())
+    m.update(f"kind:{str(kind)}\n".encode())
     m.update(data)
     h = hash_t(m.hexdigest())
     # ==============================================================
-    node = Artefact[T](hash=h, parent=hash_t("root"), kind=type)
+    node = Artefact[T](hash=h, parent=hash_t("root"), kind=kind)
     node.put(store)
-    set_data(store, node, value, status=ArtefactStatus.const)
+    set_data(store, h, data, status=ArtefactStatus.const)
     return node
 
 

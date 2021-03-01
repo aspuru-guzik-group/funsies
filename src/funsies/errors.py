@@ -22,17 +22,22 @@ class UnwrapError(Exception):
 class ErrorKind(str, Enum):
     """Kinds of errors."""
 
+    # db errors
     NotFound = "NotFound"
     Mismatch = "Mismatch"
+    UnresolvedLink = "UnresolvedLink"
+    # Type errors
     WrongType = "WrongType"
     JSONEncodingError = "JSONEncodingError"
+    JSONDecodingError = "JSONDecodingError"
+    UnknownEncodingError = "UnknownEncodingError"
+    # Job error conditions
     MissingOutput = "MissingOutput"
     MissingInput = "MissingInput"
     ExceptionRaised = "ExceptionRaised"
     JobTimedOut = "JobTimedOut"
     NoErrorData = "NoErrorData"
     KilledBySignal = "KilledBySignal"
-    UnresolvedLink = "UnresolvedLink"
 
 
 @dataclass

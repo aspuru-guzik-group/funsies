@@ -101,13 +101,14 @@ def build_dag(
                 f"address {address} neither a valid operation nor a valid artefact."
             )
 
-    if art.parent == root:
-        # We have basically just a single artefact as the network...
-        logger.debug("no dependencies to execute")
-        return
-    else:
-        node = Operation.grab(db, art.parent)
-        logger.debug(f"building dag for op at {node.hash[:6]}")
+    if art is not None:
+        if art.parent == root:
+            # We have basically just a single artefact as the network...
+            logger.debug("no dependencies to execute")
+            return
+        else:
+            node = Operation.grab(db, art.parent)
+            logger.debug(f"building dag for op at {node.hash[:6]}")
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from enum import Enum
 from os import PathLike
-from typing import NewType, Union, Mapping, List, Dict, Any
+from typing import Any, Dict, List, NewType, Union
 
 # from https://github.com/python/typing/issues/182
 # fmt:off

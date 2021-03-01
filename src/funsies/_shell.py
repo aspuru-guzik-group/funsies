@@ -61,7 +61,7 @@ def shell_funsie(
 
 
 def run_shell_funsie(  # noqa:C901
-    funsie: Funsie, input_values: Mapping[str, Result[_Data]]
+    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
 ) -> dict[str, Optional[Union[bytes, JsonData]]]:
     """Execute a shell command."""
     logger.info("shell command")
@@ -71,15 +71,8 @@ def run_shell_funsie(  # noqa:C901
             if isinstance(val, Error):
                 pass
             else:
-                if isinstance(val, bytes):
-                    data = val
-                elif isinstance(val, str):
-                    data = val.encode()
-                else:
-                    data = json.dumps(val).encode()
-
                 with open(os.path.join(dir, fn), "wb") as f:
-                    f.write(data)
+                    f.write(val)
 
         cmds = json.loads(funsie.extra["cmds"].decode())
         new_env = json.loads(funsie.extra["env"].decode())

@@ -177,6 +177,12 @@ def shell(  # noqa:C901
     # multiple input files as a mapping
     elif isinstance(inp, Mapping):
         for key, val in inp.items():
+            if isinstance(val, str):
+                logger.warning(
+                    f"{key} passed to shell as a string.\nif you don't want it to be"
+                    + ' converted to json (and wrapped with "), \nyou NEED to pass it'
+                    + " as bytes (by .encode()-ing it first)"
+                )
             inputs[str(key)] = _artefact(db, val)
     else:
         raise TypeError(f"{inp} not a valid file input")

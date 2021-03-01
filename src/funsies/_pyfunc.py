@@ -76,9 +76,11 @@ def run_python_funsie(
     name = funsie.what
     logger.info(f"$> {name}(*args)")
 
+    decoded = funsie.decode(input_values)
+
     # run
     t1 = time.time()
-    outfun = fun(input_values)
+    outfun = fun(decoded)
     t2 = time.time()
 
     logger.info(f"done 1/1 \t\tduration: {t2-t1:.2f}s")

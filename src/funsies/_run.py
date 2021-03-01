@@ -14,6 +14,7 @@ from redis import Redis
 import rq
 
 # module
+from . import _serdes
 from ._constants import ARTEFACTS, hash_t, join
 from ._context import _options_stack
 from ._funsies import Funsie, FunsieHow
@@ -21,7 +22,7 @@ from ._graph import (
     Artefact,
     ArtefactStatus,
     create_link,
-    get_data,
+    get_bytes,
     get_status,
     mark_error,
     Operation,
@@ -40,7 +41,7 @@ RUNNERS = {
     FunsieHow.python: run_python_funsie,
     FunsieHow.subdag: run_subdag_funsie,
 }
-out_data_t = Union[Dict[str, Optional[bytes]], Dict[str, Optional[Artefact[Any]]]]
+out_data_t = Union[Dict[str, Optional[object]], Dict[str, Optional[Artefact[Any]]]]
 
 
 # ----------------------------------------------------------------------------- #
@@ -162,10 +163,10 @@ def run_op(  # noqa:C901
     # we don't have to pop it later because this process is going to die
 
     # load input files
-    input_data: dict[str, Result[Union[object, bytes]]] = {}
+    input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = Artefact[Any].grab(db, val)
-        dat = get_data(db, artefact, carry_error=op.hash)
+        dat = get_bytes(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -255,7 +256,10 @@ def run_op(  # noqa:C901
         else:
             assert not isinstance(val, Artefact)
             set_data(
-                db, Artefact[Any].grab(db, op.out[key]), val, status=ArtefactStatus.done
+                db,
+                op.out[key],
+                _serdes.encode(funsie.out[key], val),
+                status=ArtefactStatus.done,
             )
 
     if funsie.how == FunsieHow.subdag:

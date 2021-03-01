@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import IntEnum
 import hashlib
-from typing import Type
+from typing import Mapping, Type
 
 # external
 from redis import Redis
@@ -13,6 +13,8 @@ from redis import Redis
 # module
 from ._constants import Encoding, FUNSIES, hash_t, join
 from ._short_hash import hash_save
+from .errors import Error, Result
+from . import _serdes
 
 
 def _artefacts(inp: dict[bytes, bytes]) -> dict[str, Encoding]:
@@ -58,7 +60,18 @@ class Funsie:
     error_tolerant: int = 0
     hash: hash_t = field(init=False)
 
-    def put(self: "Funsie", db: Redis[bytes]) -> None:
+    def decode(
+        self: Funsie, input_data: Mapping[str, Result[bytes]]
+    ) -> dict[str, object]:
+        """Decode input data according to `inp`."""
+        out = {}
+        for key, enc in self.inp.items():
+            element = input_data[key]
+            if not isinstance(element, Error):
+                out[key] = _serdes.decode(enc, element)
+        return out
+
+    def put(self: Funsie, db: Redis[bytes]) -> None:
         """Save a Funsie to Redis."""
         db.hset(  # type:ignore
             join(FUNSIES, self.hash),
@@ -88,7 +101,7 @@ class Funsie:
         hash_save(db, self.hash)
 
     @classmethod
-    def grab(cls: Type["Funsie"], db: Redis[bytes], hash: hash_t) -> "Funsie":
+    def grab(cls: Type[Funsie], db: Redis[bytes], hash: hash_t) -> "Funsie":
         """Grab a Funsie from the Redis store."""
         if not db.exists(join(FUNSIES, hash)):
             raise RuntimeError(f"No funsie at {hash}")
@@ -106,7 +119,7 @@ class Funsie:
             extra=dict([(k.decode(), v) for k, v in extra.items()]),
         )
 
-    def __str__(self: "Funsie") -> str:
+    def __str__(self: Funsie) -> str:
         """Get the string representation of a funsie."""
         # ==============================================================
         #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -122,7 +135,7 @@ class Funsie:
         # ==============================================================
         return out
 
-    def __post_init__(self: "Funsie") -> None:
+    def __post_init__(self: Funsie) -> None:
         """Calculate the hash."""
         # ==============================================================
         #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT

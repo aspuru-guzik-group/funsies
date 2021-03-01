@@ -17,11 +17,11 @@ from funsies.types import Encoding, UnwrapError
 def test_shell_run() -> None:
     """Test shell command."""
     with Fun(Redis()) as db:
-        s = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
+        s = ui.shell("cp file1 file2", inp={"file1": b"wawa"}, out=["file2"])
         run_op(db, s.hash)
         assert _graph.get_data(db, s.stderr) == b""
         assert _graph.get_data(db, s.returncode) == 0
-        assert _graph.get_data(db, s.inp["file1"]) == "wawa"
+        assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
         assert _graph.get_data(db, s.stdout) == b""
         assert ui.take(s.out["file2"]) == b"wawa"
 
