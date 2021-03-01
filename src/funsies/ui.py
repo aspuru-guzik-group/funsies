@@ -55,8 +55,6 @@ _Target = Union[Artefact, _Data]
 _INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
 T = TypeVar("T")
-T1 = TypeVar("T1", bound=_Data)
-T2 = TypeVar("T2", bound=_Data)
 
 
 def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
@@ -303,16 +301,23 @@ def py(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Convenience functions
+Tin1 = TypeVar("Tin1", bound=_Data)
+Tin2 = TypeVar("Tin2", bound=_Data)
+Tin3 = TypeVar("Tin3", bound=_Data)
+Tin4 = TypeVar("Tin4", bound=_Data)
+Tout1 = TypeVar("Tout1", bound=_Data)
+
+
 def morph(
-    fun: Callable[[T1], T2],
-    inp: Union[T1, Artefact[T1]],
+    fun: Callable[[Tin1], Tout1],
+    inp: Union[Tin1, Artefact[Tin1]],
     *,  # noqa:DAR101,DAR201
     out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact[T2]:
+) -> Artefact[Tout1]:
     """Add to workflow a one-to-one python function `y = f(x)`.
 
     This is syntactic sugar around `py()`. By default, the output type will
@@ -350,15 +355,93 @@ def morph(
     )[0]
 
 
+from mypy_extensions import VarArg
+
+
+@overload
 def reduce(
-    fun: Callable[..., T],
+    fun: Callable[[Tin1], Tout1],
+    __inp: Union[Tin1, Artefact[Tin1]],
+    *,
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[Tout1]:
+    ...
+
+
+@overload
+def reduce(
+    fun: Callable[[Tin1, Tin2], Tout1],
+    __inp: Union[Tin1, Artefact[Tin1]],
+    __inp2: Union[Tin2, Artefact[Tin2]],
+    *,
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[Tout1]:
+    ...
+
+
+@overload
+def reduce(
+    fun: Callable[[Tin1, Tin2, Tin3], Tout1],
+    __inp: Union[Tin1, Artefact[Tin1]],
+    __inp2: Union[Tin2, Artefact[Tin2]],
+    __inp3: Union[Tin3, Artefact[Tin3]],
+    *,
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[Tout1]:
+    ...
+
+
+@overload
+def reduce(
+    fun: Callable[[Tin1, Tin2, Tin3, Tin4], Tout1],
+    __inp: Union[Tin1, Artefact[Tin1]],
+    __inp2: Union[Tin2, Artefact[Tin2]],
+    __inp3: Union[Tin3, Artefact[Tin3]],
+    __inp4: Union[Tin4, Artefact[Tin4]],
+    *,
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[Tout1]:
+    ...
+
+
+@overload
+def reduce(
+    fun: Callable[[VarArg(Tin1)], Tout1],
+    *inp: Union[Tin1, Artefact[Tin1]],
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[Tout1]:
+    ...
+
+
+def reduce(
+    fun: Callable[..., Tout1],
     *inp: _Target,  # noqa:DAR101,DAR201
     out: Optional[Encoding] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact[T]:
+) -> Artefact[Tout1]:
     """Add to workflow a many-to-one python function `y = f(*x)`.
 
     This is syntactic sugar around `py()`. By default, the output type will

@@ -34,7 +34,7 @@ def test_raising_funsie() -> None:
     condition.
     """
 
-    def raising_fun(*inp: bytes) -> bytes:
+    def raising_fun(*inp: str) -> bytes:
         raise RuntimeError("this funsie raises.")
 
     with f.ManagedFun(nworkers=2):
@@ -58,7 +58,7 @@ def test_timeout_deadlock() -> None:
     thing deadlocks.
     """
 
-    def timeout_fun(*inp: bytes) -> bytes:
+    def timeout_fun(*inp: str) -> bytes:
         time.sleep(3.0)
         return b"what"
 
@@ -139,7 +139,7 @@ def test_job_killed(nworkers: int, sig: int) -> None:
 
     with f.ManagedFun(nworkers=nworkers) as db:
         wait_for_workers(db, nworkers)
-        s1 = f.reduce(kill_self, "bla bla", "bla bla", opt=f.options(timeout=3))
+        s1 = f.reduce(kill_self, b"bla bla", b"bla bla", opt=f.options(timeout=3))
         s1b = f.morph(cap, s1)
         f.execute(s1b)
 
