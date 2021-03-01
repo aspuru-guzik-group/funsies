@@ -3,29 +3,18 @@ from __future__ import annotations
 
 from enum import Enum
 from os import PathLike
-from typing import Any, Dict, List, NewType, Union
+from typing import NewType, Union
 
-# from https://github.com/python/typing/issues/182
-_JSONType_0 = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-_JSONType_1 = Union[
-    str, int, float, bool, None, Dict[str, _JSONType_0], List[_JSONType_0]
-]
-_JSONType_2 = Union[
-    str, int, float, bool, None, Dict[str, _JSONType_1], List[_JSONType_1]
-]
-_JSONType_3 = Union[
-    str, int, float, bool, None, Dict[str, _JSONType_2], List[_JSONType_2]
-]
-JsonData = Union[str, int, float, bool, None, Dict[str, _JSONType_3], List[_JSONType_3]]
+
+JsonData = Union[str, int, float, bool, None, dict, list]
 """Can be converted to JSON."""
+
+_Data = Union[bytes, JsonData]
+"""All output data types."""
 
 # Some types
 _AnyPath = Union[str, PathLike]
 hash_t = NewType("hash_t", str)
-
-
-_Data = Union[bytes, JsonData]
-"""All output data types."""
 
 
 class Encoding(str, Enum):
