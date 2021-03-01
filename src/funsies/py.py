@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 # std
-import json
-import time
 from typing import (
     Any,
     Callable,
-    cast,
     Iterable,
     Mapping,
     Optional,
@@ -28,28 +25,17 @@ except ImportError:
     from typing_extensions import Literal  # type:ignore
 
 # module
-from ._constants import _AnyPath, _Data, Encoding, hash_t
+from ._constants import _AnyPath, _Data, Encoding
 from ._context import get_db, get_options
-from ._dag import descendants, start_dag_execution
 from ._graph import (
     Artefact,
     constant_artefact,
-    delete_artefact,
-    get_bytes,
-    get_data,
-    get_status,
     make_op,
-    Operation,
-    resolve_link,
 )
 from ._infer import output_types
-from ._logging import logger
 from ._pyfunc import python_funsie
-from ._run import is_it_cached
-from ._shell import shell_funsie, ShellOutput
-from ._short_hash import shorten_hash
 from .config import Options
-from .errors import Error, Result, unwrap
+from .errors import Result
 
 # Types
 _Target = Union[Artefact, _Data]
@@ -63,6 +49,15 @@ def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
         return data
     else:
         return constant_artefact(db, data)
+
+
+# Yay overloads! we all wish there were an easier way of doing this but here we are...
+Tin1 = TypeVar("Tin1", bound=_Data)
+Tin2 = TypeVar("Tin2", bound=_Data)
+Tin3 = TypeVar("Tin3", bound=_Data)
+Tin4 = TypeVar("Tin4", bound=_Data)
+Tout1 = TypeVar("Tout1", bound=_Data)
+_inp = Union[Tin1, Artefact[Tin1]]
 
 
 # --------------------------------------------------------------------------------
@@ -170,11 +165,6 @@ def py(  # noqa:C901
 
 # --------------------------------------------------------------------------------
 # Convenience functions
-Tin1 = TypeVar("Tin1", bound=_Data)
-Tin2 = TypeVar("Tin2", bound=_Data)
-Tin3 = TypeVar("Tin3", bound=_Data)
-Tin4 = TypeVar("Tin4", bound=_Data)
-Tout1 = TypeVar("Tout1", bound=_Data)
 
 
 def morph(
@@ -224,60 +214,47 @@ def morph(
     )[0]
 
 
+# fmt:off
 @overload
-def reduce(
-    fun: Callable[[Tin1, Tin2], Tout1],
-    __inp: Union[Tin1, Artefact[Tin1]],
-    __inp2: Union[Tin2, Artefact[Tin2]],
-    *,
-    out=...,
-    name=...,
-    strict=...,
-    opt=...,
-    connection=...,
-) -> Artefact[Tout1]:
-    ...
+def reduce(fun: Callable[[Tin1], Tout1], __inp1: _inp[Tin1], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
 
 
 @overload
-def reduce(
-    fun: Callable[[Tin1, Tin2], Tout1],
-    __inp: Union[Tin1, Artefact[Tin1]],
-    __inp2: Union[Tin2, Artefact[Tin2]],
-    *,
-    out=...,
-    name=...,
-    strict=...,
-    opt=...,
-    connection=...,
-) -> Artefact[Tout1]:
-    ...
+def reduce(fun: Callable[[Tin1, Tin2], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[Tin1, Tin2, Tin3], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[Tin1, Tin2, Tin3, Tin4], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], __inp4: _inp[Tin4], *, out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[VarArg(Tin1)], Tout1], *__inp1: _inp[Tin1], out=..., name=..., strict: Literal[True] = True, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[Result[Tin1]], Tout1], __inp1: _inp[Tin1], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
 
 
 @overload
 def reduce(
-    fun: Callable[[VarArg(Tin1)], Tout1],
-    *inp: Union[Tin1, Artefact[Tin1]],
-    out=...,
-    name=...,
-    strict=...,
-    opt=...,
-    connection=...,
-) -> Artefact[Tout1]:
-    ...
+    fun: Callable[[Result[Tin1], Result[Tin2]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
 
 
-# @overload
-# def reduce(
-#     fun: Callable[..., Tout1],
-#     *inp: _Target,
-#     out: Optional[Encoding] = None,
-#     name: Optional[str] = None,
-#     strict: bool = True,
-#     opt: Optional[Options] = None,
-#     connection: Optional[Redis[bytes]] = None,
-# ) -> Artefact[Tout1]:
-#     ...
+@overload
+def reduce(fun: Callable[[Result[Tin1], Result[Tin2], Result[Tin3]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[Result[Tin1], Result[Tin2], Result[Tin3], Result[Tin4]], Tout1], __inp1: _inp[Tin1], __inp2: _inp[Tin2], __inp3: _inp[Tin3], __inp4: _inp[Tin4], *, out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
+
+
+@overload
+def reduce(fun: Callable[[VarArg(Result[Tin1])], Tout1], *__inp1: _inp[Tin1], out=..., name=..., strict: Literal[False] = False, opt=..., connection=...,) -> Artefact[Tout1]: ...
+# fmt:on
 
 
 def reduce(
