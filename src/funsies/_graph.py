@@ -6,9 +6,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-import json
 import traceback
-from typing import Any, cast, Generic, IO, Mapping, Optional, Type, TypeVar, Union
+from typing import Any, Generic, Mapping, Optional, Type, TypeVar
 
 # external
 from redis import Redis
@@ -19,11 +18,9 @@ from . import _serdes
 from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
-    _Data,
     Encoding,
     hash_t,
     join,
-    JsonData,
     OPERATIONS,
 )
 from ._funsies import Funsie
@@ -72,8 +69,10 @@ def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> No
 
 
 # --------------------------------------------------------------------------------
+# Generic Artefacts
 T = TypeVar("T")
-# Artefact
+
+
 @dataclass(frozen=True)
 class Artefact(Generic[T]):
     """Artefacts are the main data structure."""

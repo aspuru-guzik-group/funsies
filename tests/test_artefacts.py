@@ -1,6 +1,5 @@
 """Test of artefacts save / restore."""
 # std
-from typing import cast, IO
 
 # external
 from fakeredis import FakeStrictRedis as Redis

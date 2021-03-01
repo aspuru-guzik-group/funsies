@@ -11,10 +11,10 @@ from typing import Mapping, Type
 from redis import Redis
 
 # module
+from . import _serdes
 from ._constants import Encoding, FUNSIES, hash_t, join
 from ._short_hash import hash_save
-from .errors import Error, Result
-from . import _serdes
+from .errors import Result
 
 
 def _artefacts(inp: dict[bytes, bytes]) -> dict[str, Encoding]:

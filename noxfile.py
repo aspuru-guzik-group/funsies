@@ -5,7 +5,7 @@ from nox.sessions import Session
 
 package = "funsies"
 nox.options.sessions = "black", "lint", "tests", "mypy"  # default session
-locations = "examples", "src", "tests", "noxfile.py"  # Linting locations
+locations = "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.7", "3.8", "3.9"]
 
 

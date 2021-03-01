@@ -3,14 +3,14 @@ from __future__ import annotations
 
 # std
 import time
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional
 
 # external
 import cloudpickle
 
 
 # module
-from ._constants import _Data, Encoding, JsonData
+from ._constants import _Data, Encoding
 from ._funsies import Funsie, FunsieHow
 from ._logging import logger
 from .errors import Result

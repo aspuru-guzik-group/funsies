@@ -6,14 +6,18 @@ from os import PathLike
 from typing import Any, Dict, List, NewType, Union
 
 # from https://github.com/python/typing/issues/182
-# fmt:off
 _JSONType_0 = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-_JSONType_1 = Union[str, int, float, bool, None, Dict[str, _JSONType_0], List[_JSONType_0]]
-_JSONType_2 = Union[str, int, float, bool, None, Dict[str, _JSONType_1], List[_JSONType_1]]
-_JSONType_3 = Union[str, int, float, bool, None, Dict[str, _JSONType_2], List[_JSONType_2]]
-JsonData =  Union[str, int, float, bool, None, Dict[str, _JSONType_3], List[_JSONType_3]]
+_JSONType_1 = Union[
+    str, int, float, bool, None, Dict[str, _JSONType_0], List[_JSONType_0]
+]
+_JSONType_2 = Union[
+    str, int, float, bool, None, Dict[str, _JSONType_1], List[_JSONType_1]
+]
+_JSONType_3 = Union[
+    str, int, float, bool, None, Dict[str, _JSONType_2], List[_JSONType_2]
+]
+JsonData = Union[str, int, float, bool, None, Dict[str, _JSONType_3], List[_JSONType_3]]
 """Can be converted to JSON."""
-# fmt:on
 
 # Some types
 _AnyPath = Union[str, PathLike]

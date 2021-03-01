@@ -7,14 +7,13 @@ from typing import (
     Callable,
     Optional,
     Sequence,
-    Union,
 )
 
 # external
 from redis import Redis
 
 # module
-from ._constants import _Data, Encoding, JsonData
+from ._constants import Encoding
 from ._context import get_db, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._subdag import subdag_funsie

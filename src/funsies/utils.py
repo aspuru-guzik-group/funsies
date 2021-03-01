@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 # std
-from typing import Callable, Optional, overload, Sequence, TypeVar, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
 
 # module
-from ._constants import Encoding, _Data
+from ._constants import _Data, Encoding
 from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
-from .ui import _Target
-from .fp import py, reduce, morph
+from .fp import morph, py, reduce
 
 _TargetBytes = Union[Artefact[bytes], bytes]
 

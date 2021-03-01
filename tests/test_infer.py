@@ -1,7 +1,7 @@
 """Test inference of function types."""
 # from __future__ import annotations
 
-from typing import Tuple, Dict
+from typing import Dict, Tuple
 
 import pytest
 

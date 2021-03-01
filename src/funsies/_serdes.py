@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import traceback
-from typing import Any, cast, Optional
+from typing import Any, Optional
 
 # module
 from ._constants import Encoding, hash_t

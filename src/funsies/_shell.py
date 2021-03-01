@@ -7,13 +7,13 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence
 
 # external
 from redis import Redis
 
 # module
-from ._constants import _Data, Encoding, hash_t, JsonData
+from ._constants import _Data, Encoding, hash_t
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, Operation
 from ._logging import logger

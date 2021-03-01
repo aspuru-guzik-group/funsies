@@ -2,23 +2,17 @@
 from __future__ import annotations
 
 # std
-import json
 import time
 from typing import (
-    Any,
-    Callable,
-    cast,
     Iterable,
     Mapping,
     Optional,
     overload,
-    Sequence,
     TypeVar,
     Union,
 )
 
 # external
-from mypy_extensions import VarArg
 from redis import Redis
 
 # python 3.7 imports Literal from typing_extensions
@@ -28,7 +22,7 @@ except ImportError:
     from typing_extensions import Literal  # type:ignore
 
 # module
-from ._constants import _AnyPath, _Data, Encoding, hash_t
+from ._constants import _AnyPath, _Data, hash_t
 from ._context import get_db, get_options
 from ._dag import descendants, start_dag_execution
 from ._graph import (
@@ -42,9 +36,7 @@ from ._graph import (
     Operation,
     resolve_link,
 )
-from ._infer import output_types
 from ._logging import logger
-from ._pyfunc import python_funsie
 from ._run import is_it_cached
 from ._shell import shell_funsie, ShellOutput
 from ._short_hash import shorten_hash
