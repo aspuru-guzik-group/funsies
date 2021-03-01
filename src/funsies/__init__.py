@@ -18,7 +18,7 @@ from .ui import (
     takeout,
     wait_for,
 )
-from .py import py, reduce, morph
+from .fp import py, reduce, morph
 
 
 __all__ = [

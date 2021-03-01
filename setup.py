@@ -16,6 +16,7 @@ setuptools.setup(
     # Dependencies
     python_requires=">=3.7",
     install_requires=[
+        "mypy_extensions",
         "redis",
         "cloudpickle",
         "rq>=1.7",

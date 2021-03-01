@@ -13,7 +13,9 @@ from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
 from .ui import _Target
-from .py import py, reduce, morph
+from .fp import py, reduce, morph
+
+_TargetBytes = Union[Artefact[bytes], bytes]
 
 Tin = TypeVar("Tin")
 Tout1 = TypeVar("Tout1")
@@ -38,7 +40,7 @@ def match_results(
 
 
 def concat(
-    *inp: _Target,
+    *inp: _TargetBytes,
     join: Union[str, bytes] = b"",
     strip: bool = False,
     strict: bool = True,
@@ -63,22 +65,21 @@ def concat(
     # type convert str to bytes
     if isinstance(join, str):
         join = join.encode()
-    inputs = [k.encode() if isinstance(k, str) else k for k in inp]
 
     return py(  # type:ignore
         concatenation,
         join,
         strip,
-        *inputs,
+        *inp,
         out=[Encoding.blob],
         strict=strict,
         connection=connection,
         opt=opt,
-    )[0]
+    )
 
 
 def truncate(
-    inp: _Target,
+    inp: _TargetBytes,
     top: int = 0,
     bottom: int = 0,
     separator: Union[str, bytes] = b"\n",
@@ -94,8 +95,6 @@ def truncate(
         return sep.join(data[i:j])
 
     # type convert str to bytes
-    if isinstance(inp, str):
-        inp = inp.encode()
     if isinstance(separator, str):
         separator = separator.encode()
 
@@ -105,7 +104,7 @@ def truncate(
         top,
         bottom,
         separator,
-        out=[Encoding.blob],
+        out=Encoding.blob,
         name="truncate",
         strict=True,
         opt=opt,
@@ -134,7 +133,7 @@ def stop_if(
 
 
 def not_empty(
-    inp: _Target,
+    inp: _TargetBytes,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact:

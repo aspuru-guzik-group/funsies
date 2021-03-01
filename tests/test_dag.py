@@ -173,12 +173,15 @@ def test_dag_large() -> None:
 def test_subdag() -> None:
     """Test that subdags execute properly."""
 
+    def cap(inp: bytes) -> bytes:
+        return inp.upper()
+
     def map_reduce(inputs: dict[str, bytes]) -> dict[str, _graph.Artefact[bytes]]:
         """Basic map reduce."""
         inp_data = inputs["inp"].split(b" ")
         out: list[_graph.Artefact[bytes]] = []
         for el in inp_data:
-            out += [morph(lambda x: x.upper(), el, opt=options(distributed=False))]
+            out += [morph(cap, el, opt=options(distributed=False))]
         return {"out": concat(*out, join="-")}
 
     with Fun(Redis(), options(distributed=False)) as db:

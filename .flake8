@@ -1,6 +1,6 @@
 [flake8]
 select = ANN,C,E,F,W,I,BLK,B,B9,D,DAR
-ignore = W503,DAR103,DAR003,C901
+ignore = W503,DAR103,DAR003,C901,DAR402
 max-line-length = 90
 max-complexity = 10
 application-import-names = funsies,tests

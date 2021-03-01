@@ -8,21 +8,13 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
-    overload,
     Sequence,
     TypeVar,
     Union,
 )
 
 # external
-from mypy_extensions import VarArg
 from redis import Redis
-
-# python 3.7 imports Literal from typing_extensions
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type:ignore
 
 # module
 from ._constants import _AnyPath, _Data, Encoding
@@ -35,7 +27,6 @@ from ._graph import (
 from ._infer import output_types
 from ._pyfunc import python_funsie
 from .config import Options
-from .errors import Result
 
 # Types
 _Target = Union[Artefact, _Data]
