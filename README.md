@@ -114,7 +114,7 @@ and to dynamically re-parametrize them.
 
 All "files" are encoded in a redis instance, with no local filesystem
 operations. This means that funsies workers can be operating without any
-permanent data storage, as is often the case in containerized deployement.
+permanent data storage, as is often the case in containerized deployment.
 This makes it possible to run heavily file-driven workflows using only a
 container's [tmpfs](https://docs.docker.com/storage/tmpfs/).
 
