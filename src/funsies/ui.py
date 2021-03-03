@@ -47,7 +47,7 @@ from .errors import Error, Result, unwrap
 _Target = Union[Artefact, _Data]
 _INP_FILES = Optional[Mapping[_AnyPath, _Target]]
 _OUT_FILES = Optional[Iterable[_AnyPath]]
-T = TypeVar("T")
+T = TypeVar("T", bound=_Data)
 
 
 def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
