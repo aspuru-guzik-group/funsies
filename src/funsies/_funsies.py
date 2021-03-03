@@ -69,7 +69,9 @@ class Funsie:
             element = input_data[key]
             out[key] = _serdes.decode(enc, element)
             if self.error_tolerant == 0 and isinstance(out[key], Error):
-                raise RuntimeError(f'Decoding of input data {key} failed:\n{out[key].details}')
+                raise RuntimeError(
+                    f"Decoding of input data {key} failed:\n{out[key].details}"
+                )
         return out
 
     def put(self: Funsie, db: Redis[bytes]) -> None:
