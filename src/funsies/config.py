@@ -44,7 +44,8 @@ class Options:
     distributed: bool = True
     queue: str = "default"
 
-    # Funsie options
+    # TODO: make meaningfully adjustable
+    serializer: str = "rq.serializers.JSONSerializer"
 
     @property
     def job_args(self: "Options") -> Mapping[str, Any]:
@@ -66,7 +67,7 @@ class Options:
     @property
     def queue_args(self: "Options") -> Mapping[str, Any]:
         """Return a dictionary of arguments for rq.Queue."""
-        return dict(is_async=self.distributed)
+        return dict(is_async=self.distributed, serializer=self.serializer)
 
     def pack(self: "Options") -> str:
         """Pack an Options instance to a bytestring."""

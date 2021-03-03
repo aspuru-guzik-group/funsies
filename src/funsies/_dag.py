@@ -157,7 +157,7 @@ def enqueue_dependents(
 
             logger.info(f"-> {shorten_hash(dependent)}")
             queue.enqueue_call(
-                task,
+                "funsies._dag.task",
                 args=(dag_of, dependent),
                 kwargs=options.task_args,
                 **options.job_args,
@@ -251,7 +251,7 @@ def task(
             options = get_op_options(db, current)
             queue = Queue(name=options.queue, connection=db, **options.queue_args)
             queue.enqueue_call(
-                task,
+                "funsies._dag.task",
                 args=(dag_of, current),
                 kwargs=options.task_args,
                 at_front=False,
@@ -297,7 +297,7 @@ def start_dag_execution(
         options = get_op_options(db, element)
         queue = Queue(name=options.queue, connection=db, **options.queue_args)
         queue.enqueue_call(
-            task,
+            "funsies._dag.task",
             args=(dag_of, element),
             kwargs=options.task_args,
             **options.job_args,
