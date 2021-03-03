@@ -51,6 +51,17 @@ def test_store_cache() -> None:
         assert ui.take(s2) == b"bla bla"
 
 
+def test_store_cache_jsons() -> None:
+    """Test store for caching."""
+    with Fun(Redis()):
+        # more complex data types
+        li = ui.put([1, 2, 3])
+        assert ui.take(li) == [1, 2, 3]
+
+        di = ui.put({"fun": 3})
+        assert ui.take(di) == {"fun": 3}
+
+
 def test_rm() -> None:
     """Test rm."""
     with Fun(Redis(), options(distributed=False)):
@@ -123,9 +134,6 @@ def test_multi_reduce() -> None:
             for el in x:
                 out += el
             return out
-
-        # with pytest.raises(TypeError):
-        #     red = ui.reduce(join, morph, dat, b"|wat")
 
         red = fp.reduce(join, morph, dat, "|wat")
 

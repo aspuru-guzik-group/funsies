@@ -18,6 +18,7 @@ from . import _serdes
 from ._constants import (
     ARTEFACTS,
     BLOCK_SIZE,
+    _Data,
     Encoding,
     hash_t,
     join,
@@ -71,6 +72,7 @@ def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> No
 # --------------------------------------------------------------------------------
 # Generic Artefacts
 T = TypeVar("T")
+Tdata = TypeVar("Tdata", bound=_Data)
 
 
 @dataclass(frozen=True)
@@ -300,7 +302,7 @@ def set_data(
     pipe.execute()
 
 
-def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
+def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
     """Store an artefact with a defined value."""
     kind = _serdes.kind(value)
     data = _serdes.encode(kind, value)
@@ -319,7 +321,7 @@ def constant_artefact(store: Redis[bytes], value: T) -> Artefact[T]:
     m.update(data)
     h = hash_t(m.hexdigest())
     # ==============================================================
-    node = Artefact[T](hash=h, parent=hash_t("root"), kind=kind)
+    node = Artefact[Tdata](hash=h, parent=hash_t("root"), kind=kind)
     node.put(store)
     set_data(store, h, data, status=ArtefactStatus.const)
     return node

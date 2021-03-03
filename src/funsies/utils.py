@@ -142,7 +142,7 @@ def not_empty(
         if len(inp):
             return inp
         else:
-            raise RuntimeError("")
+            raise RuntimeError("This file is empty.")
 
     fun_name = "not an empty file"
     return py(

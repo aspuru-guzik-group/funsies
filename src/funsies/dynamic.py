@@ -2,18 +2,13 @@
 from __future__ import annotations
 
 # std
-from typing import (
-    Any,
-    Callable,
-    Optional,
-    Sequence,
-)
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
 # external
 from redis import Redis
 
 # module
-from ._constants import Encoding
+from ._constants import _Data, Encoding
 from ._context import get_db, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._subdag import subdag_funsie
@@ -22,19 +17,23 @@ from .ui import _Target, put
 
 
 # --------------------------------------------------------------------------------
+Tin = TypeVar("Tin", bound=_Data)
+T1 = TypeVar("T1", bound=_Data)
+T2 = TypeVar("T2", bound=_Data)
+T3 = TypeVar("T3", bound=_Data)
 
 
 def sac(
-    split_fun: Callable[..., Any],
-    apply_fun: Callable[[Artefact], Artefact],
-    combine_fun: Callable[[Sequence[Artefact]], Artefact],
+    split_fun: Callable[..., Sequence[T1]],
+    apply_fun: Callable[[Artefact[T1]], Artefact[T2]],
+    combine_fun: Callable[[Sequence[Artefact[T2]]], Artefact[T3]],
     *inp: _Target,
     out: Encoding,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
-) -> Artefact:
+) -> Artefact[T3]:
     """Perform a split/apply/combine dynamic DAG."""
     opt = get_options(opt)
     db = get_db(connection)
@@ -59,10 +58,10 @@ def sac(
             + f"|{combine_fun.__qualname__}"
         )
 
-    def __sac(inpd: dict[str, Artefact]) -> dict[str, Artefact]:
+    def __sac(inpd: dict[str, Artefact[Any]]) -> dict[str, Artefact[T3]]:
         """Perform the map reduce."""
-        args = [inpd[k] for k in arg_names]
         db = get_db()
+        args = [inpd[k] for k in arg_names]
         split_data = [constant_artefact(db, d) for d in split_fun(*args)]
         apply_data = [apply_fun(d) for d in split_data]
         combine_data = combine_fun(apply_data)

@@ -14,7 +14,7 @@ from redis import Redis
 from . import _serdes
 from ._constants import Encoding, FUNSIES, hash_t, join
 from ._short_hash import hash_save
-from .errors import Result
+from .errors import Result, Error
 
 
 def _artefacts(inp: dict[bytes, bytes]) -> dict[str, Encoding]:
@@ -68,6 +68,10 @@ class Funsie:
         for key, enc in self.inp.items():
             element = input_data[key]
             out[key] = _serdes.decode(enc, element)
+            if self.error_tolerant == 0 and isinstance(out[key], Error):
+                raise RuntimeError(
+                    f"Decoding of input data {key} failed:\n{out[key].details}"
+                )
         return out
 
     def put(self: Funsie, db: Redis[bytes]) -> None:
