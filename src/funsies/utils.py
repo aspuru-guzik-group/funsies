@@ -145,6 +145,6 @@ def not_empty(
             raise RuntimeError("This file is empty.")
 
     fun_name = "not an empty file"
-    return morph(
+    return py(
         __not_empty, inp, name=fun_name, strict=True, connection=connection, opt=opt
     )

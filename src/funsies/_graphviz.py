@@ -153,6 +153,7 @@ def format_dot(  # noqa:C901
     labels: __label_type,
     links: dict[hash_t, hash_t],
     targets: list[hash_t],
+    show_inputs: bool = True,
 ) -> str:
     """Format output of export() for graphviz dot."""
     header = (
@@ -170,6 +171,8 @@ def format_dot(  # noqa:C901
             # todo make conditional keep setable
             if artefacts[v] == 2:
                 initials[v] = initials.get(v, []) + [n]
+                if show_inputs:
+                    keep[v] = keep.get(v, []) + [n]
             else:
                 keep[v] = keep.get(v, []) + [n]
 
@@ -242,11 +245,12 @@ def format_dot(  # noqa:C901
         connect += f"A{v} -> A{k} [{__style_line_link}];\n"
         ranks += "{" + f"rank = same; A{v}; A{k};" + "}\n"
 
-    # init = []
-    # for a in artefacts:
-    #     if artefacts[a] == 2:
-    #         init += [f"A{a}"]
-    # ranks += "{rank = same;" + ";".join(init) + ";}\n"
+    if show_inputs:
+        init = []
+        for a in initials:
+            init += [f"A{a}"]
+        if len(init):
+            ranks += "{rank = same;" + ";".join(init) + ";}\n"
 
     rank_last = []
     for t in finals.keys():

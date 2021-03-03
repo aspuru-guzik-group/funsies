@@ -318,7 +318,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...]) -> None:
                 logger.warning(f"no object with hash {hash}")
             for t in things:
                 if isinstance(t, types.Operation) or isinstance(t, types.Artefact):
-                    all_data += [hash_t(hash)]
+                    all_data += [hash_t(t.hash)]
 
         if len(all_data):
             logger.info(f"writing graph for {len(all_data)} objects")

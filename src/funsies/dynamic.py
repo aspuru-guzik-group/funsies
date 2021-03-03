@@ -14,9 +14,8 @@ from redis import Redis
 
 # module
 from ._constants import Encoding
-from ._context import get_db, get_options, Fun
+from ._context import get_db, get_options
 from ._graph import Artefact, constant_artefact, make_op
-from ._infer import output_types
 from ._subdag import subdag_funsie
 from .config import Options
 from .ui import _Target, put
@@ -52,12 +51,6 @@ def sac(
             inputs[arg_names[-1]] = put(arg, connection=db)
     inp_types = dict([(k, val.kind) for k, val in inputs.items()])
 
-    # TODO multi outputs, type inference
-    out_types = out
-
-    if not isinstance(out_types, Encoding):
-        raise TypeError(f'SAC output should be an Encoding, got {out_types}')
-
     if name is not None:
         fun_name = name
     else:
@@ -65,8 +58,6 @@ def sac(
             f"SAC|{split_fun.__qualname__}|{apply_fun.__qualname__}"
             + f"|{combine_fun.__qualname__}"
         )
-
-    # TODO fix options
 
     def __sac(inpd: dict[str, Artefact]) -> dict[str, Artefact]:
         """Perform the map reduce."""
@@ -78,6 +69,6 @@ def sac(
         return dict(out=combine_data)
 
     # Generate the subdag operations
-    cmd = subdag_funsie(__sac, inp_types, {"out": out_types}, name=fun_name, strict=strict)
+    cmd = subdag_funsie(__sac, inp_types, {"out": out}, name=fun_name, strict=strict)
     operation = make_op(db, cmd, inputs, opt)
     return Artefact.grab(db, operation.out["out"])
