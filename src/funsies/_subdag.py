@@ -13,7 +13,7 @@ from ._constants import Encoding
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact
 from ._logging import logger
-from .errors import Result
+from .errors import Result, Error
 
 
 # types
