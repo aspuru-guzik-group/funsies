@@ -252,10 +252,10 @@ def format_dot(  # noqa:C901
         if len(init):
             ranks += "{rank = same;" + ";".join(init) + ";}\n"
 
-    rank_last = []
-    for t in finals.keys():
-        rank_last += [f"A{t}"]
-    ranks += "{rank = same;" + ";".join(rank_last) + ";}\n"
+    # rank_last = []
+    # for t in finals.keys():
+    #     rank_last += [f"A{t}"]
+    # ranks += "{rank = same;" + ";".join(rank_last) + ";}\n"
 
     footer = "\n}"
     return header + nstring + connect + ranks + footer
