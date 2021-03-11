@@ -37,7 +37,14 @@ __link_type = Dict[hash_t, hash_t]
 def __sanitize_command(lab: str) -> str:
     if ".<locals>" in lab:
         lab = lab.split(".<locals>")[0]
-    return lab.replace("<", r"\<").replace(">", r"\>")
+    return (
+        lab.replace("<", r"\<")
+        .replace(">", r"\>")
+        .replace("|", r"\|")
+        .replace("{", r"\{")
+        .replace("}", r"\}")
+        .replace("&&", r"\n")
+    )
 
 
 def export(
