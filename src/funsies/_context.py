@@ -17,7 +17,7 @@ from rq import command, Worker
 from rq.local import LocalStack
 
 # module
-from ._constants import _AnyPath, join, OPERATIONS
+from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
 from .config import Options
 
@@ -33,8 +33,8 @@ def cleanup_funsies(connection: Redis[bytes]) -> None:
         queue.delete(delete_jobs=True)
 
     # Reset operation status
-    ops = join(OPERATIONS, "*", "owner")
-    keys = connection.keys(ops)
+    ops = join(OPERATIONS, hash_t("*"), "owner")
+    keys = connection.keys(ops)  # type:ignore
     if len(keys):
         logger.info(f"clearing {len(keys)} unfinished ops")
         for k in keys:
