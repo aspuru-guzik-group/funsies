@@ -7,7 +7,7 @@ import tempfile
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
-# module
+# funsies
 from funsies import _graph, fp, Fun, options, ui
 from funsies._run import run_op
 from funsies.types import UnwrapError

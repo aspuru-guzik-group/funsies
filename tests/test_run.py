@@ -1,10 +1,11 @@
 """Test running a funsie."""
+# std
 from typing import Dict
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import _graph
 from funsies import _pyfunc as p
 from funsies import _shell as s
@@ -143,6 +144,7 @@ def test_dependencies() -> None:
 
 def test_subdag() -> None:
     """Test run of a subdag function."""
+    # funsies
     import funsies as f
 
     db = Redis()

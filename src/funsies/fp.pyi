@@ -20,6 +20,7 @@ from redis import Redis
 
 # python 3.7 imports Literal from typing_extensions
 try:
+    # std
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # type:ignore
@@ -27,11 +28,7 @@ except ImportError:
 # module
 from ._constants import _AnyPath, _Data, Encoding
 from ._context import get_db, get_options
-from ._graph import (
-    Artefact,
-    constant_artefact,
-    make_op,
-)
+from ._graph import Artefact, constant_artefact, make_op
 from ._infer import output_types
 from ._pyfunc import python_funsie
 from .config import Options

@@ -8,7 +8,7 @@ from typing import Dict
 # external
 import pytest
 
-# module
+# funsies
 from funsies import (
     _serdes,
     execute,

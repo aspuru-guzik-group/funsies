@@ -10,14 +10,7 @@ from typing import cast, Dict, Optional
 from redis import Redis
 
 # module
-from ._constants import (
-    ARTEFACTS,
-    DAG_INDEX,
-    DAG_OPERATIONS,
-    FUNSIES,
-    hash_t,
-    join,
-)
+from ._constants import ARTEFACTS, DAG_INDEX, DAG_OPERATIONS, FUNSIES, hash_t, join
 from ._dag import build_dag
 from ._graph import ArtefactStatus, Operation, resolve_link
 from ._logging import logger

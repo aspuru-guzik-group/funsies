@@ -6,7 +6,7 @@ import hashlib
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
-# module
+# funsies
 from funsies import _short_hash as sh
 from funsies.types import hash_t
 

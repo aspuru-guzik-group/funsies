@@ -1,4 +1,5 @@
 """Test serialization/deserialization."""
+# funsies
 from funsies import _serdes
 from funsies.types import Encoding, Error
 

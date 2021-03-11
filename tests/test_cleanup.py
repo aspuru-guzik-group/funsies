@@ -1,13 +1,15 @@
 """Test funsies cleaning."""
+# std
 from signal import SIGKILL
 import time
 
-# module
+# funsies
 import funsies as f
 
 
 def test_cleanup() -> None:
     """Test truncation."""
+    # std
     import os
 
     def kill_self(*inp: bytes) -> bytes:
@@ -18,7 +20,6 @@ def test_cleanup() -> None:
 
     with f.ManagedFun(nworkers=1) as db:
         inp = "\n".join([f"{k}" for k in range(10)]).encode()
-        dat1 = f.put(inp)
         fun = f.reduce(kill_self, inp)
         f.execute(fun)
         time.sleep(0.5)

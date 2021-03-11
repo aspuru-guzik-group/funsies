@@ -10,7 +10,7 @@ import pytest
 from redis import Redis
 from rq import Worker
 
-# module
+# funsies
 import funsies as f
 from funsies.types import UnwrapError
 
@@ -93,6 +93,7 @@ def test_timeout_deadlock() -> None:
 @pytest.mark.parametrize("sig", [SIGTERM, SIGKILL])
 def test_worker_killed(nworkers: int, sig: int) -> None:
     """Test what happens when 'funsies worker' gets killed."""
+    # std
     import os
 
     def kill_funsies_worker(*inp: bytes) -> bytes:
@@ -126,6 +127,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
 @pytest.mark.parametrize("sig", [SIGTERM, SIGINT])
 def test_job_killed(nworkers: int, sig: int) -> None:
     """Test what happens when 'funsies worker' is ok but its job gets killed."""
+    # std
     import os
 
     def kill_self(*inp: bytes) -> bytes:
@@ -172,6 +174,7 @@ def test_data_race(nworkers: int) -> None:
 def test_double_execution(nworkers: int) -> None:
     """Test multiple executions of the same task."""
     # This test will fail if a job is re-executed multiple times.
+    # external
     from rq.job import get_current_job
 
     def track_runs(inp: bytes) -> bytes:

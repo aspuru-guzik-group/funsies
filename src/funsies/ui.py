@@ -3,20 +3,14 @@ from __future__ import annotations
 
 # std
 import time
-from typing import (
-    Iterable,
-    Mapping,
-    Optional,
-    overload,
-    TypeVar,
-    Union,
-)
+from typing import Iterable, Mapping, Optional, overload, TypeVar, Union
 
 # external
 from redis import Redis
 
 # python 3.7 imports Literal from typing_extensions
 try:
+    # std
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # type:ignore

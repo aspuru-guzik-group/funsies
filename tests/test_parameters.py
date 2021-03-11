@@ -4,7 +4,7 @@ from __future__ import annotations
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import execute, Fun, morph, options, put, shell, take
 import funsies._parametrize as _p
 from funsies.utils import concat

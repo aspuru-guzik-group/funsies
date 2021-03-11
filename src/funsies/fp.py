@@ -2,16 +2,7 @@
 from __future__ import annotations
 
 # std
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Mapping,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import Any, Callable, Iterable, Mapping, Optional, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
@@ -19,11 +10,7 @@ from redis import Redis
 # module
 from ._constants import _AnyPath, _Data, Encoding
 from ._context import get_db, get_options
-from ._graph import (
-    Artefact,
-    constant_artefact,
-    make_op,
-)
+from ._graph import Artefact, constant_artefact, make_op
 from ._infer import output_types
 from ._pyfunc import python_funsie
 from .config import Options

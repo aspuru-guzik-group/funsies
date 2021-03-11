@@ -1,16 +1,18 @@
 """Infer function types."""
 from __future__ import annotations
 
+# std
 import inspect
 from typing import Any, Callable, Tuple, Type, Union
 
-
 # python 3.7 imports Literal from typing_extensions
 try:
+    # std
     from typing import get_args, get_origin
 except ImportError:
     from typing_extensions import get_args, get_origin
 
+# module
 from ._constants import Encoding
 from ._logging import logger
 

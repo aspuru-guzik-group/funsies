@@ -2,7 +2,7 @@
 # std
 from typing import Dict
 
-# module
+# funsies
 from funsies import _pyfunc as p
 from funsies._constants import Encoding
 

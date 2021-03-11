@@ -1,13 +1,14 @@
 """Tests of dynamic funsies."""
 from __future__ import annotations
 
+# std
 from typing import Sequence
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
-# module
+# funsies
 import funsies
 from funsies import dynamic
 from funsies.types import Artefact, Encoding

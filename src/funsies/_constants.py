@@ -1,10 +1,10 @@
 """Names of stuff in the key value store."""
 from __future__ import annotations
 
+# std
 from enum import Enum
 from os import PathLike
 from typing import NewType, Union
-
 
 JsonData = Union[str, int, float, bool, None, dict, list]
 """Can be converted to JSON."""

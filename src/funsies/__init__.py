@@ -2,24 +2,13 @@
 
 .. include:: documentation.md
 """
-from . import debug
-from . import dynamic
-from . import types
-from . import utils
+# module
+from . import debug, dynamic, types, utils
 from ._context import Fun, ManagedFun, options
 from ._getter import get
 from .errors import unwrap
 from .fp import morph, py, reduce
-from .ui import (
-    execute,
-    put,
-    reset,
-    shell,
-    take,
-    takeout,
-    wait_for,
-)
-
+from .ui import execute, put, reset, shell, take, takeout, wait_for
 
 __all__ = [
     # shell
@@ -54,11 +43,13 @@ __all__ = [
 # We grab it from setup.py so that we don't have to bump versions in multiple
 # places.
 try:
+    # std
     from importlib import metadata
 
     __version__ = metadata.version("funsies")
 except ImportError:
     # Running on pre-3.8 Python; use importlib-metadata package
+    # external
     import importlib_metadata
 
     __version__ = importlib_metadata.version("funsies")

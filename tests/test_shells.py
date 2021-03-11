@@ -2,7 +2,7 @@
 # std
 import os
 
-# module
+# funsies
 from funsies import _shell as s
 from funsies.types import Encoding
 

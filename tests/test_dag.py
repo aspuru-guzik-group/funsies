@@ -5,7 +5,7 @@ from __future__ import annotations
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
-# module
+# funsies
 from funsies import (
     _dag,
     _graph,

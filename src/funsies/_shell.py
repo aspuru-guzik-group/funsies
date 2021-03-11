@@ -123,7 +123,8 @@ class ShellOutput:
     def __init__(self: "ShellOutput", store: Redis[bytes], op: Operation) -> None:
         """Generate a ShellOutput wrapper around a shell operation."""
         # import the constants
-        from ._shell import SPECIAL, RETURNCODE, STDOUT, STDERR
+        # module
+        from ._shell import RETURNCODE, SPECIAL, STDERR, STDOUT
 
         # stuff that is the same
         self.op = op

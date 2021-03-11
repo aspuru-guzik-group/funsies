@@ -1,12 +1,10 @@
 """Test of visualization routines."""
 from __future__ import annotations
 
-# std
-
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import (
     _dag,
     _graphviz,

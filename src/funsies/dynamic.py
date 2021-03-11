@@ -15,7 +15,6 @@ from ._subdag import subdag_funsie
 from .config import Options
 from .ui import _Target, put
 
-
 # --------------------------------------------------------------------------------
 Tin = TypeVar("Tin", bound=_Data)
 T1 = TypeVar("T1", bound=_Data)

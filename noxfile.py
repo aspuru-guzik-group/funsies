@@ -4,7 +4,7 @@ import nox
 from nox.sessions import Session
 
 package = "funsies"
-nox.options.sessions = "black", "lint", "tests", "mypy"  # default session
+nox.options.sessions = "fmt", "lint", "tests", "mypy"  # default session
 locations = "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.7", "3.8", "3.9"]
 
@@ -39,10 +39,12 @@ def lint(session: Session) -> None:
 
 # Code formatting
 @nox.session(python="3.9")
-def black(session: Session) -> None:
+def fmt(session: Session) -> None:
     """Format code."""
     args = session.posargs or locations
     session.install("black")
+    session.install("isort")
+    session.run("isort", *args)
     session.run("black", *args)
 
 

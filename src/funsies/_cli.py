@@ -14,14 +14,17 @@ import redis
 from redis import Redis
 from rq import Connection, Worker
 
-# required funsies libraries loaded in advance
-import funsies, subprocess, hashlib, loguru  # noqa
+# funsies
+import funsies
 
-# Local
-from . import __version__, types
+# module
+from . import __version__, types  # noqa
 from ._constants import hash_t
 from ._graph import get_status
 from ._logging import logger
+
+# required funsies libraries loaded in advance
+import hashlib, subprocess, loguru  # noqa isort:skip
 
 
 # This is the main funsies command
@@ -308,6 +311,7 @@ def wait(  # noqa:C901
 @click.pass_context
 def graph(ctx: click.Context, hashes: tuple[str, ...], inputs: bool) -> None:
     """Print to stdout a DOT-formatted graph to visualize DAGs."""
+    # funsies
     import funsies._graphviz
 
     db = ctx.obj()

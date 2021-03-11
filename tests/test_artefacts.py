@@ -5,7 +5,7 @@
 from fakeredis import FakeStrictRedis as Redis
 import pytest
 
-# module
+# funsies
 from funsies import _funsies as f
 from funsies import _graph, _serdes, options
 from funsies.types import Encoding, Error, ErrorKind, hash_t

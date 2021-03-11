@@ -15,15 +15,7 @@ from redis.client import Pipeline
 
 # module
 from . import _serdes
-from ._constants import (
-    ARTEFACTS,
-    BLOCK_SIZE,
-    _Data,
-    Encoding,
-    hash_t,
-    join,
-    OPERATIONS,
-)
+from ._constants import _Data, ARTEFACTS, BLOCK_SIZE, Encoding, hash_t, join, OPERATIONS
 from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save

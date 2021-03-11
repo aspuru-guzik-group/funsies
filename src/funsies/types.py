@@ -1,4 +1,5 @@
 """Object types."""
+# module
 from ._constants import Encoding, hash_t
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, ArtefactStatus, Operation

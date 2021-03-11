@@ -15,7 +15,6 @@ from ._graph import Artefact
 from ._logging import logger
 from .errors import Result
 
-
 # types
 subdag_t = Callable[..., Any]
 

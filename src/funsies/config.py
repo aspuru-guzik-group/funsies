@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 import json
 from typing import Any, Mapping, Type
 
-
 # Constants
 INFINITE = -1
 ONE_DAY = 86400

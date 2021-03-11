@@ -2,7 +2,7 @@
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import _getter, Fun, types, ui
 
 

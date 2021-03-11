@@ -1,11 +1,13 @@
 """Test inference of function types."""
 # from __future__ import annotations
 
+# std
 from typing import Dict, Tuple
 
+# external
 import pytest
 
-# module
+# funsies
 from funsies import _infer, types
 
 

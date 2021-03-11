@@ -14,7 +14,7 @@ from redis import Redis
 from . import _serdes
 from ._constants import Encoding, FUNSIES, hash_t, join
 from ._short_hash import hash_save
-from .errors import Result, Error
+from .errors import Error, Result
 
 
 def _artefacts(inp: dict[bytes, bytes]) -> dict[str, Encoding]:

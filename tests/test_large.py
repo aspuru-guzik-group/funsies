@@ -4,7 +4,7 @@
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import _graph
 import funsies._constants as cons
 from funsies.types import hash_t

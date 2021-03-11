@@ -1,11 +1,12 @@
 """Test debugging functions."""
+# std
 import os.path
 import tempfile
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 
-# module
+# funsies
 from funsies import debug, Fun, shell
 from funsies._run import run_op
 
