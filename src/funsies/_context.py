@@ -13,10 +13,11 @@ from typing import Any, Iterator, Optional, Sequence
 # external
 from redis import Redis
 import rq
+from rq import command, Worker
 from rq.local import LocalStack
 
 # module
-from ._constants import _AnyPath
+from ._constants import _AnyPath, join, OPERATIONS
 from ._logging import logger
 from .config import Options
 
@@ -26,11 +27,28 @@ _options_stack = LocalStack()
 
 
 def cleanup_funsies(connection: Redis[bytes]) -> None:
-    """Clean up Redis instance of DAGs and Queues."""
-    # Clean up the Redis instance of old jobs (not of job data though.)
+    """Clean up Redis instance of DAGs, Queues and clear workers."""
     queues = rq.Queue.all(connection=connection)
     for queue in queues:
         queue.delete(delete_jobs=True)
+
+    # Reset operation status
+    ops = join(OPERATIONS, "*", "owner")
+    keys = connection.keys(ops)
+    if len(keys):
+        logger.info(f"clearing {len(keys)} unfinished ops")
+        for k in keys:
+            connection.delete(k)
+
+
+def shutdown_workers(db: Redis[bytes], force: bool) -> None:
+    """Shutdown funsies workers."""
+    workers = Worker.all(db)
+    logger.info(f"shutting down {len(workers)} workers")
+    for worker in workers:
+        command.send_shutdown_command(db, worker.name)  # Tells worker to shutdown
+        if force:
+            command.send_kill_horse_command(db, worker.name)
 
 
 # --------------------------------------------------------------------------------

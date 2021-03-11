@@ -1,10 +1,13 @@
 **funsies** is a python library and execution engine to build reproducible,
-composable computational workflows. funsies is
+composable computational workflows. 
+
+**funsies is** 
 - 🐍 DSL-free! Workflows are specified in pure python.
 - 🐦 very lightweight with few dependencies.
 - 🚀 super easy to deploy to compute clusters and distributed systems.
 - 🔧 embedabble in your own apps.
-- 📏 is typed. You can use [mypy](http://mypy-lang.org/) to check your workflow scripts.
+- 📏 statically typed. You can use [mypy](http://mypy-lang.org/) to check your
+  workflow scripts.
 
 Workflows are encoded in a [redis server](https://redis.io/) and executed
 using the distributed job queue library [RQ](https://python-rq.org/). A hash

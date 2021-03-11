@@ -184,6 +184,7 @@ def acquire_task(db: Redis[bytes], op_hash: hash_t, worker_name: Optional[str]) 
     if worker_name is None:
         # running in non-distributed mode
         return True
+
     owner_key = join(OPERATIONS, op_hash, "owner")
     response = db.setnx(owner_key, worker_name)  # type:ignore
     if response:
