@@ -51,6 +51,7 @@ def test_raising_funsie() -> None:
         f.wait_for(s2, timeout=0.5)
 
 
+@pytest.mark.slow
 def test_timeout_deadlock() -> None:
     """Test funsies that time out.
 
@@ -89,6 +90,7 @@ def test_timeout_deadlock() -> None:
         assert err.source == s2.hash
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("nworkers", [1, 2])
 @pytest.mark.parametrize("sig", [SIGTERM, SIGKILL])
 def test_worker_killed(nworkers: int, sig: int) -> None:
@@ -123,6 +125,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
             assert f.take(s1b) == b"WHAT"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("nworkers", [1, 2])
 @pytest.mark.parametrize("sig", [SIGTERM, SIGINT])
 def test_job_killed(nworkers: int, sig: int) -> None:
@@ -152,6 +155,7 @@ def test_job_killed(nworkers: int, sig: int) -> None:
         assert err.kind == f.errors.ErrorKind.KilledBySignal
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("nworkers", [1, 2, 8])
 def test_data_race(nworkers: int) -> None:
     """Test a data race when execute calls are interleaved."""
@@ -170,6 +174,7 @@ def test_data_race(nworkers: int) -> None:
         f.wait_for(step2, timeout=10.0)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("nworkers", [1, 2, 8])
 def test_double_execution(nworkers: int) -> None:
     """Test multiple executions of the same task."""

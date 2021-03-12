@@ -151,6 +151,7 @@ def test_dag_execute_same_root() -> None:
         assert out == b"BLA BLA"
 
 
+@pytest.mark.slow
 def test_dag_large() -> None:
     """Test that DAG building doesn't do extra work for large operations."""
     with Fun(Redis()) as db:

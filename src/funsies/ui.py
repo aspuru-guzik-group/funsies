@@ -227,12 +227,12 @@ def __log_error(where: hash_t, dat: Result[object]) -> None:
 
 # fmt:off
 @overload
-def take(where: Artefact[T], strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
+def take(where: Artefact[T], *, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
     ...
 
 
 @overload
-def take(where: Artefact[T], strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
+def take(where: Artefact[T], *, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
     ...
 # fmt:on
 
