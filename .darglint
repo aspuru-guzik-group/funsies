@@ -1,3 +1,4 @@
 [darglint]
-strictness=short
+strictness=long
 docstring_style=google
+ignore=DAR003

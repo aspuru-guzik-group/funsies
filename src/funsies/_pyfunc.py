@@ -41,9 +41,10 @@ def python_funsie(
         fun: a Python callable f(inp)->out.
         inputs: Keys in the input dictionary inp.
         outputs: Keys in the output dictionary out.
-        name (optional): name of callable. If not given, the qualified name of
-            the callable is used instead.
-        strict (optional): If true, the function accepts Result.
+        name:
+            Name of callable. If not given, the qualified name of the callable
+            is used instead.
+        strict: If true, the function accepts Result.
 
     Returns:
         A Funsie instance.
