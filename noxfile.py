@@ -32,7 +32,6 @@ def lint(session: Session) -> None:
         "flake8-import-order",
         "flake8-annotations",
         "flake8-docstrings",
-        "darglint",
     )
     session.run("flake8", *args)
 
@@ -65,3 +64,12 @@ def docs(session: Session) -> None:
     session.install("-e", ".")
     session.install("pdoc3")
     session.run("pdoc", "--template-dir", "src/templates", "--html", "funsies")
+
+
+# Linting docstrings (slow...)
+@nox.session(python="3.9")
+def darglint(session: Session) -> None:
+    """Lint docstrings arguments (slow)."""
+    args = session.posargs or locations
+    session.install("darglint")
+    session.run("darglint", *args)
