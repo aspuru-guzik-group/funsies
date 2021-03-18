@@ -81,27 +81,30 @@ def py(  # noqa:C901
         fun: Python function that operates on input artefacts and produces a
             single output artefact.
         *inp: Input artefacts.
-        out (optional): List of Encoding, one for each output of fun. These
-            are the kind of serialization-deserialization used for the output
-            variables. If None, `out=` is inferred using the type hint of
-            `fun()`: `Encoding.blob` for all `bytes` outputs and
-            `Encoding.json` for anything else.
-        name (optional): Override the name of `fun()` used in hash generation.
-        strict (optional): If `False`, error handling will be deferred to
-            `fun()` by passing it argument of type `errors.Result[bytes]` instead
-            of `bytes`.
-        connection (optional): An explicit Redis connection. Not required if
-            called within a `Fun()` context.
-        opt (optional): An `types.Options` instance as returned by
-            `options()`. Not required if called within a `Fun()` context.
+        out:
+            List of Encoding, one for each output of fun. These are the kind
+            of serialization-deserialization used for the output variables. If
+            None, `out=` is inferred using the type hint of `fun()`:
+            `Encoding.blob` for all `bytes` outputs and `Encoding.json` for
+            anything else.
+        name: Override the name of `fun()` used in hash generation.
+        strict:
+            If `False`, error handling will be deferred to `fun()` by passing
+            it argument of type `errors.Result[bytes]` instead of `bytes`.
+        connection:
+            An explicit Redis connection. Not required if called within a
+            `Fun()` context.
+        opt:
+            An `types.Options` instance generated from `options()`. Not
+            required if called within a `Fun()` context.
 
     Returns:
         A tuple of `types.Artefact` instances that corresponds to the mapping
         `noutputs` return values.
 
     Raises:
-        TypeError: The output types could not be determined and were not given.
-
+        TypeError:              # noqa:DAR402
+            The output types could not be determined and were not given.
     """
     # Attempt to infer output
     if out is None:

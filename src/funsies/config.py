@@ -2,12 +2,25 @@
 # std
 from dataclasses import asdict, dataclass
 import json
-from typing import Any, Mapping, Type
+import os
+from typing import Any, Mapping, Optional, Type
 
 # Constants
 INFINITE = -1
 ONE_DAY = 86400
 ONE_MINUTE = 60
+
+
+def get_funsies_url(url: Optional[str] = None) -> str:
+    """Get the default funsies URL."""
+    if url is not None:
+        return url
+    else:
+        try:
+            default = os.environ["FUNSIES_URL"]
+        except KeyError:
+            default = "redis://localhost:6379"
+        return default
 
 
 @dataclass

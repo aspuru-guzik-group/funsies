@@ -63,8 +63,8 @@ def execute(
         *outputs: Final artefacts or operations to be evaluated in the
             workflow. These objects and all of their dependencies will be
             executed by workers.
-        connection (optional): An explicit Redis connection. Not required if
-            called within a `Fun()` context.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
     """
     # get redis
     db = get_db(connection)
@@ -76,7 +76,7 @@ def execute(
 
 # --------------------------------------------------------------------------------
 # Shell command
-def shell(  # noqa:C901
+def shell(
     *args: str,
     inp: _INP_FILES = None,
     out: _OUT_FILES = None,
@@ -118,22 +118,26 @@ def shell(  # noqa:C901
 
     Args:
         *args: Lines of shell script to be evaluated.
-        inp (optional): Input files to pass to the shell comand. This should
-            be a Mapping from filenames (str, path etc.) to values. Values can
-            either be `types.Artefact` instances or of type `str` or `bytes`,
-            in which case they will be automatically converted using `put()`.
-        out (optional): Filenames of output files that will be used to
-            populate the return `types.ShellOutput` object. Note that any file not
-            included in this list will be deleted when the shell command
-            terminates.
-        env (optional): Environment variables to be set before calling the
-            shell command.
-        strict (optional): If `False`, error handling will be deferred to the
-            shell command by not populating input files of type `Error`.
-        connection (optional): An explicit Redis connection. Not required if
-            called within a `Fun()` context.
-        opt (optional): An `types.Options` instance as returned by
-            `options()`. Not required if called within a `Fun()` context.
+        inp:
+            Input files to pass to the shell comand. This should be a Mapping
+            from filenames (str, path etc.) to values. Values can either be
+            `types.Artefact` instances or of type `str` or `bytes`, in which
+            case they will be automatically converted using `put()`.
+        out:
+            Filenames of output files that will be used to populate the return
+            `types.ShellOutput` object. Note that any file not included in
+            this list will be deleted when the shell command terminates.
+        env:
+            Environment variables to be set before calling the shell command.
+        strict:
+            If `False`, error handling will be deferred to the shell command
+            by not populating input files of type `Error`.
+        connection:
+            An explicit Redis connection. Not required if called within a
+            `Fun()` context.
+        opt:
+            An `types.Options` instance as returned by `options()`. Not
+            required if called within a `Fun()` context.
 
     Returns:
         A `types.ShellOutput` object, populated with the generated
@@ -187,6 +191,7 @@ def shell(  # noqa:C901
 # Data loading and saving
 def put(
     value: T,
+    *,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact[T]:
     """Save data to Redis and return an Artefact.
@@ -222,18 +227,19 @@ def __log_error(where: hash_t, dat: Result[object]) -> None:
 
 # fmt:off
 @overload
-def take(where: Artefact[T], strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
+def take(where: Artefact[T], *, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
     ...
 
 
 @overload
-def take(where: Artefact[T], strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
+def take(where: Artefact[T], *, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
     ...
 # fmt:on
 
 
 def take(
     where: Artefact[T],
+    *,
     strict: bool = True,
     connection: Optional[Redis[bytes]] = None,
 ) -> Union[T, Result[T]]:
@@ -256,18 +262,19 @@ def take(
 
     Args:
         where: `types.Artefact` pointer to data taken from the database.
-        strict (optional): If `False`, return a value of type
-            `errors.Result[bytes]`.
-        connection (optional): An explicit Redis connection. Not required if
-            called within a `Fun()` context.
+        strict: If `False`, return a value of type `errors.Result[bytes]`.
+        connection:
+            An explicit Redis connection. Not required if called within a
+            `Fun()` context.
 
     Returns:
         Either `bytes` or `errors.Result[bytes]` depending on strictness.
 
     Raises:
-        errors.UnwrapError: if `where` contains an `errors.Error` and `strict=True`.
+        errors.UnwrapError:  # noqa:DAR402
+            if `where` contains an `errors.Error` and `strict=True`.
 
-    """  # noqa:DAR402
+    """
     db = get_db(connection)
     dat = get_data(db, where)
     __log_error(where.hash, dat)
@@ -280,6 +287,7 @@ def take(
 def takeout(
     where: Artefact,
     filename: _AnyPath,
+    *,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:  # noqa:DAR101,DAR201
     """`take()` an artefact and save it to `filename`.
@@ -297,6 +305,7 @@ def takeout(
 def wait_for(
     thing: Union[ShellOutput, Artefact, Operation],
     timeout: Optional[float] = None,
+    *,
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Block execution until an artefact is generated or an operation is executed.
@@ -364,11 +373,11 @@ def reset(
     Args:
         thing: Operation to reset. If an `types.Artefact` is given, its parent
             operation is `reset()`.
-        recursive (optional): If False, only this operation is reset; its
-            dependents are untouched. Note that this is dangerous, as it can yield
-            to non-reproducible workflows.
-        connection (optional): An explicit Redis connection. Not required if
-            called within a `Fun()` context.
+        recursive: If False, only this operation is reset; its dependents are
+            untouched. Note that this is dangerous, as it can make
+            non-reproducible workflows.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
 
     Raises:
         AttributeError: if an `types.Artefact` is reset that has status

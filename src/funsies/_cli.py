@@ -34,16 +34,24 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     "--url",
     "-u",
     type=str,
-    default="redis://localhost:6379",
-    help="URL describing Redis connection details.",
+    nargs=1,
+    default=funsies.config.get_funsies_url(),
+    show_default=True,
+    help="Redis URL.",
 )
 @click.pass_context
 def main(ctx: click.Context, url: str) -> None:
-    """Command-line tools for funsies."""
+    """Command-line tools for funsies.
+
+    The --url flag allows passing a custom url for the redis instance. This
+    has to come before any of the subcommands (worker, cat etc.).
+    Alternatively, the url can be set using the environment variables
+    FUNSIES_URL environment variable.
+    """
     logger.debug(f"connecting to {url}")
 
     def connect2db() -> Redis[bytes]:
-        db = Redis.from_url(url)
+        db = Redis.from_url(url, decode_responses=False)
         try:
             db.ping()
         except Exception as e:
@@ -211,31 +219,36 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 
 @main.command()
 @click.argument(
-    "hash",
+    "hashes",
     type=str,
+    nargs=-1,
 )
 @click.pass_context
-def reset(ctx: click.Context, hash: str) -> None:
+def reset(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Reset operations and their dependents."""
     db = ctx.obj()
     with funsies._context.Fun(db):
-        things = funsies.get(hash)
-        if len(things) == 0:
-            logger.warning(f"no object with hash {hash}")
-            raise SystemExit(2)
-        if len(things) > 1:
-            logger.error(f"more than object with hash starting with {hash}")
-            logger.error("which one do you mean of :")
-            for t in things:
-                logger.error(f"\t{t.hash}")
-            raise SystemExit(2)
-        else:
-            if isinstance(things[0], types.Artefact) or isinstance(
-                things[0], types.Operation
-            ):
-                funsies.ui.reset(things[0])
+        for hash in hashes:
+            things = funsies.get(hash)
+            if len(things) == 0:
+                logger.warning(f"no object with hash {hash}")
+            if len(things) > 1:
+                logger.error(f"more than one object with hash starting with {hash}")
+                logger.info("which one do you mean of :")
+                for t in things:
+                    logger.info(f"\t{t.hash}")
+                logger.info("none were reset")
             else:
-                logger.error(f"object {hash} is neither an operation or an artefact")
+                if isinstance(things[0], types.Artefact) or isinstance(
+                    things[0], types.Operation
+                ):
+                    funsies.ui.reset(things[0])
+                    logger.success(f"{hash} was reset")
+                else:
+                    logger.error(
+                        f"object {hash} is neither an operation or an artefact"
+                    )
+                    logger.info(f"{hash} was not reset")
 
 
 @main.command()

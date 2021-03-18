@@ -8,5 +8,4 @@ pytest
 pytest-cov
 flake8-annotations
 flake8-docstrings
-darglint
 isort

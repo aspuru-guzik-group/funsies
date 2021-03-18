@@ -54,6 +54,7 @@ def test_map_reduce() -> None:
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("nworkers", [1, 8])
 def test_nested_map_reduce(nworkers: int) -> None:
     """Test nested map-reduce."""

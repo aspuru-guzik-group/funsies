@@ -8,12 +8,18 @@ nox.options.sessions = "fmt", "lint", "tests", "mypy"  # default session
 locations = "src", "tests", "noxfile.py"  # Linting locations
 pyversions = ["3.7", "3.8", "3.9"]
 
+# to run darglint
+# nox -rs darglint
+
+# to run all tests:
+# nox -rs tests -- --cov
+
 
 # Testing
 @nox.session(python=pyversions)
 def tests(session: Session) -> None:
     """Run tests."""
-    args = session.posargs or ["--cov"]
+    args = session.posargs or ["--cov", "-m not slow"]
     session.install("-r", "requirements.txt")
     session.install("pytest", "pytest-cov")
     session.install("-e", ".")
@@ -32,7 +38,6 @@ def lint(session: Session) -> None:
         "flake8-import-order",
         "flake8-annotations",
         "flake8-docstrings",
-        "darglint",
     )
     session.run("flake8", *args)
 
@@ -65,3 +70,12 @@ def docs(session: Session) -> None:
     session.install("-e", ".")
     session.install("pdoc3")
     session.run("pdoc", "--template-dir", "src/templates", "--html", "funsies")
+
+
+# Linting docstrings (slow...)
+@nox.session(python="3.9")
+def darglint(session: Session) -> None:
+    """Lint docstrings arguments (slow)."""
+    args = session.posargs or locations
+    session.install("darglint")
+    session.run("darglint", *args)

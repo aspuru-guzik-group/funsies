@@ -38,10 +38,12 @@ def subdag_funsie(
         fun: a Python callable f(inp)->out.
         inputs: Keys in the input dictionary inp.
         outputs: Keys in the output dictionary out.
-        name (optional): name of callable. If not given, the qualified name of
-            the callable is used instead.
-        strict (optional): If True (default), the function will not run if any
-            of its inputs are Error-ed.
+        name:
+            Name of callable. If not given, the qualified name of the callable
+            is used instead.
+        strict:
+            If True (default), the function will not run if any of its inputs
+            are Error-ed.
 
     Returns:
         A Funsie instance.
