@@ -62,7 +62,9 @@ def Fun(
     """Context manager for redis connections."""
     if connection is None:
         logger.warning("Opening new redis connection with default settings...")
-        connection = Redis.from_url(get_funsies_url(), decode_responses=False)
+        url = get_funsies_url()
+        connection = Redis.from_url(url, decode_responses=False)
+        logger.success(f"connected to {url}")
 
     if defaults is None:
         defaults = Options()
