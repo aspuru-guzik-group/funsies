@@ -34,16 +34,24 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     "--url",
     "-u",
     type=str,
-    default="redis://localhost:6379",
-    help="URL describing Redis connection details.",
+    nargs=1,
+    default=funsies.config.get_funsies_url(),
+    show_default=True,
+    help="Redis URL.",
 )
 @click.pass_context
 def main(ctx: click.Context, url: str) -> None:
-    """Command-line tools for funsies."""
+    """Command-line tools for funsies.
+
+    The --url flag allows passing a custom url for the redis instance. This
+    has to come before any of the subcommands (worker, cat etc.).
+    Alternatively, the url can be set using the environment variables
+    FUNSIES_URL environment variable.
+    """
     logger.debug(f"connecting to {url}")
 
     def connect2db() -> Redis[bytes]:
-        db = Redis.from_url(url)
+        db = Redis.from_url(url, decode_responses=False)
         try:
             db.ping()
         except Exception as e:
