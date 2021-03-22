@@ -5,10 +5,13 @@
 from typing import Dict, Tuple
 
 # external
+from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
-from funsies import _infer, types
+import funsies as f
+import funsies._infer as _infer
+import funsies.types as types
 
 
 def test_infer() -> None:
@@ -49,3 +52,22 @@ def test_infer() -> None:
     )
     with pytest.raises(TypeError):
         assert _infer.output_types(test_fun6) is None
+
+
+def test_infer_errs() -> None:
+    """Test inference applied to functions."""
+    db = Redis()
+    with f.Fun(db):
+        a = f.put(b"bla bla")
+        b = f.put(3)
+        with pytest.raises(TypeError):
+            f.py(lambda x, y, z: (x, y), a, a, b)
+
+        # should NOT raise
+        f.py(
+            lambda x, y, z: (x, y),
+            a,
+            a,
+            b,
+            out=[types.Encoding.blob, types.Encoding.blob],
+        )
