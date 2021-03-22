@@ -57,7 +57,7 @@ def sac(
             + f"|{combine_fun.__qualname__}"
         )
 
-    def __sac(inpd: dict[str, Artefact[Any]]) -> dict[str, Artefact[T3]]:
+    def __sac(inpd: dict[str, Any]) -> dict[str, Artefact[T3]]:
         """Perform the map reduce."""
         db = get_db()
         args = [inpd[k] for k in arg_names]

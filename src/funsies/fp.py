@@ -172,15 +172,16 @@ def morph(
     if out is None:
         try:
             typ = output_types(fun)
-            if len(typ) > 1:
-                raise TypeError(
-                    "Attempted to use morph but the function has more than "
-                    + "one output."
-                )
-            else:
-                out = typ[0]
         except TypeError:
-            out = inp2.kind
+            typ = (inp2.kind,)
+
+        if len(typ) > 1:
+            raise TypeError(
+                "Attempted to use morph but the function has more than one output.\n"
+                + f"inferred return value: {typ}"
+            )
+        else:
+            out = typ[0]
 
     if name is not None:
         morpher_name = name
@@ -216,20 +217,29 @@ def reduce(
     """
     inps = list(inp)
     db = get_db(connection)
-    inp2 = _artefact(db, inps[0])
-    inps[0] = inp2
+    inps2 = [_artefact(db, inp) for inp in inps]
     if out is None:
         try:
             typ = output_types(fun)
+        except TypeError:
+            typ = tuple(set(el.kind for el in inps2))
             if len(typ) > 1:
                 raise TypeError(
-                    "Attempted to use morph but the function has more than "
-                    + "one output."
+                    "Inference failed for function reduce(): more than one input type was"
+                    + " passed but no out= encoding.\n"
+                    + "Either explicitly set return with out= or ensures all inputs "
+                    + "have the same encoding.\n"
+                    + f"args: {list(el.kind for el in inps2)}\n"
+                    + f"inferred possible return values: {typ}"
                 )
-            else:
-                out = typ[0]
-        except TypeError:
-            out = inp2.kind
+
+        if len(typ) > 1:
+            raise TypeError(
+                "Attempted to use reduce but the function has more than one output.\n"
+                + f"inferred return value: {typ}"
+            )
+        else:
+            out = typ[0]
 
     if name is not None:
         morpher_name = name
@@ -238,7 +248,7 @@ def reduce(
     out_type = [out]
     return py(
         fun,
-        *inps,
+        *inps2,
         out=out_type,
         name=morpher_name,
         strict=strict,

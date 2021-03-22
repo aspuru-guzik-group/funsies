@@ -71,3 +71,26 @@ def test_infer_errs() -> None:
             b,
             out=[types.Encoding.blob, types.Encoding.blob],
         )
+
+        def i1o2(x: bytes) -> Tuple[bytes, bytes]:
+            return x, x
+
+        def i2o1(x: bytes, y: bytes) -> bytes:
+            return x
+
+        with pytest.raises(TypeError):
+            out = f.morph(i1o2, a)  # type:ignore # noqa:F841
+
+        with pytest.raises(TypeError):
+            out = f.reduce(i1o2, a)  # type:ignore # noqa:F841
+
+        with pytest.raises(TypeError):
+            out = f.reduce(lambda x, y: x, a, b)  # type:ignore # noqa:F841
+
+        # If we pass out= then the inference is skipped
+        out = f.morph(i1o2, a, out=types.Encoding.blob)  # type:ignore # noqa:F841
+        out = f.reduce(i1o2, a, out=types.Encoding.blob)  # type:ignore # noqa:F841
+
+        # TODO: Implement checking of input argument numbers
+        # with pytest.raises(TypeError):
+        #     out2 = f.morph(i2o1, a)
