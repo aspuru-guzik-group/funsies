@@ -36,6 +36,7 @@ def __sanitize_command(lab: str) -> str:
         .replace("|", r"\|")
         .replace("{", r"\{")
         .replace("}", r"\}")
+        .replace('"', r"\"")
         .replace("&&", r"\n")
     )
 
