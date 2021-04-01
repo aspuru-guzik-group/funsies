@@ -42,7 +42,7 @@ def test_infer() -> None:
     assert _infer.output_types(test_fun) == (types.Encoding.blob,)
     with pytest.raises(TypeError):
         assert _infer.output_types(test_fun4) is None
-    assert _infer.output_types(test_fun2) == ()
+    assert _infer.output_types(test_fun2) == (types.Encoding.json,)
     assert _infer.output_types(test_fun3) == _infer.output_types(test_fun3b)
     assert _infer.output_types(test_fun5) == (
         types.Encoding.blob,
