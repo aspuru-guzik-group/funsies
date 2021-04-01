@@ -10,7 +10,6 @@ from typing import Optional
 
 # external
 import click
-import redis
 from redis import Redis
 from rq import Connection, Worker
 
@@ -50,7 +49,7 @@ def main(ctx: click.Context, url: str) -> None:
     """
     logger.debug(f"connecting to {url}")
 
-    def connect2db(try_fail=False) -> Redis[bytes]:
+    def connect2db(try_fail: bool = False) -> Redis[bytes]:
         db = Redis.from_url(url, decode_responses=False)
         try:
             db.ping()

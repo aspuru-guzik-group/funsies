@@ -98,8 +98,8 @@ def shell(
 
     The `strict` flag determines how to interpret errors in input files. If
     `True` (the default), errors are propagated down: shell commands will not
-    be executed if any input values currently hold `Error`. Instead, all
-    output values will also be replaced by `Error`.
+    be executed if any input values currently hold `errors.Error`. Instead, all
+    output values will also be replaced by `errors.Error`.
 
     When `strict=False`, input files with errors will simply (and silently) be
     excluded from the shell script.
@@ -118,25 +118,19 @@ def shell(
 
     Args:
         *args: Lines of shell script to be evaluated.
-        inp:
-            Input files to pass to the shell comand. This should be a Mapping
+        inp: Input files to pass to the shell comand. This should be a Mapping
             from filenames (str, path etc.) to values. Values can either be
-            `types.Artefact` instances or of type `str` or `bytes`, in which
-            case they will be automatically converted using `put()`.
-        out:
-            Filenames of output files that will be used to populate the return
+            `types.Artefact` instances or of type `bytes`, in which case they
+            will be automatically converted using `put()`.
+        out: Filenames of output files that will be used to populate the return
             `types.ShellOutput` object. Note that any file not included in
             this list will be deleted when the shell command terminates.
-        env:
-            Environment variables to be set before calling the shell command.
-        strict:
-            If `False`, error handling will be deferred to the shell command
+        env: Environment variables to be set before calling the shell command.
+        strict: If `False`, error handling will be deferred to the shell command
             by not populating input files of type `Error`.
-        connection:
-            An explicit Redis connection. Not required if called within a
+        connection: An explicit Redis connection. Not required if called within a
             `Fun()` context.
-        opt:
-            An `types.Options` instance as returned by `options()`. Not
+        opt: An `types.Options` instance as returned by `options()`. Not
             required if called within a `Fun()` context.
 
     Returns:
@@ -263,15 +257,14 @@ def take(
     Args:
         where: `types.Artefact` pointer to data taken from the database.
         strict: If `False`, return a value of type `errors.Result[bytes]`.
-        connection:
-            An explicit Redis connection. Not required if called within a
-            `Fun()` context.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
 
     Returns:
         Either `bytes` or `errors.Result[bytes]` depending on strictness.
 
     Raises:
-        errors.UnwrapError:  # noqa:DAR402
+        errors.UnwrapError:
             if `where` contains an `errors.Error` and `strict=True`.
 
     """
@@ -380,8 +373,9 @@ def reset(
             within a `Fun()` context.
 
     Raises:
-        AttributeError: if an `types.Artefact` is reset that has status
-        `types.ArtefactStatus.const`.
+        AttributeError:
+            when an `types.Artefact` is reset that has status
+            `types.ArtefactStatus.const`.
     """
     db = get_db(connection)
     if isinstance(thing, Artefact):

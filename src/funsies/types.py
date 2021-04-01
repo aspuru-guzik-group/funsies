@@ -12,7 +12,6 @@ from .errors import Error, ErrorKind, Result, UnwrapError
 Result = Result
 """see `funsies.errors.Result`."""
 
-
 __all__ = [
     "Funsie",
     "FunsieHow",

@@ -30,6 +30,8 @@ def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
     sig = inspect.signature(fun)
     returns = sig.return_annotation
     if type(returns) == str:
+        # TODO attempt to interpret it
+
         raise TypeError(
             "Failed to infer output types: return annotation is absent.\n"
             + f"signature: {sig} name: {fun.__name__}\n"

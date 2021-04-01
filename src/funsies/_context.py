@@ -119,9 +119,29 @@ def get_options(opt: Optional[Options] = None) -> Options:
             raise RuntimeError("No Options instance available.")
 
 
-# TODO: Document better
 def options(**kwargs: Any) -> Options:
-    """Set runtime options."""
+    """Set operation and workflow options.
+
+    This function sets specific configuration options for an operation or a
+    workflow that do not change hash values or cause re-execution, but do
+    change runtime behaviour, such as job timeouts, queue selection, etc.
+    Available options and their names are described in the entry for
+    `config.Options`.
+
+    This function wraps the `config.Options` with layering of default values.
+    The value of each attribute of `config.Options` is set based on:
+
+    1. The values set by the `**kwargs` dictionary.
+
+    2. The values set in the `**kwargs` dictionary of the enclosing
+    `funsies.Fun()` context, if `default=options(**kwargs)` is passed to
+    `funsies.Fun()`.
+
+    3. The default values in `config.Options`.
+
+    This allows layering of fairly complex runtime behaviour.
+
+    """
     if _options_stack.top is None:
         return Options(**kwargs)
     else:
