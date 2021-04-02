@@ -44,20 +44,21 @@ def execute_all(
         funsies.wait_for(el)
     ```
 
-    The return value is Result[b""], an empty bytestring or Error if any of
-    `things` is Error.
+    The return value is `funsies.errors.Result` containing an empty bytestring
+    or `funsies.errors.Error` if any of `things` is `funsies.errors.Error`.
 
     Args:
         things: A sequence of artefacts.
         block: Whether to block until all artefacts have been executed. Defaults to True.
         timeout: `timeout=` argument for `funsies.wait_for()` when blocking.
         connection: An explicit Redis connection. Not required if called
-            within a `Fun()` context.
-        opt: An `types.Options` instance generated from `options()`. Not
-            required if called within a `Fun()` context.
+            within a `funsies.Fun()` context.
+        opt: An `funsies.config.Options` instance generated from
+            `funsies.options()`. Not required if called within a
+            `funsies.Fun()` context.
 
     Returns:
-        An `Artefact[bytes]` object that resolves to `Result[b""]`.
+        An `funsies.types.Artefact[bytes]` object that resolves to `b""`.
     """
     out = reduce(
         lambda *x: b"", *things, out=Encoding.blob, opt=opt, connection=connection
