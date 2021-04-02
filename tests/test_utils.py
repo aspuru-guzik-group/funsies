@@ -4,10 +4,12 @@ from typing import List
 
 # external
 from fakeredis import FakeStrictRedis as Redis
+import pytest
 
 # funsies
-from funsies import errors, Fun, put, take, utils
+from funsies import errors, Fun, morph, options, put, take, utils
 from funsies._run import run_op
+from funsies.types import Error, ErrorKind, UnwrapError
 
 
 def test_concat() -> None:
@@ -53,3 +55,25 @@ def test_truncate() -> None:
         trunc = utils.truncate(dat1, 2, 3)
         run_op(db, trunc.parent)
         assert take(trunc) == ("\n".join(inp.split("\n")[2:-3])).encode()
+
+
+def test_exec_all() -> None:
+    """Test execute_all."""
+    with Fun(Redis(), defaults=options(distributed=False)):
+        results = []
+
+        def div_by(x: float) -> float:
+            return 10.0 / x
+
+        for i in range(10, -1, -1):
+            val = put(float(i))
+            results += [morph(div_by, val)]
+
+        with pytest.raises(UnwrapError):
+            take(results[0])
+
+        err = utils.execute_all(results)
+        print(take(results[0]))
+        v = take(err, strict=False)
+        assert isinstance(v, Error)
+        assert v.kind == ErrorKind.ExceptionRaised
