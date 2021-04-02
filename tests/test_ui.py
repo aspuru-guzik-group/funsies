@@ -2,6 +2,7 @@
 # std
 import json
 import tempfile
+from typing import Tuple
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -10,7 +11,7 @@ import pytest
 # funsies
 from funsies import _graph, fp, Fun, options, ui
 from funsies._run import run_op
-from funsies.types import UnwrapError
+from funsies.types import Encoding, UnwrapError
 
 
 def test_shell_run() -> None:
@@ -102,9 +103,28 @@ def test_morph() -> None:
         assert ui.take(morph) == b"BLA BLA"
 
         dat = ui.put("bla bla")
-        morph = fp.morph(lambda x: x.upper(), dat)
+        morph = fp.morph(lambda x: x.upper(), dat, name="CAPITALIZE_THIS")
         run_op(db, morph.parent)
         assert ui.take(morph) == "BLA BLA"
+
+
+def test_py() -> None:
+    """Test multiple output py()."""
+    with Fun(Redis()) as db:
+        dat = ui.put("Bla Bla")
+
+        def fun(a: str) -> Tuple[str, str]:
+            return a.upper(), a.lower()
+
+        x1, x2 = fp.py(
+            fun,
+            dat,
+            out=[Encoding.json, Encoding.json],
+            strict=True,
+        )
+        run_op(db, x1.parent)
+        assert ui.take(x1) == "BLA BLA"
+        assert ui.take(x2) == "bla bla"
 
 
 def test_reduce() -> None:

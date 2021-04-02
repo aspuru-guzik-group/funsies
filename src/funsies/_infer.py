@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 # std
-import inspect
-from typing import Any, Callable, Tuple, Type, Union
+from typing import Any, Callable, get_type_hints, Tuple, Type, Union
 
 # python 3.7 imports Literal from typing_extensions
 try:
@@ -27,27 +26,28 @@ def __translate(x: Union[Type[Any], str]) -> Encoding:
 # Type a function
 def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
     """Infer number of return values from a function's type hint."""
-    sig = inspect.signature(fun)
-    returns = sig.return_annotation
-    if type(returns) == str:
-        raise TypeError(
-            "Failed to infer output types: return annotation is absent.\n"
-            + f"signature: {sig} name: {fun.__name__}\n"
-            + "Return value converted to string.\nAre you using"
-            + "from __future__ import annotations on python=3.7?"
-        )
-
-    if returns is inspect.Signature.empty:
+    hints = get_type_hints(fun)
+    if "return" not in hints:
         if fun.__name__ == "<lambda>":
             logger.debug("warning: lambda function has no return types")
 
         raise TypeError(
             "Failed to infer output types: return annotation is absent.\n"
-            + f"signature: {sig} name: {fun.__name__}\n"
-            + "You need to define your outputs explicitly"
+            + f"signature: {hints} name: {fun.__name__}\n"
+            + "You need to define your outputs explicitly."
         )
-    elif returns is None or returns == "None":
-        return ()
+    else:
+        returns = hints["return"]
+
+    if type(returns) == str:
+        # TODO attempt to interpret it
+
+        raise TypeError(
+            "Failed to infer output types: return annotation is absent.\n"
+            + f"signature: {hints} name: {fun.__name__}\n"
+            + "Return value converted to string.\nAre you using"
+            + "from __future__ import annotations on python=3.7?"
+        )
     else:
         generic = get_origin(returns)
         if (
@@ -60,7 +60,7 @@ def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
             if Ellipsis in args:
                 raise TypeError(
                     "Failed to infer output types: return annotation is too broad.\n"
-                    + f"signature: {sig} name: {fun.__name__}\n"
+                    + f"signature: {hints} name: {fun.__name__}\n"
                     + "It's not clear how many elements this function should output."
                     + "You need to define your outputs explicitly"
                 )

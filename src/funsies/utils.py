@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # std
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 # external
 from redis import Redis
@@ -13,6 +13,7 @@ from ._graph import Artefact
 from .config import Options
 from .errors import Error, Result
 from .fp import morph, py, reduce
+from .ui import execute, wait_for
 
 _TargetBytes = Union[Artefact[bytes], bytes]
 
@@ -20,6 +21,51 @@ Tin = TypeVar("Tin")
 Tout1 = TypeVar("Tout1")
 Tout2 = TypeVar("Tout2")
 Td = TypeVar("Td", bound=_Data)
+
+
+def execute_all(
+    things: Sequence[Artefact[Any]],
+    block: bool = True,
+    timeout: Optional[float] = None,
+    *,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -> Artefact[bytes]:
+    """Execute a sequence of artefacts.
+
+    `execute_all()` executes a sequence of artefact in arbitrary, parallel
+    order. It's equivalent to the following simple program,
+
+    ```python
+    for el in things:
+        funsies.execute(el)
+
+    for el in things:
+        funsies.wait_for(el)
+    ```
+
+    The return value is `funsies.errors.Result` containing an empty bytestring
+    or `funsies.errors.Error` if any of `things` is `funsies.errors.Error`.
+
+    Args:
+        things: A sequence of artefacts.
+        block: Whether to block until all artefacts have been executed. Defaults to True.
+        timeout: `timeout=` argument for `funsies.wait_for()` when blocking.
+        connection: An explicit Redis connection. Not required if called
+            within a `funsies.Fun()` context.
+        opt: An `funsies.config.Options` instance generated from
+            `funsies.options()`. Not required if called within a
+            `funsies.Fun()` context.
+
+    Returns:
+        An `funsies.types.Artefact[bytes]` object that resolves to `b""`.
+    """
+    out = reduce(
+        lambda *x: b"", *things, out=Encoding.blob, opt=opt, connection=connection
+    )
+    execute(out, connection=connection)
+    wait_for(out, timeout=timeout, connection=connection)
+    return out
 
 
 def match_results(

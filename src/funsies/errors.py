@@ -90,25 +90,27 @@ Result = Union[Error, T]
 """Result contains either a value or an `Error` instance.
 
 `Result[T]` is a type hint that corresponds to `Union[T, Error]`. This is only
-a `typing` abstraction: at runtime, a `Result[T]` is just `T` or `Error` and
-does not exist as a class or instance etc.
+a an abstraction: at runtime, a `Result[T]` is just `T` or `Error`. That is,
+`Result` has no runtime representation.
+
 """
 
 
 def unwrap(it: Result[T]) -> T:
-    """Unwrap a `Result` type.
+    """Unwrap a `errors.Result` type.
 
-    Unwrap `Result[T]` and return `T`. If `Result[T]` is of type `Error`, this
-    function raises.
+    Unwrap `errors.Result[T]` and return `T`. If `errors.Result[T]` is of type
+    `Error`, this function raises `errors.UnwrapError`.
 
     Args:
-        it: `Result[T]`
+        it: An object of type `errors.Result[T]`.
 
     Returns:
-        `T`
+        The value of it with type `T`.
 
     Raises:
-        UnwrapError: `Result[T]` is an `Error` instance.
+        UnwrapError: `errors.Result[T]` is an `errors.Error` instance.
+
     """
     if isinstance(it, Error):
         raise UnwrapError(

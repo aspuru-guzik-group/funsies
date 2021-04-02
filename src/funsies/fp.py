@@ -74,37 +74,35 @@ def py(  # noqa:C901
         `name=` argument) will not recompute the graph.
 
     It is the therefore the caller's responsibility to `reset()` one of the
-    return value of `py()` or call it with `options(reset=True)` if the
-    function is modified to ensure re-excution of its dependents.
+    return value of `py()` if the function is modified to ensure re-excution
+    of its dependents.
 
     Args:
         fun: Python function that operates on input artefacts and produces a
             single output artefact.
         *inp: Input artefacts.
-        out:
-            List of Encoding, one for each output of fun. These are the kind
+        out: List of Encoding, one for each output of fun. These are the kind
             of serialization-deserialization used for the output variables. If
-            None, `out=` is inferred using the type hint of `fun()`:
-            `Encoding.blob` for all `bytes` outputs and `Encoding.json` for
-            anything else.
+            None, `out=` is inferred using the type hint of `fun()`. It is
+            `types.Encoding.blob` for all `bytes` outputs and
+            `types.Encoding.json` for anything else.
         name: Override the name of `fun()` used in hash generation.
-        strict:
-            If `False`, error handling will be deferred to `fun()` by passing
-            it argument of type `errors.Result[bytes]` instead of `bytes`.
-        connection:
-            An explicit Redis connection. Not required if called within a
-            `Fun()` context.
-        opt:
-            An `types.Options` instance generated from `options()`. Not
+        strict: If `False`, error handling will be deferred to `fun()` by
+            passing it argument of type `errors.Result[bytes]` instead of
+            `bytes`.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+        opt: An `types.Options` instance generated from `options()`. Not
             required if called within a `Fun()` context.
 
     Returns:
-        A tuple of `types.Artefact` instances that corresponds to the mapping
-        `noutputs` return values.
+        A single `types.Artefact` instance if `out=` contains only one element
+        or a tuple of `types.Artefact` otherwise.
 
     Raises:
-        TypeError:              # noqa:DAR402
+        TypeError:
             The output types could not be determined and were not given.
+
     """
     # Attempt to infer output
     if out is None:
@@ -164,23 +162,24 @@ def morph(
     """Add to workflow a one-to-one python function `y = f(x)`.
 
     This is syntactic sugar around `py()`. By default, the output type will
-    match the input type if it can't be inferred, but it can be set using the
-    out= keyword.
+    match the input type if it can't be inferred, but it can be set to a given
+    `types.Encoding` using the `out=` keyword.
     """
     db = get_db(connection)
     inp2 = _artefact(db, inp)
     if out is None:
         try:
             typ = output_types(fun)
-            if len(typ) > 1:
-                raise TypeError(
-                    "Attempted to use morph but the function has more than "
-                    + "one output."
-                )
-            else:
-                out = typ[0]
         except TypeError:
-            out = inp2.kind
+            typ = (inp2.kind,)
+
+        if len(typ) > 1:
+            raise TypeError(
+                "Attempted to use morph but the function has more than one output.\n"
+                + f"inferred return value: {typ}"
+            )
+        else:
+            out = typ[0]
 
     if name is not None:
         morpher_name = name
@@ -209,27 +208,37 @@ def reduce(
 ) -> Artefact[Tout1]:
     """Add to workflow a many-to-one python function `y = f(*x)`.
 
-    This is syntactic sugar around `py()`. By default, the output type will
-    match the type of the first input if it can't be inferred, but it can be
-    set using the out= keyword.
+    This is syntactic sugar around `py()`. By default, the output encoding is
+    inferred, and if this fails, is set to match the encoding of the
+    arguments if they are all the same. Output encoding can also be
+    explicitly set to a given `types.Encoding` using the `out=` keyword.
 
     """
     inps = list(inp)
     db = get_db(connection)
-    inp2 = _artefact(db, inps[0])
-    inps[0] = inp2
+    inps2 = [_artefact(db, inp) for inp in inps]
     if out is None:
         try:
             typ = output_types(fun)
+        except TypeError:
+            typ = tuple(set(el.kind for el in inps2))
             if len(typ) > 1:
                 raise TypeError(
-                    "Attempted to use morph but the function has more than "
-                    + "one output."
+                    "Inference failed for function reduce(): more than one input type was"
+                    + " passed but no out= encoding.\n"
+                    + "Either explicitly set return with out= or ensures all inputs "
+                    + "have the same encoding.\n"
+                    + f"args: {list(el.kind for el in inps2)}\n"
+                    + f"inferred possible return values: {typ}"
                 )
-            else:
-                out = typ[0]
-        except TypeError:
-            out = inp2.kind
+
+        if len(typ) > 1:
+            raise TypeError(
+                "Attempted to use reduce but the function has more than one output.\n"
+                + f"inferred return value: {typ}"
+            )
+        else:
+            out = typ[0]
 
     if name is not None:
         morpher_name = name
@@ -238,7 +247,7 @@ def reduce(
     out_type = [out]
     return py(
         fun,
-        *inps,
+        *inps2,
         out=out_type,
         name=morpher_name,
         strict=strict,

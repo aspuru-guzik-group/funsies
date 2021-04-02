@@ -25,36 +25,52 @@ def get_funsies_url(url: Optional[str] = None) -> str:
 
 @dataclass
 class Options:
-    """Runtime options for a funsie.
+    """Runtime options for an Operation.
 
-    Options for the rq Job instance:
-        - timeout: Max exec time for the job in seconds. Defaults to 24h.
-        - ttl: Time that a job can be on queue before it's executed. Default to 24h.
-        - result_ttl: Expiration of a rq job result. Defaults to one minute,
-            as we are not currently using those values anyway.
-        - failure_ttl: Expiration of rq job failure. Same as above.
-
-    Options for the rq Queue:
-        - distributed: Whether jobs should run async on workers. Defaults to True.
-        - queue: Name of the queue this should be executed on.
-
-    Options for funsies logic:
+    This is a class that basically contains all the random options that may
+    need to be set when building a workflow, such as timeouts, heterogeneous
+    compute etc. It should generally be instantiated using the
+    `funsies.options()` function.
 
     """
 
-    # Instantiation arguments
-    reset: bool = False
-
-    # Job options
     timeout: int = INFINITE
-    ttl: int = ONE_DAY
-    result_ttl: int = ONE_MINUTE
-    failure_ttl: int = ONE_MINUTE
-    evaluate: bool = True
+    """Max execution time for this operation, in seconds or -1 for an operation
+    that never timeouts. Defaults to -1."""
 
-    # Queue options
-    distributed: bool = True
     queue: str = "default"
+    """Defines which queue this operation should be executed by. For example,
+    if a complex workflow requires GPUs for certain jobs, those jobs would be
+    setup with option `queue="gpu"` and workers on the nodes with available
+    GPUs would be instantiated with `funsies worker gpu`. Then, only worker
+    processes in the GPU queue would execute the GPU jobs."""
+
+    distributed: bool = True
+    """If False, jobs are executed by the local enqueuing process. Used to
+    test workflows without having to start workers."""
+
+    reset: bool = False
+    """If `True`, this operation is `funsies.reset()` when generated."""
+
+    evaluate: bool = True
+    """If False, calling `funsies.execute()` on this job or its dependencies will fail.
+    Can be used to ensure a specific branch is never executed."""
+
+    ttl: int = ONE_DAY
+    """Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+    to the [rq keyword with the same name](https://python-rq.org/docs/). """
+
+    result_ttl: int = ONE_MINUTE
+    """Time to live (ttl) in queue for the rq result objects. Defaults to one
+    minute. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) """
+
+    failure_ttl: int = ONE_DAY
+    """Time to live (ttl) in queue for the rq result objects of failing jobs.
+    Defaults to one day. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) """
 
     # TODO: make meaningfully adjustable
     serializer: str = "rq.serializers.JSONSerializer"

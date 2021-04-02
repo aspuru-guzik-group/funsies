@@ -10,7 +10,6 @@ from typing import Optional
 
 # external
 import click
-import redis
 from redis import Redis
 from rq import Connection, Worker
 
@@ -50,14 +49,17 @@ def main(ctx: click.Context, url: str) -> None:
     """
     logger.debug(f"connecting to {url}")
 
-    def connect2db() -> Redis[bytes]:
+    def connect2db(try_fail: bool = False) -> Redis[bytes]:
         db = Redis.from_url(url, decode_responses=False)
         try:
             db.ping()
         except Exception as e:
             logger.error("could not connect to server! exiting")
             logger.error(str(e))
-            sys.exit(-1)
+            if try_fail:
+                raise e
+            else:
+                sys.exit(-1)
         logger.debug("connection sucessful")
         logger.info(f"connected to {url}")
         return db
@@ -263,16 +265,16 @@ def wait(  # noqa:C901
     ctx: click.Context, hashes: tuple[str, ...], timeout: Optional[float]
 ) -> None:
     """Wait until redis database or certain hashes are ready."""
-    db = ctx.obj()
     if timeout is not None:
         tmax = time.time() + timeout
 
     while True:
         try:
+            db = ctx.obj(try_fail=True)
             db.ping()
             break
-        except redis.exceptions.BusyLoadingError:
-            time.sleep(0.5)
+        except Exception:
+            time.sleep(1.0)
 
         if timeout is not None:
             t1 = time.time()

@@ -41,12 +41,11 @@ class FunsieHow(IntEnum):
 class Funsie:
     """A funsie is a wrapped command that can be backed up to the KV store.
 
-    A Funsie has a "how" (an integer that defines how it is to be executed), a
-    "what" (a string that identifies the funsie, such as a function name
-    or shell commands) and input and output artefact names. All of
-    these are used to generate the hash of the Funsie instance.
+    A Funsie has a `how`, a `what` (a string that identifies the funsie, such
+    as a function name or shell commands) and input and output artefact names.
+    All of these are used to generate the hash of the Funsie instance.
 
-    Funsies also have an "extra" field that include auxiliary data that is not
+    Funsies also have an `extra` field that include auxiliary data that is not
     to be used in hashing the funsie, but is useful for executing it, such as
     a cloudpickled python function.
 
