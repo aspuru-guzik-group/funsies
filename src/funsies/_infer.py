@@ -26,7 +26,12 @@ def __translate(x: Union[Type[Any], str]) -> Encoding:
 # Type a function
 def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
     """Infer number of return values from a function's type hint."""
-    hints = get_type_hints(fun)
+    try:
+        hints = get_type_hints(fun)
+    except NameError:
+        logger.warning("type inference met an unknown reference")
+        hints = fun.__annotations__
+
     if "return" not in hints:
         if fun.__name__ == "<lambda>":
             logger.debug("warning: lambda function has no return types")
