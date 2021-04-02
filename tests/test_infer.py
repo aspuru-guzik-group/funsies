@@ -54,6 +54,19 @@ def test_infer() -> None:
         assert _infer.output_types(test_fun6) is None
 
 
+def test_infer_forward_ref() -> None:
+    """Test inference of unkown forward refs."""
+
+    def test_fun7(a: "Thing", b: int) -> float:  # type:ignore # noqa
+        ...
+
+    def test_fun7b(a: "Thing", b: int) -> Dict[float, "what"]:  # type:ignore # noqa
+        ...
+
+    assert _infer.output_types(test_fun7) == (types.Encoding.json,)
+    assert _infer.output_types(test_fun7b) == (types.Encoding.json,)
+
+
 def test_infer_errs() -> None:
     """Test inference applied to functions."""
     db = Redis()
@@ -90,7 +103,3 @@ def test_infer_errs() -> None:
         # If we pass out= then the inference is skipped
         out = f.morph(i1o2, a, out=types.Encoding.blob)  # type:ignore # noqa:F841
         out = f.reduce(i1o2, a, out=types.Encoding.blob)  # type:ignore # noqa:F841
-
-        # TODO: Implement checking of input argument numbers
-        # with pytest.raises(TypeError):
-        #     out2 = f.morph(i2o1, a)
