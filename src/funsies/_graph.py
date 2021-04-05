@@ -299,7 +299,7 @@ def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
     kind = _serdes.kind(value)
     data = _serdes.encode(kind, value)
     if isinstance(data, Error):
-        raise TypeError("constant artefact could not be encoded.")
+        raise TypeError(f"constant artefact could not be encoded:\n{data}")
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
