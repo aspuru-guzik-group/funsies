@@ -54,11 +54,11 @@ def main(ctx: click.Context, url: str) -> None:
         try:
             db.ping()
         except Exception as e:
-            logger.error("could not connect to server! exiting")
-            logger.error(str(e))
             if try_fail:
                 raise e
             else:
+                logger.error("could not connect to server! exiting")
+                logger.error(str(e))
                 sys.exit(-1)
         logger.debug("connection sucessful")
         logger.info(f"connected to {url}")
