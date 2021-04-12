@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+import os
 from typing import Any, Mapping, Optional, TypeVar, Union
 
 # external
@@ -34,6 +35,7 @@ def template(
     data: Mapping[str, _Value],
     strip: bool = True,
     *,
+    env: Optional[Mapping[str, str]] = None,
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
@@ -61,7 +63,13 @@ def template(
     while template_key in args:
         template_key += "_"  # append more _ until template_key is unique
 
+    env_key = "env"
+    while env_key in args:
+        env_key += "_"  # append more _ until template_key is unique
+
     args[template_key] = tmp
+    args[env_key] = _artefact(db, env)
+
     in_types = dict([(k, val.kind) for k, val in args.items()])
 
     if name is not None:
@@ -81,8 +89,19 @@ def template(
             if isinstance(val, str) and strip and key != template_key:
                 val = val.strip()
             args[key] = val
+
+        # read template
         template = args[template_key]
+
+        # read env variables
+        if args[env_key] is not None:
+            env = args[env_key]
+            for key, val in env.items():
+                args[key] = os.environ.get(val)
+
         del args[template_key]
+        del args[env_key]
+
         return {"out": chevron.render(template, args).encode()}
 
     funsie = python_funsie(
