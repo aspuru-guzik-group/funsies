@@ -32,6 +32,7 @@ _Value = Any
 def template(
     template: _Template,
     data: Mapping[str, _Value],
+    strip: bool = True,
     *,
     name: Optional[str] = None,
     strict: bool = True,
@@ -66,16 +67,20 @@ def template(
     if name is not None:
         fun_name = name
     else:
-        fun_name = "template (chevrons)"
+        do_strip = ""
+        if strip:
+            do_strip = ", stripped"
+        fun_name = f"template (chevrons{do_strip})"
 
     def __exec(inpd: Mapping[str, Any]) -> dict[str, bytes]:
         """Substitute into template."""
         args = {}
         for key, val in inpd.items():
             if isinstance(val, bytes):
-                args[key] = val.decode()
-            else:
-                args[key] = val
+                val = val.decode()
+            if isinstance(val, str) and strip and key != template_key:
+                val = val.strip()
+            args[key] = val
         template = args[template_key]
         del args[template_key]
         return {"out": chevron.render(template, args).encode()}
