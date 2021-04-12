@@ -8,6 +8,7 @@ from ._context import Fun, ManagedFun, options
 from ._getter import get
 from .errors import unwrap
 from .fp import morph, py, reduce
+from .template import template
 from .ui import execute, put, reset, shell, take, takeout, wait_for
 
 __all__ = [
@@ -17,6 +18,8 @@ __all__ = [
     "py",
     "reduce",
     "morph",
+    # template
+    "template",
     # artefact manipulation
     "take",
     "takeout",
