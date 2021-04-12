@@ -75,7 +75,7 @@ def template(
             if isinstance(val, bytes):
                 args[key] = val.decode()
             else:
-                args[key] = str(val)
+                args[key] = val
         template = args[template_key]
         del args[template_key]
         return {"out": chevron.render(template, args).encode()}
