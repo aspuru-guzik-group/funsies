@@ -14,6 +14,7 @@ from .config import Options
 from .errors import Error, Result
 from .fp import morph, py, reduce
 from .ui import execute, wait_for
+from ._shell import ShellOutput
 
 _TargetBytes = Union[Artefact[bytes], bytes]
 
@@ -24,14 +25,14 @@ Td = TypeVar("Td", bound=_Data)
 
 
 def execute_all(
-    things: Sequence[Artefact[Any]],
+    things: Sequence[Union[Artefact[Any], ShellOutput]],
     block: bool = True,
     timeout: Optional[float] = None,
     *,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact[bytes]:
-    """Execute a sequence of artefacts.
+    """Execute a sequence of artefacts or shell commands.
 
     `execute_all()` executes a sequence of artefact in arbitrary, parallel
     order. It's equivalent to the following simple program,
@@ -48,7 +49,7 @@ def execute_all(
     or `funsies.errors.Error` if any of `things` is `funsies.errors.Error`.
 
     Args:
-        things: A sequence of artefacts.
+        things: A bunch of Artefact or ShellOutput.
         block: Whether to block until all artefacts have been executed. Defaults to True.
         timeout: `timeout=` argument for `funsies.wait_for()` when blocking.
         connection: An explicit Redis connection. Not required if called
@@ -60,8 +61,9 @@ def execute_all(
     Returns:
         An `funsies.types.Artefact[bytes]` object that resolves to `b""`.
     """
+    things2 = [t if isinstance(t, Artefact) else t.stdout for t in things]
     out = reduce(
-        lambda *x: b"", *things, out=Encoding.blob, opt=opt, connection=connection
+        lambda *x: b"", *things2, out=Encoding.blob, opt=opt, connection=connection
     )
     execute(out, connection=connection)
     wait_for(out, timeout=timeout, connection=connection)
