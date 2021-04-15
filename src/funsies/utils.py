@@ -10,11 +10,11 @@ from redis import Redis
 # module
 from ._constants import _Data, Encoding
 from ._graph import Artefact
+from ._shell import ShellOutput
 from .config import Options
 from .errors import Error, Result
 from .fp import morph, py, reduce
 from .ui import execute, wait_for
-from ._shell import ShellOutput
 
 _TargetBytes = Union[Artefact[bytes], bytes]
 
@@ -66,7 +66,8 @@ def execute_all(
         lambda *x: b"", *things2, out=Encoding.blob, opt=opt, connection=connection
     )
     execute(out, connection=connection)
-    wait_for(out, timeout=timeout, connection=connection)
+    if block:
+        wait_for(out, timeout=timeout, connection=connection)
     return out
 
 
