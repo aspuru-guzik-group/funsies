@@ -3,7 +3,7 @@
 .. include:: documentation.md
 """
 # module
-from . import debug, dynamic, types, utils
+from . import debug, dynamic, parametric, types, utils
 from ._context import Fun, ManagedFun, options
 from ._getter import get
 from .errors import unwrap
@@ -39,6 +39,7 @@ __all__ = [
     # utility
     "utils",
     "dynamic",
+    "parametric",
 ]
 
 
