@@ -208,13 +208,20 @@ class Parametric:
     @classmethod
     def grab(cls: Type[Parametric], db: Redis[bytes], hash: hash_t) -> Parametric:
         """Grab a Parametric DAG from the Redis store."""
-        if not db.exists(join(PARAMETRIC, hash)):
+
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(PARAMETRIC, hash))
+        pipe.lrange(join(PARAMETRIC, hash), 0, -1)
+        pipe.hgetall(join(PARAMETRIC, hash, "inp"))
+        pipe.hgetall(join(PARAMETRIC, hash, "out"))
+        pipe.get(join(PARAMETRIC, hash, "name"))
+        exists, lrange, inp, out, name = pipe.execute()
+
+        if not exists:
             raise RuntimeError(f"No parametric DAG at {hash}")
 
-        ops = [hash_t(el.decode()) for el in db.lrange(join(PARAMETRIC, hash), 0, -1)]
-        inp = db.hgetall(join(PARAMETRIC, hash, "inp"))
-        out = db.hgetall(join(PARAMETRIC, hash, "out"))
-        name = db.get(join(PARAMETRIC, hash, "name")).decode()  # type:ignore
+        name = name.decode()
+        ops = [hash_t(el.decode()) for el in lrange]
 
         return Parametric(
             name=name,
