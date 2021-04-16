@@ -209,7 +209,7 @@ class Parametric:
     def grab(cls: Type[Parametric], db: Redis[bytes], hash: hash_t) -> Parametric:
         """Grab a Parametric DAG from the Redis store."""
         if not db.exists(join(PARAMETRIC, hash)):
-            raise RuntimeError(f"No operation at {hash}")
+            raise RuntimeError(f"No parametric DAG at {hash}")
 
         ops = [hash_t(el.decode()) for el in db.lrange(join(PARAMETRIC, hash), 0, -1)]
         inp = db.hgetall(join(PARAMETRIC, hash, "inp"))
