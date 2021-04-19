@@ -19,7 +19,7 @@ from rq.local import LocalStack
 # module
 from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
-from .config import get_funsies_url, Options
+from .config import _extract_hostname, _get_funsies_url, Options
 
 # A thread local stack of connections (adapted from RQ)
 _connect_stack = LocalStack()
@@ -62,9 +62,10 @@ def Fun(
     """Context manager for redis connections."""
     if connection is None:
         logger.warning("Opening new redis connection with default settings...")
-        url = get_funsies_url()
+        url = _get_funsies_url()
+        hn = _extract_hostname(url)
         connection = Redis.from_url(url, decode_responses=False)
-        logger.success(f"connected to {url}")
+        logger.success(f"connected to {hn}")
 
     if defaults is None:
         defaults = Options()

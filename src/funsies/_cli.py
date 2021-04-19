@@ -34,9 +34,9 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     "-u",
     type=str,
     nargs=1,
-    default=funsies.config.get_funsies_url(),
+    default=funsies.config._get_funsies_url(),
     show_default=True,
-    help="Redis URL.",
+    help="Redis connection URL.",
 )
 @click.pass_context
 def main(ctx: click.Context, url: str) -> None:
@@ -47,7 +47,8 @@ def main(ctx: click.Context, url: str) -> None:
     Alternatively, the url can be set using the environment variables
     FUNSIES_URL environment variable.
     """
-    logger.debug(f"connecting to {url}")
+    hn = funsies.config._extract_hostname(url)
+    logger.debug(f"connecting to {hn}")
 
     def connect2db(try_fail: bool = False) -> Redis[bytes]:
         db = Redis.from_url(url, decode_responses=False)
@@ -61,7 +62,7 @@ def main(ctx: click.Context, url: str) -> None:
                 logger.error(str(e))
                 sys.exit(-1)
         logger.debug("connection sucessful")
-        logger.info(f"connected to {url}")
+        logger.info(f"connected to {hn}")
         return db
 
     ctx.obj = connect2db

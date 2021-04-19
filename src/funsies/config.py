@@ -11,7 +11,7 @@ ONE_DAY = 86400
 ONE_MINUTE = 60
 
 
-def get_funsies_url(url: Optional[str] = None) -> str:
+def _get_funsies_url(url: Optional[str] = None) -> str:
     """Get the default funsies URL."""
     if url is not None:
         return url
@@ -21,6 +21,15 @@ def get_funsies_url(url: Optional[str] = None) -> str:
         except KeyError:
             default = "redis://localhost:6379"
         return default
+
+
+def _extract_hostname(url: str) -> str:
+    """Get the hostname part of the url."""
+    if "@" in url:
+        hn = url.split("@")[-1]
+    else:
+        hn = url.split("//")[-1]
+    return hn
 
 
 @dataclass
