@@ -208,7 +208,6 @@ class Parametric:
     @classmethod
     def grab(cls: Type[Parametric], db: Redis[bytes], hash: hash_t) -> Parametric:
         """Grab a Parametric DAG from the Redis store."""
-
         pipe: Pipeline = db.pipeline(transaction=False)
         pipe.exists(join(PARAMETRIC, hash))
         pipe.lrange(join(PARAMETRIC, hash), 0, -1)

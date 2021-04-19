@@ -106,7 +106,6 @@ class Funsie:
     @classmethod
     def grab(cls: Type[Funsie], db: Redis[bytes], hash: hash_t) -> "Funsie":
         """Grab a Funsie from the Redis store."""
-
         pipe: Pipeline = db.pipeline(transaction=False)
         pipe.exists(join(FUNSIES, hash))
         pipe.hgetall(join(FUNSIES, hash))
