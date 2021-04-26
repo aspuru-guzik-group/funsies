@@ -1,13 +1,14 @@
+# funsies: A minimalist, distributed and dynamic workflow engine
+
 **funsies** is a python library and execution engine to build reproducible,
 composable computational workflows. 
 
-**funsies is** 
-- 🐍 DSL-free! Workflows are specified in pure python.
-- 🐦 very lightweight with few dependencies.
-- 🚀 super easy to deploy to compute clusters and distributed systems.
-- 🔧 embedabble in your own apps.
-- 📏 statically typed. You can use [mypy](http://mypy-lang.org/) to check your
-  workflow scripts.
+- 🐍 Workflows are specified in pure python.
+- 🐦 Lightweight with few dependencies.
+- 🚀 Easy to deploy to compute clusters and distributed systems.
+- 🔧 Can be embedded in your own apps.
+- 📏 First-class support for static analysis. Use
+  [mypy](http://mypy-lang.org/) to check your workflows!
 
 Workflows are encoded in a [redis server](https://redis.io/) and executed
 using the distributed job queue library [RQ](https://python-rq.org/). A hash
@@ -15,27 +16,28 @@ tree data structure enables automatic and transparent caching and incremental
 computing.
 
 ## Installation
-funsies is easy to install and deploy. To install from `pip`, simply run the
-following command, 
+Using `pip`, 
+
 ```bash
-pip install git+ssh://git@github.com/aspuru-guzik-group/funsies.git@master
+pip install funsies
 ```
-Python 3.7, 3.8 and 3.9 are supported. To run workflows, you'll need a redis
-server. Redis can be installed using conda,
+
+This will enable the `funsies` CLI tool as well as the `funsies` python
+module. Python 3.7, 3.8 and 3.9 are supported. To run workflows, you'll need a
+redis server. Redis can be installed using conda,
+
 ```bash
 conda install redis
 ```
+
 or pip,
+
 ```bash
 pip install redis-server
 ```
-Other redis-compatible backends such as
-[fakeredis](https://pypi.org/project/fakeredis/) or
-[ardb](https://github.com/yinqiwen/ardb) probably work, but are not tested.
 
 ## Hello, funsies!
-funsies is fast to deploy and simple to use. To run workflows, three
-components need to be connected:
+To run workflows, three components need to be connected:
 
 - 📜 a python script describing the workflow
 - 💻 a redis server that holds workflows and data
@@ -47,7 +49,7 @@ workers are started using `funsies worker` and the workflow is run using
 python.
 
 First, we start a redis server,
-```python
+```bash
 $ redis-server &
 ```
 Next, we write a little funsies "Hello, world!" script,
@@ -56,11 +58,9 @@ from funsies import execute, Fun, reduce, shell
 with Fun():
     # you can run shell commands
     cmd = shell('sleep 2; echo 👋 🪐')
-
     # and python ones
     python = reduce(sum, [3, 2])
-
-    execute(cmd, python)
+    # outputs are saved at hash addresses
     print(f"my outputs are saved to {cmd.stdout.hash[:5]} and {python.hash[:5]}")
 ```
 The workflow is just a normal python script,
@@ -69,20 +69,24 @@ $ python hello-world.py
 my outputs are saved to 4138b and 80aa3
 ```
 The `Fun()` context manager takes care of connections. Running this workflow
-will take much less than `sleep 2` and does not greet any planets.
+will take much less time than `sleep 2` and does not print any greetings:
+funsies workflows are lazily evaluated.
 
-Workers are started using `funsies worker`,
+A worker process can be started in the CLI,
 ```bash
-$ funsies worker
+$ funsies worker &
+$ funsies execute 4138b 80aa3
 ```
-Once the worker is finished, results can be obtained directly using the first
-few characters of the output (like commit hashes in git),
+Once the worker is finished, results can be printed directly to stdout using
+their hashes,
 ```bash
 $ funsies cat 4138b
 👋 🪐
 $ funsies cat 80aa3
 5
 ```
+They can also be accessed from within python, from other steps in the
+workflows etc.
 
 ## How does it work?
 
@@ -111,24 +115,23 @@ directly on the data history, which is more robust to changes in the workflow.
 Workflows and their elements are not identified based on any global indexing
 scheme. This makes it possible to generate workflows fully dynamically from
 any connected computer node, to merge or compose DAGs from different databases
-and to dynamically re-parametrize them.
+and to dynamically re-parametrize them, etc.
 
 #### No local file operations
 
 All "files" are encoded in a redis instance, with no local filesystem
-operations. This means that funsies workers can be operating without any
+operations. funsies workers can be operating without any
 permanent data storage, as is often the case in containerized deployment.
-This makes it possible to run heavily file-driven workflows using only a
+File-driven workflows using only a
 container's [tmpfs](https://docs.docker.com/storage/tmpfs/).
 
 ## Is it production-ready?
 
-Not really.
+🧪 warning: funsies is research-grade code ! 🧪
 
-At this time, the funsies API is not yet stabilized. The engine and libraries
-are somewhat battle-tested, have high unit test coverage and have full static
-analysis. However, users should know that database dumps are not yet fully
-forward- or backward-compatible.
+At this time, the funsies API is fairly stable. However, users should know
+that database dumps are not yet fully forward- or backward-compatible, and
+breaking changes are likely to be introduced on new releases.
 
 ## Related projects
 funsies is intended as a lightweight alternative to industrial workflow
