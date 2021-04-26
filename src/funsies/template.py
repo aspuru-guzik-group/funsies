@@ -37,11 +37,80 @@ def template(
     *,
     env: Optional[Mapping[str, str]] = None,
     name: Optional[str] = None,
-    strict: bool = True,
     opt: Optional[Options] = None,
     connection: Optional[Redis[bytes]] = None,
 ) -> Artefact[bytes]:
-    """Fill in a template."""
+    """Fill in a template using data from artefacts.
+
+    This function takes a [chevron template](https://mustache.github.io/) and
+    fills it with the dictionary ``data``,
+
+    ```python
+    funsies = f.template(template, data)
+    # corresponds basically to running
+    normal = chevron.render(template, data)
+    ```
+
+    ``template()`` is a full-featured funsies function: both the template and
+    the data can come from the database and are (as usual) lazily evaluated.
+    Substitutions provided in the ``env=`` dictionary are expanded using
+    environment variables.
+
+    The primary intended use of ``template()`` is the generation of input
+    files for simulation software. For example,
+
+    ```python
+    # funsies
+    import funsies as f
+
+    g16_template = \"""%NProcShared={{nthreads}}
+    # {{functional}}/{{basis}} Symm=None {{type}}
+
+    Gaussian calculation
+
+    {{charge}} {{spin}}
+    {{structure}}
+
+    \"""
+
+    with f.Fun():
+        inp = f.template(
+            g16_template,
+            {
+                "functional": "b3lyp",
+                "basis": "6-31g",
+                "type": "sp",
+                "spin": 1,
+                # the next two could be obtained eg from conformer generation.
+                "charge": charge,
+                "structure": coords,
+            },
+            env={"nthreads": "OMP_NUM_THREADS"},
+        )
+        dft_job = f.shell(
+            "g16 input.com", inp={"input.com": inp}, out=["input.log", "data.chk"]
+        )
+    ```
+
+    Args:
+        template: The template, either as a string or as an ``types.Artefact[str]``.
+        data: A ``dict[key, value]`` of substitutions to perform on the
+            template. ``value`` can be any type accepted by ``chevrons``
+            (``str`` but also ``int``, ``bytes`` etc.) and/or ``types.Artefact``
+            objects containing those types.
+        strip: If `True`, substitutions will be ``.strip()`` before templating.
+        env: A ``dict[str,str]`` of substitutions to fill in from the
+            environment variables of the worker process.
+        name: Provide an explicit name to the template.
+        connection: An explicit Redis connection. Not required if called within a
+            `Fun()` context.
+        opt: An `types.Options` instance as returned by `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        An `types.Artefact[bytes]` object, populated with the generated
+        template as a bytestring.
+    """  # noqa:D300,D301
     # Get context elements
     opt = get_options(opt)
     db = get_db(connection)
@@ -105,7 +174,7 @@ def template(
         return {"out": chevron.render(template, args).encode()}
 
     funsie = python_funsie(
-        __exec, in_types, {"out": Encoding.blob}, name=fun_name, strict=strict
+        __exec, in_types, {"out": Encoding.blob}, name=fun_name, strict=True
     )
     operation = make_op(db, funsie, args, opt)
     return Artefact.grab(db, operation.out["out"])
