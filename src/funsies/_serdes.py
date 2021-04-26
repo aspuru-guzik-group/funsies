@@ -26,7 +26,7 @@ def decode(
         return Error(  # type:ignore
             kind=ErrorKind.WrongType,
             details=f"attempted to decode value of type {type(data)} "
-            + "with Encoding.blob",
+            + f"with decoder for {enc}",
             source=carry_error,
         )
 
@@ -60,7 +60,7 @@ def encode(enc: Encoding, data: Result[object]) -> Result[bytes]:
             return Error(
                 kind=ErrorKind.WrongType,
                 details=f"attempted to encode value of type {type(data)} "
-                + "with Encoding.blob",
+                + f"with encoder for {enc}",
             )
         else:
             return data

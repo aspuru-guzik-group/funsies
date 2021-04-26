@@ -1,10 +1,10 @@
-"""Parametrize DAGs and re-run."""
+"""Parametrize DAGs and re-run them dynamically."""
 from __future__ import annotations
 
 # std
 from dataclasses import dataclass
 import hashlib
-from typing import cast, Set, Type
+from typing import cast, Optional, Set, Type
 
 # external
 from redis import Redis
@@ -181,46 +181,70 @@ def _do_parametrize(
 class Parametric:
     """Parametrized DAG."""
 
+    name: str
     hash: hash_t
     ops: list[hash_t]
     inp: dict[str, hash_t]
     out: dict[str, hash_t]
 
     def evaluate(
-        self: "Parametric", db: Redis[bytes], new_inp: dict[str, Artefact]
+        self: Parametric, db: Redis[bytes], new_inp: dict[str, Artefact]
     ) -> dict[str, Artefact]:
         """Generate DAG from a Parametric."""
         return _do_parametrize(db, self.ops, self.inp, self.out, new_inp)
 
-    def put(self: "Parametric", db: Redis[bytes]) -> None:
+    def put(self: Parametric, db: Redis[bytes]) -> None:
         """Save a Parametric DAG to Redis."""
-        if self.inp:
-            db.hset(join(PARAMETRIC, self.hash, "inp"), mapping=self.inp)  # type:ignore
-        if self.out:
-            db.hset(join(PARAMETRIC, self.hash, "out"), mapping=self.out)  # type:ignore
-
+        db.hset(join(PARAMETRIC, self.hash, "inp"), mapping=self.inp)  # type:ignore
+        db.hset(join(PARAMETRIC, self.hash, "out"), mapping=self.out)  # type:ignore
         db.rpush(join(PARAMETRIC, self.hash), *self.ops)
+        db.set(join(PARAMETRIC, self.hash, "name"), self.name.encode())
+
+        # set the name for reverse lookups
+        db.hset(
+            join(PARAMETRIC, hash_t("names")), self.name.encode(), self.hash.encode()
+        )
 
     @classmethod
-    def grab(cls: Type["Parametric"], db: Redis[bytes], hash: hash_t) -> "Parametric":
+    def grab(cls: Type[Parametric], db: Redis[bytes], hash: hash_t) -> Parametric:
         """Grab a Parametric DAG from the Redis store."""
-        if not db.exists(join(PARAMETRIC, hash)):
-            raise RuntimeError(f"No operation at {hash}")
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(PARAMETRIC, hash))
+        pipe.lrange(join(PARAMETRIC, hash), 0, -1)
+        pipe.hgetall(join(PARAMETRIC, hash, "inp"))
+        pipe.hgetall(join(PARAMETRIC, hash, "out"))
+        pipe.get(join(PARAMETRIC, hash, "name"))
+        exists, lrange, inp, out, name = pipe.execute()
 
-        ops = [hash_t(el.decode()) for el in db.lrange(join(PARAMETRIC, hash), 0, -1)]
-        inp = db.hgetall(join(PARAMETRIC, hash, "inp"))
-        out = db.hgetall(join(PARAMETRIC, hash, "out"))
+        if not exists:
+            raise RuntimeError(f"No parametric DAG at {hash}")
+
+        name = name.decode()
+        ops = [hash_t(el.decode()) for el in lrange]
 
         return Parametric(
+            name=name,
             hash=hash,
             ops=ops,
             inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
             out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
         )
 
+    @classmethod
+    def resolve_name(
+        cls: Type[Parametric], db: Redis[bytes], name: str
+    ) -> Optional[hash_t]:
+        """Get the parametric hash corresponding to a given name."""
+        h = db.hget(join(PARAMETRIC, hash_t("names")), name)
+        if h is None:
+            return None
+        else:
+            return hash_t(h.decode())
+
 
 def make_parametric(
     db: Redis[bytes],
+    name: str,
     inp: dict[str, Artefact],
     out: dict[str, Artefact],
 ) -> Parametric:
@@ -233,6 +257,7 @@ def make_parametric(
     sorted_ops = _subgraph_toposort(ops, edges)
 
     param = Parametric(
+        name=name,
         hash=_hash_parametric(db, sorted_ops, inp, out),
         ops=sorted_ops,
         inp=dict([(k, v.hash) for k, v in inp.items()]),

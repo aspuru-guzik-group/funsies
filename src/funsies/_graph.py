@@ -88,10 +88,14 @@ class Artefact(Generic[T]):
     @classmethod
     def grab(cls: Type[Artefact[T]], db: Redis[bytes], hash: hash_t) -> Artefact[T]:
         """Grab an artefact from the Redis store."""
-        if not db.exists(join(ARTEFACTS, hash)):
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(ARTEFACTS, hash))
+        pipe.hgetall(join(ARTEFACTS, hash))
+        exists, data = pipe.execute()
+
+        if not exists:
             raise RuntimeError(f"No artefact at {hash}")
 
-        data = db.hgetall(join(ARTEFACTS, hash))
         return Artefact[T](
             hash=hash_t(data[b"hash"].decode()),
             parent=hash_t(data[b"parent"].decode()),
@@ -294,12 +298,13 @@ def set_data(
     pipe.execute()
 
 
+# not pipeline-able (because of set_data)
 def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
     """Store an artefact with a defined value."""
     kind = _serdes.kind(value)
     data = _serdes.encode(kind, value)
     if isinstance(data, Error):
-        raise TypeError("constant artefact could not be encoded.")
+        raise TypeError(f"constant artefact could not be encoded:\n{data}")
 
     # ==============================================================
     #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
@@ -314,11 +319,14 @@ def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
     h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact[Tdata](hash=h, parent=hash_t("root"), kind=kind)
-    node.put(store)
+    pipe: Pipeline = store.pipeline(transaction=False)
+    node.put(pipe)
+    pipe.execute()
     set_data(store, h, data, status=ArtefactStatus.const)
     return node
 
 
+# pipeline-able
 def variable_artefact(
     store: Redis[bytes],
     parent_hash: hash_t,
@@ -340,10 +348,8 @@ def variable_artefact(
     h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact[T](hash=h, parent=parent_hash, kind=kind)
-    pipe: Pipeline = store.pipeline(transaction=False)
-    node.put(pipe)
-    set_status_nx(pipe, node.hash, ArtefactStatus.no_data)
-    pipe.execute()
+    node.put(store)
+    set_status_nx(store, node.hash, ArtefactStatus.no_data)
     return node
 
 
@@ -359,6 +365,7 @@ class Operation:
     out: dict[str, hash_t]
     options: Optional[Options] = None
 
+    # pipeline-able
     def put(self: "Operation", db: Redis[bytes]) -> None:
         """Save an operation to Redis."""
         if self.inp:
@@ -375,17 +382,20 @@ class Operation:
         # Save the hash in the quickhash db
         hash_save(db, self.hash)
 
+    # pipelined
     @classmethod
     def grab(cls: Type["Operation"], db: Redis[bytes], hash: hash_t) -> "Operation":
         """Grab an operation from the Redis store."""
         if not db.exists(join(OPERATIONS, hash)):
             raise RuntimeError(f"No operation at {hash}")
 
-        metadata = db.hgetall(join(OPERATIONS, hash))
-        inp = db.hgetall(join(OPERATIONS, hash, "inp"))
-        out = db.hgetall(join(OPERATIONS, hash, "out"))
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.hgetall(join(OPERATIONS, hash))
+        pipe.hgetall(join(OPERATIONS, hash, "inp"))
+        pipe.hgetall(join(OPERATIONS, hash, "out"))
+        pipe.get(join(OPERATIONS, hash, "options"))
+        metadata, inp, out, tmp = pipe.execute()
 
-        tmp = db.get(join(OPERATIONS, hash, "options"))
         if tmp is not None:
             options: Optional[Options] = Options.unpack(tmp.decode())
         else:
@@ -400,6 +410,7 @@ class Operation:
         )
 
 
+# pipelined
 def make_op(
     store: Redis[bytes], funsie: Funsie, inp: Mapping[str, Artefact[Any]], opt: Options
 ) -> Operation:

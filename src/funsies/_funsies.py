@@ -9,6 +9,7 @@ from typing import Mapping, Type
 
 # external
 from redis import Redis
+from redis.client import Pipeline
 
 # module
 from . import _serdes
@@ -105,13 +106,17 @@ class Funsie:
     @classmethod
     def grab(cls: Type[Funsie], db: Redis[bytes], hash: hash_t) -> "Funsie":
         """Grab a Funsie from the Redis store."""
-        if not db.exists(join(FUNSIES, hash)):
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(FUNSIES, hash))
+        pipe.hgetall(join(FUNSIES, hash))
+        pipe.hgetall(join(FUNSIES, hash, "inp"))
+        pipe.hgetall(join(FUNSIES, hash, "out"))
+        pipe.hgetall(join(FUNSIES, hash, "extra"))
+        exists, metadata, inp, out, extra = pipe.execute()
+
+        if not exists:
             raise RuntimeError(f"No funsie at {hash}")
 
-        metadata = db.hgetall(join(FUNSIES, hash))
-        inp = db.hgetall(join(FUNSIES, hash, "inp"))
-        out = db.hgetall(join(FUNSIES, hash, "out"))
-        extra = db.hgetall(join(FUNSIES, hash, "extra"))
         return Funsie(
             how=FunsieHow(int(metadata[b"how"].decode())),
             what=metadata[b"what"].decode(),

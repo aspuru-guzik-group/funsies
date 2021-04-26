@@ -104,7 +104,9 @@ def test_parametric() -> None:
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
         final = shell("cat file1 file3", inp={"file1": step1, "file3": step2.stdout})
 
-        param = _p.make_parametric(db, {"input": dat}, {"output": final.stdout})
+        param = _p.make_parametric(
+            db, "param", {"input": dat}, {"output": final.stdout}
+        )
         param2 = _p.Parametric.grab(db, param.hash)
         assert param == param2
 
@@ -119,7 +121,9 @@ def test_parametric_eval() -> None:
         execute(final.stdout)
         # b'BLA BLABLA BLAbla bla'
 
-        param = _p.make_parametric(db, {"input": dat}, {"output": final.stdout})
+        param = _p.make_parametric(
+            db, "param", {"input": dat}, {"output": final.stdout}
+        )
         dat2 = put(b"lol lol")
         out = param.evaluate(db, {"input": dat2})
         execute(out["output"])
