@@ -1,7 +1,6 @@
-# funsies: A minimalist, distributed and dynamic workflow engine
-
-**funsies** is a python library and execution engine to build reproducible,
-composable computational workflows. 
+# funsies
+is a python library and execution engine to build reproducible,
+fault-tolerant, distributed and composable computational workflows.
 
 - 🐍 Workflows are specified in pure python.
 - 🐦 Lightweight with few dependencies.
@@ -138,8 +137,9 @@ funsies is intended as a lightweight alternative to industrial workflow
 engines, such as [Apache Airflow](https://airflow.apache.org/) or
 [Luigi](https://github.com/spotify/luigi). We rely heavily on awesome python
 libraries: [RQ library](https://github.com/rq/rq),
-[loguru](https://github.com/Delgan/loguru) and
-[Click](https://click.palletsprojects.com/). We are inspired by
+[loguru](https://github.com/Delgan/loguru),
+[Click](https://click.palletsprojects.com/) and
+[chevron](https://github.com/noahmorrison/chevron). We are inspired by
 [git](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects),
 [ccache](https://ccache.dev/),
 [snakemake](https://snakemake.readthedocs.io/en/stable/)
@@ -147,3 +147,8 @@ libraries: [RQ library](https://github.com/rq/rq),
 [rain](https://github.com/substantic/rain) and others. A comprehensive list of
 other worfklow engine can be found
 [here.](https://github.com/pditommaso/awesome-pipeline)
+
+
+## License
+
+funsies is provided under the MIT license.
