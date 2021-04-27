@@ -14,8 +14,7 @@ authors:
     orcid: 0000-0002-8277-4434
     affiliation: "1, 2, 3, 4"
 affiliations:
-  - name: Department of Computer Science, University of Toronto, 40 St. George
- St, Toronto, Ontario M5S 2E4, Canada
+  - name: Department of Computer Science, University of Toronto, 40 St. George St, Toronto, Ontario M5S 2E4, Canada
     index: 1
   - name: Chemical Physics Theory Group, Department of Chemistry, University of Toronto, 80 St. George St, Toronto, Ontario M5S 3H6, Canada
     index: 2
@@ -25,7 +24,6 @@ affiliations:
     index: 4
 date: 27 April 2021
 bibliography: paper.bib
-
 ---
 
 # Summary
