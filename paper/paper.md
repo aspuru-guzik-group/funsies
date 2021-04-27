@@ -31,11 +31,11 @@ bibliography: paper.bib
 Large-scale, high-throughput computational investigations are increasingly
 common in chemistry and physics. Until recently, computational chemistry was
 primarily performed using all-in-one monolithic software
-packages.[@smith:2020; @aquilante:2020; @kuhne:2020;
-@apra:2020; @barca:2020; @romero:2020] However, the
+packages [@smith:2020; @aquilante:2020; @kuhne:2020;
+@apra:2020; @barca:2020; @romero:2020]. However, the
 limits of individual programs become evident when tackling complex
 multifaceted problems. As such, it is increasingly common to use multiple
-disparate software packages in a single computational pipeline,
+disparate software packages in a single computational pipeline, 
 [@pollice:2021] often stitched together using shell scripts in
 languages such as Bash, or using Python and other interpreted languages.
 
@@ -44,12 +44,12 @@ they often include manual steps and significant “human-in-the-loop” tuning.
 Shell scripting errors are often undetected, which can compromise
 scientific results. Conversely, exception-based error handling, the standard
 approach in Python, can readily bring a computational workflow to a halt when
-exceptions are not properly caught.[@weimer:2008]
+exceptions are not properly caught [@weimer:2008].
 
 `funsies` is a set of python programs and modules to describe, execute and
 analyze computational workflows, with first-class support for shell scripting.
 It includes a lightweight, decentralized workflow engine backed by a NoSQL
-store.[@redis] Using `funsies`, external program and python-based computations
+store. Using `funsies`, external program and python-based computations
 are easily mixed together. Errors are detected and propagated throughout
 computations. Automatic, transparent incremental computing (based on a hash
 tree data structure) provides a convenient environment for iterative
@@ -59,9 +59,9 @@ prototyping of computationally expensive workflows.
 
 
 Modern workflow management programs used in the private sector, such as Apache
-Airflow[@airflow] and Cadence[@cadence], are robust and extremely scalable,
+Airflow and Uber's Cadence, are robust and extremely scalable,
 but are difficult to deploy. Scientific workflow management systems, such as
-Snakemake and others,[@mlder_sustainable_2021] are easier to set up on
+Snakemake and others [@mlder_sustainable_2021], are easier to set up on
 high-performance computing clusters, but are tuned to the needs of specific
 disciplines, such as bioinformatics or machine learning. This includes, for
 example, the use of configuration file formats (YAML, JSON, etc.), packaging
@@ -75,7 +75,7 @@ and varied computational facilities and local workstations with minimal
 effort. This system had to support our existing shell-based and Python-based
 scripts, and be flexible enough for rapid prototyping all the way to
 large-scale computational campaigns, and provide an embeddable solution that
-can be bundled within other software.[@lavigne_automatic_2020] Finally, we
+can be bundled within other software [@lavigne_automatic_2020]. Finally, we
 were looking for a tool that could integrate data generation and storage, to
 avoid the common practice of transforming the filesystem into what is
 effectively a schema-less database. We developed `funsies` to address those
@@ -102,19 +102,20 @@ are already cached, and if not, executes the associated function and saves its
 outputs. It then enqueues any dependents for execution, by itself or by other
 workers. In this way, the entire computational graph is evaluated in a
 distributed, decentralized fashion without any scheduler or manager program.
-Errors in workflows are handled using a functional approach inspired by
-Rust.15 Specifically, exceptions are propagated through workflow steps,
-canceling dependent tasks, without interrupting valid workflow branches. This
-provides both easy error tracing and a high degree of fault tolerance.
+Errors in workflows are handled using a functional approach inspired by Rust
+[@klabnik_rust_2019]. Specifically, exceptions are propagated through workflow
+steps, canceling dependent tasks, without interrupting valid workflow
+branches. This provides both easy error tracing and a high degree of fault
+tolerance.
 
 
 The main distinguishing feature of `funsies` is the hash tree structure that
 is used to encode all operations and their inputs. The causal hashing approach
-used in `funsies` can also be found in Snakemake[@mlder_sustainable_2021] as
+used in `funsies` can also be found in Snakemake [@mlder_sustainable_2021] as
 an optional component and the (now defunct) Koji workflow
-system,[@maymounkov_koji_2018] as part of the Nix package
-manager[@dolstra_nix_2004] and in the Git version control
-system.[@chacon_pro_2014] In `funsies`, we replace all filesystem operations
+system [@maymounkov_koji_2018], as part of the Nix package
+manager [@dolstra_nix_2004] and in the Git version control
+system [@chacon_pro_2014]. In `funsies`, we replace all filesystem operations
 with hash addressed operations; that is all I/O operations and dependencies
 are tracked.
 
@@ -130,16 +131,16 @@ this way, the hash tree structure enables transparent and automatic
 incremental recomputing. 
 
 Using hash addresses also enables decentralization, as we can rely on the
-unlikeliness of hash collisions[@stevens_first_2017] to eliminate centralized
+unlikeliness of hash collisions [@stevens_first_2017] to eliminate centralized
 locks. An important advantage of this approach is that it allows worker
 processes to generate their own workflows of tasks dynamically. Results from
 these dynamic workflows can be collected and used further in the workflow
 description, provided they can be reduced to a number of outputs known at
-compile time, a technique similar to MapReduce.[@dean_mapreduce_2004]
+compile time, a technique similar to MapReduce [@dean_mapreduce_2004].
 
-As of now, we have published one project7 that used an earlier iteration of
-`funsies`, and are using it in multiple ongoing inquiries. We provide
-several sample workflows on Github, with a focus on computational
+As of now, we have published one project [@pollice:2021] that used an earlier
+iteration of `funsies`, and are using it in multiple ongoing inquiries. We
+provide several sample workflows on Github, with a focus on computational
 chemistry, quantum computing, and high-performance computing infrastructure.
 
 We intend to maintain `funsies` and of course welcome collaborations from
