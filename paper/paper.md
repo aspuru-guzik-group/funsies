@@ -36,7 +36,7 @@ packages [@smith:2020; @aquilante:2020; @kuhne:2020;
 limits of individual programs become evident when tackling complex
 multifaceted problems. As such, it is increasingly common to use multiple
 disparate software packages in a single computational pipeline, 
-[@pollice:2021] often stitched together using shell scripts in
+ often stitched together using shell scripts in
 languages such as Bash, or using Python and other interpreted languages.
 
 These complex computational pipelines are difficult to scale and automate, as
@@ -61,7 +61,7 @@ prototyping of computationally expensive workflows.
 Modern workflow management programs used in the private sector, such as Apache
 Airflow and Uber's Cadence, are robust and extremely scalable,
 but are difficult to deploy. Scientific workflow management systems, such as
-Snakemake and others [@mlder_sustainable_2021], are easier to set up on
+Snakemake and others [@molder_sustainable_2021], are easier to set up on
 high-performance computing clusters, but are tuned to the needs of specific
 disciplines, such as bioinformatics or machine learning. This includes, for
 example, the use of configuration file formats (YAML, JSON, etc.), packaging
