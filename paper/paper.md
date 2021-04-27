@@ -1,4 +1,4 @@
---
+---
 title: 'funsies: A minimalist, distributed and dynamic workflow engine'
 tags:
   - workflow
@@ -33,12 +33,12 @@ bibliography: paper.bib
 Large-scale, high-throughput computational investigations are increasingly
 common in chemistry and physics. Until recently, computational chemistry was
 primarily performed using all-in-one monolithic software
-packages.[@smith_psi4_2020; @aquilante_modern_2020; @kuhne_cp2k_2020;
-@apra_nwchem_2020; @barca_recent_2020; @romero_abinit_2020] However, the
+packages.[@smith:2020; @aquilante:2020; @kuhne:2020;
+@apra:2020; @barca:2020; @romero:2020] However, the
 limits of individual programs become evident when tackling complex
 multifaceted problems. As such, it is increasingly common to use multiple
 disparate software packages in a single computational pipeline,
-[@pollice_organic_2021] often stitched together using shell scripts in
+[@pollice:2021] often stitched together using shell scripts in
 languages such as Bash, or using Python and other interpreted languages.
 
 These complex computational pipelines are difficult to scale and automate, as
@@ -46,7 +46,7 @@ they often include manual steps and significant “human-in-the-loop” tuning.
 Shell scripting errors are often undetected, which can compromise
 scientific results. Conversely, exception-based error handling, the standard
 approach in Python, can readily bring a computational workflow to a halt when
-exceptions are not properly caught.[@weimer_exceptional_2008]
+exceptions are not properly caught.[@weimer:2008]
 
 `funsies` is a set of python programs and modules to describe, execute and
 analyze computational workflows, with first-class support for shell scripting.
