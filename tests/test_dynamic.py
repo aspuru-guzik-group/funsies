@@ -55,7 +55,7 @@ def test_map_reduce() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("nworkers", [1, 8])
+@pytest.mark.parametrize("nworkers", [1, 2])
 def test_nested_map_reduce(nworkers: int) -> None:
     """Test nested map-reduce."""
     # ------------------------------------------------------------------------
