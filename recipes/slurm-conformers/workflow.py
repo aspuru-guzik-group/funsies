@@ -1,11 +1,10 @@
-"""Getting conformers of molecules using xtb.
-
-This is an example workflow."""
+"""Example workflow: finding conformers of molecules using xtb."""
 from __future__ import annotations
 
-from typing import Sequence, Any
+# std
+from typing import Any, Sequence
 
-
+# funsies
 import funsies as f
 from funsies.types import Artefact, Encoding
 from funsies.utils import not_empty
@@ -41,7 +40,7 @@ def optimize_conformer_xtb(structure: Artefact[bytes]) -> Artefact[bytes]:
         out=[".xtboptok", "xtbopt.xyz"],
     )
     # barrier for convergence (fails if .xtboptok is not found)
-    struct = f.utils.reduce(
+    struct: Artefact[bytes] = f.reduce(
         lambda x, y: x, optim.out["xtbopt.xyz"], optim.out[".xtboptok"]
     )
     return struct
@@ -57,7 +56,7 @@ def make_data_output(structures: Sequence[Artefact[bytes]]) -> Artefact[list[Any
 
     def sort_by_energy(*elements: dict[str, Any]) -> list[dict[str, Any]]:
         out = [el for el in elements]
-        out = sorted(out, key=lambda x: x["energy"])
+        out = sorted(out, key=lambda x: x["energy"])  # type:ignore
         return out
 
     out = []
