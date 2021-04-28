@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>funsies.fp API documentation</title>
+<meta name="description" content="User-friendly interfaces to funsies functionality." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>funsies.fp</code></h1>
+</header>
+<section id="section-intro">
+<p>User-friendly interfaces to funsies functionality.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;User-friendly interfaces to funsies functionality.&#34;&#34;&#34;
+from __future__ import annotations
+
+# std
+from typing import Any, Callable, Iterable, Mapping, Optional, Sequence, TypeVar, Union
+
+# external
+from redis import Redis
+
+# module
+from ._constants import _AnyPath, _Data, Encoding
+from ._context import get_db, get_options
+from ._graph import Artefact, constant_artefact, make_op
+from ._infer import output_types
+from ._pyfunc import python_funsie
+from .config import Options
+
+# Types
+_Target = Union[Artefact, _Data]
+_INP_FILES = Optional[Mapping[_AnyPath, _Target]]
+_OUT_FILES = Optional[Iterable[_AnyPath]]
+T = TypeVar(&#34;T&#34;)
+
+
+def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -&gt; Artefact[T]:
+    if isinstance(data, Artefact):
+        return data
+    else:
+        return constant_artefact(db, data)
+
+
+# Yay overloads! we all wish there were an easier way of doing this but here we are...
+Tin1 = TypeVar(&#34;Tin1&#34;, bound=_Data)
+Tin2 = TypeVar(&#34;Tin2&#34;, bound=_Data)
+Tin3 = TypeVar(&#34;Tin3&#34;, bound=_Data)
+Tin4 = TypeVar(&#34;Tin4&#34;, bound=_Data)
+Tout1 = TypeVar(&#34;Tout1&#34;, bound=_Data)
+_inp = Union[Tin1, Artefact[Tin1]]
+
+
+# --------------------------------------------------------------------------------
+# Data transformers
+def py(  # noqa:C901
+    fun: Callable[..., Any],
+    *inp: _Target,
+    out: Optional[Sequence[Encoding]] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Union[Artefact, tuple[Artefact, ...]]:
+    &#34;&#34;&#34;Add a python function to the workflow.
+
+    `py(fun, *inp)` puts a python function `fun` on the workflow and returns
+    its output artefact.
+
+    As many arguments will be passed to `fun()` as there are input
+    `types.Artefact` instances in `*inp` and `fun()` should return as many
+    outputs as there are data types in `out=`. By default, `out=` will be
+    inferred from annotations.
+
+    If `strict=False`, the function is taken to do it&#39;s own error handling and
+    arguments will be of type `errors.Result[T]` instead of `T`. See
+    `utils.match_results()` for a convenient way to process these values.
+
+    Python function hashes are generated based on their names (as given by
+    `fun.__qualname__`) and functions are distributed to workers using
+    `cloudpickle`. This is important because it means that:
+
+    - Workers must have access to the function if it is imported, and must
+        have access to any imported libraries.
+
+    - Changing a function without modifiying its name (or modifying the
+        `name=` argument) will not recompute the graph.
+
+    It is the therefore the caller&#39;s responsibility to `reset()` one of the
+    return value of `py()` if the function is modified to ensure re-excution
+    of its dependents.
+
+    Args:
+        fun: Python function that operates on input artefacts and produces a
+            single output artefact.
+        *inp: Input artefacts.
+        out: List of Encoding, one for each output of fun. These are the kind
+            of serialization-deserialization used for the output variables. If
+            None, `out=` is inferred using the type hint of `fun()`. It is
+            `types.Encoding.blob` for all `bytes` outputs and
+            `types.Encoding.json` for anything else.
+        name: Override the name of `fun()` used in hash generation.
+        strict: If `False`, error handling will be deferred to `fun()` by
+            passing it argument of type `errors.Result[bytes]` instead of
+            `bytes`.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+        opt: An `types.Options` instance generated from `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        A single `types.Artefact` instance if `out=` contains only one element
+        or a tuple of `types.Artefact` otherwise.
+
+    Raises:
+        TypeError:
+            The output types could not be determined and were not given.
+
+    &#34;&#34;&#34;
+    # Attempt to infer output
+    if out is None:
+        out = output_types(fun)
+
+    opt = get_options(opt)
+    db = get_db(connection)
+    inputs = {}
+    for k, arg in enumerate(inp):
+        inputs[f&#34;in{k}&#34;] = _artefact(db, arg)
+
+    in_types = dict([(k, val.kind) for k, val in inputs.items()])
+
+    noutputs = len(out)
+    out_type = dict([(f&#34;out{k}&#34;, out[k]) for k in range(noutputs)])
+    out_keys = list(out_type.keys())
+    in_keys = list(in_types.keys())
+
+    if name is not None:
+        fun_name = name
+    else:
+        fun_name = f&#34;mapping_{len(inp)}:{fun.__qualname__}&#34;
+
+    def __map(inpd: Mapping[str, _Data]) -&gt; dict[str, _Data]:
+        &#34;&#34;&#34;Perform a reduction.&#34;&#34;&#34;
+        args = [inpd[key] for key in in_keys]
+        out = fun(*args)
+        if noutputs == 1:
+            out = (out,)
+        return dict(zip(out_keys, out))
+
+    funsie = python_funsie(__map, in_types, out_type, name=fun_name, strict=strict)
+    operation = make_op(db, funsie, inputs, opt)
+    returnval = tuple(
+        [Artefact.grab(db, operation.out[o]) for o in out_keys]  # type:ignore
+    )
+    if len(returnval) == 1:
+        return returnval[0]
+    else:
+        return returnval
+
+
+# --------------------------------------------------------------------------------
+# Convenience functions
+
+
+def morph(
+    fun: Callable[[Tin1], Tout1],
+    inp: Union[Tin1, Artefact[Tin1]],
+    *,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a one-to-one python function `y = f(x)`.
+
+    This is syntactic sugar around `py()`. By default, the output type will
+    match the input type if it can&#39;t be inferred, but it can be set to a given
+    `types.Encoding` using the `out=` keyword.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    inp2 = _artefact(db, inp)
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = (inp2.kind,)
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use morph but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;morph:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        inp2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )
+
+
+def reduce(
+    fun: Callable[..., Tout1],
+    *inp: _Target,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a many-to-one python function `y = f(*x)`.
+
+    This is syntactic sugar around `py()`. By default, the output encoding is
+    inferred, and if this fails, is set to match the encoding of the
+    arguments if they are all the same. Output encoding can also be
+    explicitly set to a given `types.Encoding` using the `out=` keyword.
+
+    &#34;&#34;&#34;
+    inps = list(inp)
+    db = get_db(connection)
+    inps2 = [_artefact(db, inp) for inp in inps]
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = tuple(set(el.kind for el in inps2))
+            if len(typ) &gt; 1:
+                raise TypeError(
+                    &#34;Inference failed for function reduce(): more than one input type was&#34;
+                    + &#34; passed but no out= encoding.\n&#34;
+                    + &#34;Either explicitly set return with out= or ensures all inputs &#34;
+                    + &#34;have the same encoding.\n&#34;
+                    + f&#34;args: {list(el.kind for el in inps2)}\n&#34;
+                    + f&#34;inferred possible return values: {typ}&#34;
+                )
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use reduce but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;reduce:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        *inps2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="funsies.fp.py"><code class="name flex">
+<span>def <span class="ident">py</span></span>(<span>fun: Callable[..., Any], *inp: _Target, out: Optional[Sequence[Encoding]] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Union[Artefact, tuple[Artefact, ...]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a python function to the workflow.</p>
+<p><code>py(fun, *inp)</code> puts a python function <code>fun</code> on the workflow and returns
+its output artefact.</p>
+<p>As many arguments will be passed to <code>fun()</code> as there are input
+<code>types.Artefact</code> instances in <code>*inp</code> and <code>fun()</code> should return as many
+outputs as there are data types in <code>out=</code>. By default, <code>out=</code> will be
+inferred from annotations.</p>
+<p>If <code>strict=False</code>, the function is taken to do it's own error handling and
+arguments will be of type <code>errors.Result[T]</code> instead of <code>T</code>. See
+<code>utils.match_results()</code> for a convenient way to process these values.</p>
+<p>Python function hashes are generated based on their names (as given by
+<code>fun.__qualname__</code>) and functions are distributed to workers using
+<code>cloudpickle</code>. This is important because it means that:</p>
+<ul>
+<li>
+<p>Workers must have access to the function if it is imported, and must
+have access to any imported libraries.</p>
+</li>
+<li>
+<p>Changing a function without modifiying its name (or modifying the
+<code>name=</code> argument) will not recompute the graph.</p>
+</li>
+</ul>
+<p>It is the therefore the caller's responsibility to <code>reset()</code> one of the
+return value of <code><a title="funsies.fp.py" href="#funsies.fp.py">py()</a></code> if the function is modified to ensure re-excution
+of its dependents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>fun</code></strong></dt>
+<dd>Python function that operates on input artefacts and produces a
+single output artefact.</dd>
+<dt><strong><code>*inp</code></strong></dt>
+<dd>Input artefacts.</dd>
+<dt><strong><code>out</code></strong></dt>
+<dd>List of Encoding, one for each output of fun. These are the kind
+of serialization-deserialization used for the output variables. If
+None, <code>out=</code> is inferred using the type hint of <code>fun()</code>. It is
+<code>types.Encoding.blob</code> for all <code>bytes</code> outputs and
+<code>types.Encoding.json</code> for anything else.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Override the name of <code>fun()</code> used in hash generation.</dd>
+<dt><strong><code>strict</code></strong></dt>
+<dd>If <code>False</code>, error handling will be deferred to <code>fun()</code> by
+passing it argument of type <code>errors.Result[bytes]</code> instead of
+<code>bytes</code>.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called
+within a <code>Fun()</code> context.</dd>
+<dt><strong><code>opt</code></strong></dt>
+<dd>An <code>types.Options</code> instance generated from <code>options()</code>. Not
+required if called within a <code>Fun()</code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A single <code>types.Artefact</code> instance if <code>out=</code> contains only one element
+or a tuple of <code>types.Artefact</code> otherwise.</p>
+<h2 id="raises">Raises</h2>
+<p>TypeError:
+The output types could not be determined and were not given.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def py(  # noqa:C901
+    fun: Callable[..., Any],
+    *inp: _Target,
+    out: Optional[Sequence[Encoding]] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Union[Artefact, tuple[Artefact, ...]]:
+    &#34;&#34;&#34;Add a python function to the workflow.
+
+    `py(fun, *inp)` puts a python function `fun` on the workflow and returns
+    its output artefact.
+
+    As many arguments will be passed to `fun()` as there are input
+    `types.Artefact` instances in `*inp` and `fun()` should return as many
+    outputs as there are data types in `out=`. By default, `out=` will be
+    inferred from annotations.
+
+    If `strict=False`, the function is taken to do it&#39;s own error handling and
+    arguments will be of type `errors.Result[T]` instead of `T`. See
+    `utils.match_results()` for a convenient way to process these values.
+
+    Python function hashes are generated based on their names (as given by
+    `fun.__qualname__`) and functions are distributed to workers using
+    `cloudpickle`. This is important because it means that:
+
+    - Workers must have access to the function if it is imported, and must
+        have access to any imported libraries.
+
+    - Changing a function without modifiying its name (or modifying the
+        `name=` argument) will not recompute the graph.
+
+    It is the therefore the caller&#39;s responsibility to `reset()` one of the
+    return value of `py()` if the function is modified to ensure re-excution
+    of its dependents.
+
+    Args:
+        fun: Python function that operates on input artefacts and produces a
+            single output artefact.
+        *inp: Input artefacts.
+        out: List of Encoding, one for each output of fun. These are the kind
+            of serialization-deserialization used for the output variables. If
+            None, `out=` is inferred using the type hint of `fun()`. It is
+            `types.Encoding.blob` for all `bytes` outputs and
+            `types.Encoding.json` for anything else.
+        name: Override the name of `fun()` used in hash generation.
+        strict: If `False`, error handling will be deferred to `fun()` by
+            passing it argument of type `errors.Result[bytes]` instead of
+            `bytes`.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+        opt: An `types.Options` instance generated from `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        A single `types.Artefact` instance if `out=` contains only one element
+        or a tuple of `types.Artefact` otherwise.
+
+    Raises:
+        TypeError:
+            The output types could not be determined and were not given.
+
+    &#34;&#34;&#34;
+    # Attempt to infer output
+    if out is None:
+        out = output_types(fun)
+
+    opt = get_options(opt)
+    db = get_db(connection)
+    inputs = {}
+    for k, arg in enumerate(inp):
+        inputs[f&#34;in{k}&#34;] = _artefact(db, arg)
+
+    in_types = dict([(k, val.kind) for k, val in inputs.items()])
+
+    noutputs = len(out)
+    out_type = dict([(f&#34;out{k}&#34;, out[k]) for k in range(noutputs)])
+    out_keys = list(out_type.keys())
+    in_keys = list(in_types.keys())
+
+    if name is not None:
+        fun_name = name
+    else:
+        fun_name = f&#34;mapping_{len(inp)}:{fun.__qualname__}&#34;
+
+    def __map(inpd: Mapping[str, _Data]) -&gt; dict[str, _Data]:
+        &#34;&#34;&#34;Perform a reduction.&#34;&#34;&#34;
+        args = [inpd[key] for key in in_keys]
+        out = fun(*args)
+        if noutputs == 1:
+            out = (out,)
+        return dict(zip(out_keys, out))
+
+    funsie = python_funsie(__map, in_types, out_type, name=fun_name, strict=strict)
+    operation = make_op(db, funsie, inputs, opt)
+    returnval = tuple(
+        [Artefact.grab(db, operation.out[o]) for o in out_keys]  # type:ignore
+    )
+    if len(returnval) == 1:
+        return returnval[0]
+    else:
+        return returnval</code></pre>
+</details>
+</dd>
+<dt id="funsies.fp.morph"><code class="name flex">
+<span>def <span class="ident">morph</span></span>(<span>fun: Callable[[Tin1], Tout1], inp: Union[Tin1, Artefact[Tin1]], *, out: Optional[Encoding] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Artefact[Tout1]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add to workflow a one-to-one python function <code>y = f(x)</code>.</p>
+<p>This is syntactic sugar around <code><a title="funsies.fp.py" href="#funsies.fp.py">py()</a></code>. By default, the output type will
+match the input type if it can't be inferred, but it can be set to a given
+<code>types.Encoding</code> using the <code>out=</code> keyword.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def morph(
+    fun: Callable[[Tin1], Tout1],
+    inp: Union[Tin1, Artefact[Tin1]],
+    *,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a one-to-one python function `y = f(x)`.
+
+    This is syntactic sugar around `py()`. By default, the output type will
+    match the input type if it can&#39;t be inferred, but it can be set to a given
+    `types.Encoding` using the `out=` keyword.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    inp2 = _artefact(db, inp)
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = (inp2.kind,)
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use morph but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;morph:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        inp2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.fp.reduce"><code class="name flex">
+<span>def <span class="ident">reduce</span></span>(<span>fun: Callable[..., Tout1], *inp: _Target, out: Optional[Encoding] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Artefact[Tout1]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add to workflow a many-to-one python function <code>y = f(*x)</code>.</p>
+<p>This is syntactic sugar around <code><a title="funsies.fp.py" href="#funsies.fp.py">py()</a></code>. By default, the output encoding is
+inferred, and if this fails, is set to match the encoding of the
+arguments if they are all the same. Output encoding can also be
+explicitly set to a given <code>types.Encoding</code> using the <code>out=</code> keyword.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reduce(
+    fun: Callable[..., Tout1],
+    *inp: _Target,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a many-to-one python function `y = f(*x)`.
+
+    This is syntactic sugar around `py()`. By default, the output encoding is
+    inferred, and if this fails, is set to match the encoding of the
+    arguments if they are all the same. Output encoding can also be
+    explicitly set to a given `types.Encoding` using the `out=` keyword.
+
+    &#34;&#34;&#34;
+    inps = list(inp)
+    db = get_db(connection)
+    inps2 = [_artefact(db, inp) for inp in inps]
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = tuple(set(el.kind for el in inps2))
+            if len(typ) &gt; 1:
+                raise TypeError(
+                    &#34;Inference failed for function reduce(): more than one input type was&#34;
+                    + &#34; passed but no out= encoding.\n&#34;
+                    + &#34;Either explicitly set return with out= or ensures all inputs &#34;
+                    + &#34;have the same encoding.\n&#34;
+                    + f&#34;args: {list(el.kind for el in inps2)}\n&#34;
+                    + f&#34;inferred possible return values: {typ}&#34;
+                )
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use reduce but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;reduce:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        *inps2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="funsies" href="index.html">funsies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="funsies.fp.py" href="#funsies.fp.py">py</a></code></li>
+<li><code><a title="funsies.fp.morph" href="#funsies.fp.morph">morph</a></code></li>
+<li><code><a title="funsies.fp.reduce" href="#funsies.fp.reduce">reduce</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

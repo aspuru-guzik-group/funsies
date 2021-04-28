@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>funsies API documentation</title>
+<meta name="description" content="Funsies is a lightweight workflow engine 🔧 …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Package <code>funsies</code></h1>
+</header>
+<section id="section-intro">
+<p>Funsies is a lightweight workflow engine 🔧.</p>
+<p>In <code><a title="funsies" href="#funsies">funsies</a></code>, workflows written in pure python are saved to
+<a href="https://redis.io/">redis</a>, a distributed, in-memory data store. Workflow
+execution is performed using the minimal distributed queuing library
+<a href="https://python-rq.org/">RQ</a>. Workflows are automatically parallelized and
+computed incrementally. Command-line tools are provided that allow funsies to
+be easily integrated in pre-existing shell workflows.</p>
+<p>Incremental computation and caching are generated by hashing the steps
+required to generate all file objects. Workflows are encoded using a <a href="https://en.wikipedia.org/wiki/Merkle_tree">Merkle
+tree</a> data structure, similar to
+what is used by <a href="https://ccache.dev/manual/4.2.html#_how_ccache_works">ccache</a>
+for incremental computation or by distributed version control systems such as <a href="https://ericsink.com/vcbe/html/repository_structure.html">mercurial</a>.</p>
+<p>Workflows are written in pure python using a set of primitives such as shell
+commands (using the <code><a title="funsies.shell" href="#funsies.shell">shell()</a></code> function) and python glue code (encoded with
+<code><a title="funsies.py" href="#funsies.py">py()</a></code>). Errors are handled using a functional programming (a <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a></code>
+monad) inspired by <a href="https://doc.rust-lang.org/std/result/">Rust</a>. In practice,
+python code can raise exceptions and shell commands can fail in specifc
+branches without compromising the execution of the whole workflow, and the
+origin of errors is readily traced.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;Funsies is a lightweight workflow engine 🔧.
+
+.. include:: documentation.md
+&#34;&#34;&#34;
+# module
+from . import debug, dynamic, parametric, types, utils
+from ._context import Fun, ManagedFun, options
+from ._getter import get
+from .errors import unwrap
+from .fp import morph, py, reduce
+from .template import template
+from .ui import execute, put, reset, shell, take, takeout, wait_for
+
+__all__ = [
+    # shell
+    &#34;shell&#34;,
+    # fp
+    &#34;py&#34;,
+    &#34;reduce&#34;,
+    &#34;morph&#34;,
+    # template
+    &#34;template&#34;,
+    # artefact manipulation
+    &#34;take&#34;,
+    &#34;takeout&#34;,
+    &#34;put&#34;,
+    &#34;execute&#34;,
+    &#34;wait_for&#34;,
+    &#34;reset&#34;,
+    &#34;get&#34;,
+    # contexts
+    &#34;Fun&#34;,
+    &#34;ManagedFun&#34;,
+    &#34;options&#34;,
+    # Error handling and types
+    &#34;unwrap&#34;,
+    &#34;types&#34;,
+    &#34;debug&#34;,
+    # utility
+    &#34;utils&#34;,
+    &#34;dynamic&#34;,
+    &#34;parametric&#34;,
+]
+
+
+# Version information
+# We grab it from setup.py so that we don&#39;t have to bump versions in multiple
+# places.
+try:
+    # std
+    from importlib import metadata
+
+    __version__ = metadata.version(&#34;funsies&#34;)
+except ImportError:
+    # Running on pre-3.8 Python; use importlib-metadata package
+    # external
+    import importlib_metadata
+
+    __version__ = importlib_metadata.version(&#34;funsies&#34;)</code></pre>
+</details>
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="funsies.config" href="config.html">funsies.config</a></code></dt>
+<dd>
+<div class="desc"><p>Configuration dictionaries for jobs.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.debug" href="debug.html">funsies.debug</a></code></dt>
+<dd>
+<div class="desc"><p>Helpful function for debugging workflows.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.dynamic" href="dynamic.html">funsies.dynamic</a></code></dt>
+<dd>
+<div class="desc"><p>Dynamic DAG generation.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.errors" href="errors.html">funsies.errors</a></code></dt>
+<dd>
+<div class="desc"><p>Error for artefact results.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.fp" href="fp.html">funsies.fp</a></code></dt>
+<dd>
+<div class="desc"><p>User-friendly interfaces to funsies functionality.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.parametric" href="parametric.html">funsies.parametric</a></code></dt>
+<dd>
+<div class="desc"><p>User-facing functions for parametric DAGs.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.types" href="types.html">funsies.types</a></code></dt>
+<dd>
+<div class="desc"><p>Object types.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.ui" href="ui.html">funsies.ui</a></code></dt>
+<dd>
+<div class="desc"><p>User-friendly interfaces to funsies functionality.</p></div>
+</dd>
+<dt><code class="name"><a title="funsies.utils" href="utils.html">funsies.utils</a></code></dt>
+<dd>
+<div class="desc"><p>Some useful functions for workflows.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="funsies.shell"><code class="name flex">
+<span>def <span class="ident">shell</span></span>(<span>*args: str, inp: _INP_FILES = None, out: _OUT_FILES = None, env: Optional[dict[str, str]] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> ShellOutput</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a shell command to the workflow.</p>
+<p><code><a title="funsies.shell" href="#funsies.shell">shell()</a></code> puts a shell command in the workflow and returns a <code><a title="funsies.types.ShellOutput" href="types.html#funsies.types.ShellOutput">ShellOutput</a></code>
+instance that provides a convenient wrapper to stdout, stderr and output
+files.</p>
+<p>Input and output files need to be explicitly given as arguments <code>inp</code> and
+<code>out</code>. Input and output files containing path separators (<code>/</code>) are assumed
+to belong to the corresponding directory tree structures, which will be
+automatically generated for input files.</p>
+<p>The <code>strict</code> flag determines how to interpret errors in input files. If
+<code>True</code> (the default), errors are propagated down: shell commands will not
+be executed if any input values currently hold <code><a title="funsies.errors.Error" href="errors.html#funsies.errors.Error">Error</a></code>. Instead, all
+output values will also be replaced by <code><a title="funsies.errors.Error" href="errors.html#funsies.errors.Error">Error</a></code>.</p>
+<p>When <code>strict=False</code>, input files with errors will simply (and silently) be
+excluded from the shell script.</p>
+<p>Shell commands are run in a temporary directory which conveys some measure
+of encapsulation, but it is quite weak, so the callee should make sure
+that commands only use relative paths etc. to ensure proper cleanup and
+function purity. This is done using python's <code>tempfile</code> module: the temporary
+directory can be set using the $TMPDIR environment variable.</p>
+<p>Environment variables can be passed to the executed command with the
+<code>env=</code> keyword. In contrast with <code>subprocess.Popen()</code>, the environment of
+worker processes will be updated with those values, <em>not</em> replaced by
+them. Environment variables are not hashed as part of the operation's id
+and thus changing them will not result in workflow re-execution.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>*args</code></strong></dt>
+<dd>Lines of shell script to be evaluated.</dd>
+<dt><strong><code>inp</code></strong></dt>
+<dd>Input files to pass to the shell comand. This should be a Mapping
+from filenames (str, path etc.) to values. Values can either be
+<code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instances or of type <code>bytes</code>, in which case they
+will be automatically converted using <code><a title="funsies.put" href="#funsies.put">put()</a></code>.</dd>
+<dt><strong><code>out</code></strong></dt>
+<dd>Filenames of output files that will be used to populate the return
+<code><a title="funsies.types.ShellOutput" href="types.html#funsies.types.ShellOutput">ShellOutput</a></code> object. Note that any file not included in
+this list will be deleted when the shell command terminates.</dd>
+<dt><strong><code>env</code></strong></dt>
+<dd>Environment variables to be set before calling the shell command.</dd>
+<dt><strong><code>strict</code></strong></dt>
+<dd>If <code>False</code>, error handling will be deferred to the shell command
+by not populating input files of type <code>Error</code>.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called within a
+<code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+<dt><strong><code>opt</code></strong></dt>
+<dd>An <code><a title="funsies.types.Options" href="types.html#funsies.types.Options">Options</a></code> instance as returned by <code><a title="funsies.options" href="#funsies.options">options()</a></code>. Not
+required if called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A <code><a title="funsies.types.ShellOutput" href="types.html#funsies.types.ShellOutput">ShellOutput</a></code> object, populated with the generated
+<code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instances.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>TypeError</code></dt>
+<dd>when types of arguments are wrong.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def shell(
+    *args: str,
+    inp: _INP_FILES = None,
+    out: _OUT_FILES = None,
+    env: Optional[dict[str, str]] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; ShellOutput:
+    &#34;&#34;&#34;Add a shell command to the workflow.
+
+    `shell()` puts a shell command in the workflow and returns a `types.ShellOutput`
+    instance that provides a convenient wrapper to stdout, stderr and output
+    files.
+
+    Input and output files need to be explicitly given as arguments `inp` and
+    `out`. Input and output files containing path separators (`/`) are assumed
+    to belong to the corresponding directory tree structures, which will be
+    automatically generated for input files.
+
+    The `strict` flag determines how to interpret errors in input files. If
+    `True` (the default), errors are propagated down: shell commands will not
+    be executed if any input values currently hold `errors.Error`. Instead, all
+    output values will also be replaced by `errors.Error`.
+
+    When `strict=False`, input files with errors will simply (and silently) be
+    excluded from the shell script.
+
+    Shell commands are run in a temporary directory which conveys some measure
+    of encapsulation, but it is quite weak, so the callee should make sure
+    that commands only use relative paths etc. to ensure proper cleanup and
+    function purity. This is done using python&#39;s `tempfile` module: the temporary
+    directory can be set using the $TMPDIR environment variable.
+
+    Environment variables can be passed to the executed command with the
+    `env=` keyword. In contrast with `subprocess.Popen()`, the environment of
+    worker processes will be updated with those values, *not* replaced by
+    them. Environment variables are not hashed as part of the operation&#39;s id
+    and thus changing them will not result in workflow re-execution.
+
+    Args:
+        *args: Lines of shell script to be evaluated.
+        inp: Input files to pass to the shell comand. This should be a Mapping
+            from filenames (str, path etc.) to values. Values can either be
+            `types.Artefact` instances or of type `bytes`, in which case they
+            will be automatically converted using `put()`.
+        out: Filenames of output files that will be used to populate the return
+            `types.ShellOutput` object. Note that any file not included in
+            this list will be deleted when the shell command terminates.
+        env: Environment variables to be set before calling the shell command.
+        strict: If `False`, error handling will be deferred to the shell command
+            by not populating input files of type `Error`.
+        connection: An explicit Redis connection. Not required if called within a
+            `Fun()` context.
+        opt: An `types.Options` instance as returned by `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        A `types.ShellOutput` object, populated with the generated
+        `types.Artefact` instances.
+
+    Raises:
+        TypeError: when types of arguments are wrong.
+
+    &#34;&#34;&#34;
+    opt = get_options(opt)
+    db = get_db(connection)
+
+    # Parse args --------------------------------------------
+    cmds: list[str] = []
+    inputs: dict[str, Artefact] = {}
+
+    for arg in args:
+        if isinstance(arg, str):
+            cmds += [arg]
+        else:
+            raise TypeError(f&#34;argument {arg} not str.&#34;)
+
+    # Parse input files -------------------------------------
+    if inp is None:
+        pass
+    # multiple input files as a mapping
+    elif isinstance(inp, Mapping):
+        for key, val in inp.items():
+            if isinstance(val, str):
+                logger.warning(
+                    f&#34;{key} passed to shell as a string.\nif you don&#39;t want it to be&#34;
+                    + &#39; converted to json (and wrapped with &#34;), \nyou NEED to pass it&#39;
+                    + &#34; as bytes (by .encode()-ing it first)&#34;
+                )
+            inputs[str(key)] = _artefact(db, val)
+    else:
+        raise TypeError(f&#34;{inp} not a valid file input&#34;)
+
+    if out is None:
+        outputs = []
+    else:
+        outputs = [str(o) for o in out]
+
+    inputs_types = dict([(k, v.kind) for k, v in inputs.items()])
+    funsie = shell_funsie(cmds, inputs_types, outputs, env, strict=strict)
+    operation = make_op(db, funsie, inputs, opt)
+    return ShellOutput(db, operation)</code></pre>
+</details>
+</dd>
+<dt id="funsies.py"><code class="name flex">
+<span>def <span class="ident">py</span></span>(<span>fun: Callable[..., Any], *inp: _Target, out: Optional[Sequence[Encoding]] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Union[Artefact, tuple[Artefact, ...]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a python function to the workflow.</p>
+<p><code>py(fun, *inp)</code> puts a python function <code>fun</code> on the workflow and returns
+its output artefact.</p>
+<p>As many arguments will be passed to <code>fun()</code> as there are input
+<code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instances in <code>*inp</code> and <code>fun()</code> should return as many
+outputs as there are data types in <code>out=</code>. By default, <code>out=</code> will be
+inferred from annotations.</p>
+<p>If <code>strict=False</code>, the function is taken to do it's own error handling and
+arguments will be of type <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[T]</code> instead of <code>T</code>. See
+<code><a title="funsies.utils.match_results" href="utils.html#funsies.utils.match_results">match_results()</a></code> for a convenient way to process these values.</p>
+<p>Python function hashes are generated based on their names (as given by
+<code>fun.__qualname__</code>) and functions are distributed to workers using
+<code>cloudpickle</code>. This is important because it means that:</p>
+<ul>
+<li>
+<p>Workers must have access to the function if it is imported, and must
+have access to any imported libraries.</p>
+</li>
+<li>
+<p>Changing a function without modifiying its name (or modifying the
+<code>name=</code> argument) will not recompute the graph.</p>
+</li>
+</ul>
+<p>It is the therefore the caller's responsibility to <code><a title="funsies.reset" href="#funsies.reset">reset()</a></code> one of the
+return value of <code><a title="funsies.py" href="#funsies.py">py()</a></code> if the function is modified to ensure re-excution
+of its dependents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>fun</code></strong></dt>
+<dd>Python function that operates on input artefacts and produces a
+single output artefact.</dd>
+<dt><strong><code>*inp</code></strong></dt>
+<dd>Input artefacts.</dd>
+<dt><strong><code>out</code></strong></dt>
+<dd>List of Encoding, one for each output of fun. These are the kind
+of serialization-deserialization used for the output variables. If
+None, <code>out=</code> is inferred using the type hint of <code>fun()</code>. It is
+<code><a title="funsies.types.Encoding.blob" href="types.html#funsies.types.Encoding.blob">Encoding.blob</a></code> for all <code>bytes</code> outputs and
+<code><a title="funsies.types.Encoding.json" href="types.html#funsies.types.Encoding.json">Encoding.json</a></code> for anything else.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Override the name of <code>fun()</code> used in hash generation.</dd>
+<dt><strong><code>strict</code></strong></dt>
+<dd>If <code>False</code>, error handling will be deferred to <code>fun()</code> by
+passing it argument of type <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[bytes]</code> instead of
+<code>bytes</code>.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called
+within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+<dt><strong><code>opt</code></strong></dt>
+<dd>An <code><a title="funsies.types.Options" href="types.html#funsies.types.Options">Options</a></code> instance generated from <code><a title="funsies.options" href="#funsies.options">options()</a></code>. Not
+required if called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A single <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instance if <code>out=</code> contains only one element
+or a tuple of <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> otherwise.</p>
+<h2 id="raises">Raises</h2>
+<p>TypeError:
+The output types could not be determined and were not given.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def py(  # noqa:C901
+    fun: Callable[..., Any],
+    *inp: _Target,
+    out: Optional[Sequence[Encoding]] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Union[Artefact, tuple[Artefact, ...]]:
+    &#34;&#34;&#34;Add a python function to the workflow.
+
+    `py(fun, *inp)` puts a python function `fun` on the workflow and returns
+    its output artefact.
+
+    As many arguments will be passed to `fun()` as there are input
+    `types.Artefact` instances in `*inp` and `fun()` should return as many
+    outputs as there are data types in `out=`. By default, `out=` will be
+    inferred from annotations.
+
+    If `strict=False`, the function is taken to do it&#39;s own error handling and
+    arguments will be of type `errors.Result[T]` instead of `T`. See
+    `utils.match_results()` for a convenient way to process these values.
+
+    Python function hashes are generated based on their names (as given by
+    `fun.__qualname__`) and functions are distributed to workers using
+    `cloudpickle`. This is important because it means that:
+
+    - Workers must have access to the function if it is imported, and must
+        have access to any imported libraries.
+
+    - Changing a function without modifiying its name (or modifying the
+        `name=` argument) will not recompute the graph.
+
+    It is the therefore the caller&#39;s responsibility to `reset()` one of the
+    return value of `py()` if the function is modified to ensure re-excution
+    of its dependents.
+
+    Args:
+        fun: Python function that operates on input artefacts and produces a
+            single output artefact.
+        *inp: Input artefacts.
+        out: List of Encoding, one for each output of fun. These are the kind
+            of serialization-deserialization used for the output variables. If
+            None, `out=` is inferred using the type hint of `fun()`. It is
+            `types.Encoding.blob` for all `bytes` outputs and
+            `types.Encoding.json` for anything else.
+        name: Override the name of `fun()` used in hash generation.
+        strict: If `False`, error handling will be deferred to `fun()` by
+            passing it argument of type `errors.Result[bytes]` instead of
+            `bytes`.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+        opt: An `types.Options` instance generated from `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        A single `types.Artefact` instance if `out=` contains only one element
+        or a tuple of `types.Artefact` otherwise.
+
+    Raises:
+        TypeError:
+            The output types could not be determined and were not given.
+
+    &#34;&#34;&#34;
+    # Attempt to infer output
+    if out is None:
+        out = output_types(fun)
+
+    opt = get_options(opt)
+    db = get_db(connection)
+    inputs = {}
+    for k, arg in enumerate(inp):
+        inputs[f&#34;in{k}&#34;] = _artefact(db, arg)
+
+    in_types = dict([(k, val.kind) for k, val in inputs.items()])
+
+    noutputs = len(out)
+    out_type = dict([(f&#34;out{k}&#34;, out[k]) for k in range(noutputs)])
+    out_keys = list(out_type.keys())
+    in_keys = list(in_types.keys())
+
+    if name is not None:
+        fun_name = name
+    else:
+        fun_name = f&#34;mapping_{len(inp)}:{fun.__qualname__}&#34;
+
+    def __map(inpd: Mapping[str, _Data]) -&gt; dict[str, _Data]:
+        &#34;&#34;&#34;Perform a reduction.&#34;&#34;&#34;
+        args = [inpd[key] for key in in_keys]
+        out = fun(*args)
+        if noutputs == 1:
+            out = (out,)
+        return dict(zip(out_keys, out))
+
+    funsie = python_funsie(__map, in_types, out_type, name=fun_name, strict=strict)
+    operation = make_op(db, funsie, inputs, opt)
+    returnval = tuple(
+        [Artefact.grab(db, operation.out[o]) for o in out_keys]  # type:ignore
+    )
+    if len(returnval) == 1:
+        return returnval[0]
+    else:
+        return returnval</code></pre>
+</details>
+</dd>
+<dt id="funsies.reduce"><code class="name flex">
+<span>def <span class="ident">reduce</span></span>(<span>fun: Callable[..., Tout1], *inp: _Target, out: Optional[Encoding] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Artefact[Tout1]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add to workflow a many-to-one python function <code>y = f(*x)</code>.</p>
+<p>This is syntactic sugar around <code><a title="funsies.py" href="#funsies.py">py()</a></code>. By default, the output encoding is
+inferred, and if this fails, is set to match the encoding of the
+arguments if they are all the same. Output encoding can also be
+explicitly set to a given <code><a title="funsies.types.Encoding" href="types.html#funsies.types.Encoding">Encoding</a></code> using the <code>out=</code> keyword.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reduce(
+    fun: Callable[..., Tout1],
+    *inp: _Target,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a many-to-one python function `y = f(*x)`.
+
+    This is syntactic sugar around `py()`. By default, the output encoding is
+    inferred, and if this fails, is set to match the encoding of the
+    arguments if they are all the same. Output encoding can also be
+    explicitly set to a given `types.Encoding` using the `out=` keyword.
+
+    &#34;&#34;&#34;
+    inps = list(inp)
+    db = get_db(connection)
+    inps2 = [_artefact(db, inp) for inp in inps]
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = tuple(set(el.kind for el in inps2))
+            if len(typ) &gt; 1:
+                raise TypeError(
+                    &#34;Inference failed for function reduce(): more than one input type was&#34;
+                    + &#34; passed but no out= encoding.\n&#34;
+                    + &#34;Either explicitly set return with out= or ensures all inputs &#34;
+                    + &#34;have the same encoding.\n&#34;
+                    + f&#34;args: {list(el.kind for el in inps2)}\n&#34;
+                    + f&#34;inferred possible return values: {typ}&#34;
+                )
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use reduce but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;reduce:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        *inps2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.morph"><code class="name flex">
+<span>def <span class="ident">morph</span></span>(<span>fun: Callable[[Tin1], Tout1], inp: Union[Tin1, Artefact[Tin1]], *, out: Optional[Encoding] = None, name: Optional[str] = None, strict: bool = True, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Artefact[Tout1]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add to workflow a one-to-one python function <code>y = f(x)</code>.</p>
+<p>This is syntactic sugar around <code><a title="funsies.py" href="#funsies.py">py()</a></code>. By default, the output type will
+match the input type if it can't be inferred, but it can be set to a given
+<code><a title="funsies.types.Encoding" href="types.html#funsies.types.Encoding">Encoding</a></code> using the <code>out=</code> keyword.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def morph(
+    fun: Callable[[Tin1], Tout1],
+    inp: Union[Tin1, Artefact[Tin1]],
+    *,  # noqa:DAR101,DAR201
+    out: Optional[Encoding] = None,
+    name: Optional[str] = None,
+    strict: bool = True,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[Tout1]:
+    &#34;&#34;&#34;Add to workflow a one-to-one python function `y = f(x)`.
+
+    This is syntactic sugar around `py()`. By default, the output type will
+    match the input type if it can&#39;t be inferred, but it can be set to a given
+    `types.Encoding` using the `out=` keyword.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    inp2 = _artefact(db, inp)
+    if out is None:
+        try:
+            typ = output_types(fun)
+        except TypeError:
+            typ = (inp2.kind,)
+
+        if len(typ) &gt; 1:
+            raise TypeError(
+                &#34;Attempted to use morph but the function has more than one output.\n&#34;
+                + f&#34;inferred return value: {typ}&#34;
+            )
+        else:
+            out = typ[0]
+
+    if name is not None:
+        morpher_name = name
+    else:
+        morpher_name = f&#34;morph:{fun.__qualname__}&#34;
+    out_type = [out]
+    return py(
+        fun,
+        inp2,
+        out=out_type,
+        name=morpher_name,
+        strict=strict,
+        opt=opt,
+        connection=db,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.template"><code class="name flex">
+<span>def <span class="ident">template</span></span>(<span>template: _Template, data: Mapping[str, _Value], strip: bool = True, *, env: Optional[Mapping[str, str]] = None, name: Optional[str] = None, opt: Optional[Options] = None, connection: Optional[Redis[bytes]] = None) ‑> Artefact[bytes]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Fill in a template using data from artefacts.</p>
+<p>This function takes a <a href="https://mustache.github.io/">chevron template</a> and
+fills it with the dictionary <code>data</code>,</p>
+<pre><code class="language-python">funsies = f.template(template, data)
+# corresponds basically to running
+normal = chevron.render(template, data)
+</code></pre>
+<p><code><a title="funsies.template" href="#funsies.template">template()</a></code> is a full-featured funsies function: both the template and
+the data can come from the database and are (as usual) lazily evaluated.
+Substitutions provided in the <code>env=</code> dictionary are expanded using
+environment variables.</p>
+<p>The primary intended use of <code><a title="funsies.template" href="#funsies.template">template()</a></code> is the generation of input
+files for simulation software. For example,</p>
+<pre><code class="language-python"># funsies
+import funsies as f
+
+g16_template = &quot;&quot;&quot;%NProcShared={{nthreads}}
+# {{functional}}/{{basis}} Symm=None {{type}}
+
+Gaussian calculation
+
+{{charge}} {{spin}}
+{{structure}}
+
+&quot;&quot;&quot;
+
+with f.Fun():
+    inp = f.template(
+        g16_template,
+        {
+            &quot;functional&quot;: &quot;b3lyp&quot;,
+            &quot;basis&quot;: &quot;6-31g&quot;,
+            &quot;type&quot;: &quot;sp&quot;,
+            &quot;spin&quot;: 1,
+            # the next two could be obtained eg from conformer generation.
+            &quot;charge&quot;: charge,
+            &quot;structure&quot;: coords,
+        },
+        env={&quot;nthreads&quot;: &quot;OMP_NUM_THREADS&quot;},
+    )
+    dft_job = f.shell(
+        &quot;g16 input.com&quot;, inp={&quot;input.com&quot;: inp}, out=[&quot;input.log&quot;, &quot;data.chk&quot;]
+    )
+</code></pre>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>template</code></strong></dt>
+<dd>The template, either as a string or as an <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a>[str]</code>.</dd>
+<dt><strong><code>data</code></strong></dt>
+<dd>A <code>dict[key, value]</code> of substitutions to perform on the
+template. <code>value</code> can be any type accepted by <code>chevrons</code>
+(<code>str</code> but also <code>int</code>, <code>bytes</code> etc.) and/or <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code>
+objects containing those types.</dd>
+<dt><strong><code>strip</code></strong></dt>
+<dd>If <code>True</code>, substitutions will be <code>.strip()</code> before templating.</dd>
+<dt><strong><code>env</code></strong></dt>
+<dd>A <code>dict[str,str]</code> of substitutions to fill in from the
+environment variables of the worker process.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Provide an explicit name to the template.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called within a
+<code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+<dt><strong><code>opt</code></strong></dt>
+<dd>An <code><a title="funsies.types.Options" href="types.html#funsies.types.Options">Options</a></code> instance as returned by <code><a title="funsies.options" href="#funsies.options">options()</a></code>. Not
+required if called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>An <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a>[bytes]</code> object, populated with the generated
+template as a bytestring.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def template(
+    template: _Template,
+    data: Mapping[str, _Value],
+    strip: bool = True,
+    *,
+    env: Optional[Mapping[str, str]] = None,
+    name: Optional[str] = None,
+    opt: Optional[Options] = None,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[bytes]:
+    &#34;&#34;&#34;Fill in a template using data from artefacts.
+
+    This function takes a [chevron template](https://mustache.github.io/) and
+    fills it with the dictionary ``data``,
+
+    ```python
+    funsies = f.template(template, data)
+    # corresponds basically to running
+    normal = chevron.render(template, data)
+    ```
+
+    ``template()`` is a full-featured funsies function: both the template and
+    the data can come from the database and are (as usual) lazily evaluated.
+    Substitutions provided in the ``env=`` dictionary are expanded using
+    environment variables.
+
+    The primary intended use of ``template()`` is the generation of input
+    files for simulation software. For example,
+
+    ```python
+    # funsies
+    import funsies as f
+
+    g16_template = \&#34;&#34;&#34;%NProcShared={{nthreads}}
+    # {{functional}}/{{basis}} Symm=None {{type}}
+
+    Gaussian calculation
+
+    {{charge}} {{spin}}
+    {{structure}}
+
+    \&#34;&#34;&#34;
+
+    with f.Fun():
+        inp = f.template(
+            g16_template,
+            {
+                &#34;functional&#34;: &#34;b3lyp&#34;,
+                &#34;basis&#34;: &#34;6-31g&#34;,
+                &#34;type&#34;: &#34;sp&#34;,
+                &#34;spin&#34;: 1,
+                # the next two could be obtained eg from conformer generation.
+                &#34;charge&#34;: charge,
+                &#34;structure&#34;: coords,
+            },
+            env={&#34;nthreads&#34;: &#34;OMP_NUM_THREADS&#34;},
+        )
+        dft_job = f.shell(
+            &#34;g16 input.com&#34;, inp={&#34;input.com&#34;: inp}, out=[&#34;input.log&#34;, &#34;data.chk&#34;]
+        )
+    ```
+
+    Args:
+        template: The template, either as a string or as an ``types.Artefact[str]``.
+        data: A ``dict[key, value]`` of substitutions to perform on the
+            template. ``value`` can be any type accepted by ``chevrons``
+            (``str`` but also ``int``, ``bytes`` etc.) and/or ``types.Artefact``
+            objects containing those types.
+        strip: If `True`, substitutions will be ``.strip()`` before templating.
+        env: A ``dict[str,str]`` of substitutions to fill in from the
+            environment variables of the worker process.
+        name: Provide an explicit name to the template.
+        connection: An explicit Redis connection. Not required if called within a
+            `Fun()` context.
+        opt: An `types.Options` instance as returned by `options()`. Not
+            required if called within a `Fun()` context.
+
+    Returns:
+        An `types.Artefact[bytes]` object, populated with the generated
+        template as a bytestring.
+    &#34;&#34;&#34;  # noqa:D300,D301
+    # Get context elements
+    opt = get_options(opt)
+    db = get_db(connection)
+
+    # Make sure template is a string in the db
+    if isinstance(template, bytes):
+        tmp = _artefact(db, template.decode())
+    else:
+        tmp = _artefact(db, template)  # type:ignore
+
+    # Make sure all substitutions are strings in the db
+    args = dict()
+    for key, value in data.items():
+        if isinstance(value, bytes):
+            value = value.decode()
+        args[key] = _artefact(db, value)
+
+    template_key = &#34;template&#34;
+    while template_key in args:
+        template_key += &#34;_&#34;  # append more _ until template_key is unique
+
+    env_key = &#34;env&#34;
+    while env_key in args:
+        env_key += &#34;_&#34;  # append more _ until template_key is unique
+
+    args[template_key] = tmp
+    args[env_key] = _artefact(db, env)
+
+    in_types = dict([(k, val.kind) for k, val in args.items()])
+
+    if name is not None:
+        fun_name = name
+    else:
+        do_strip = &#34;&#34;
+        if strip:
+            do_strip = &#34;, stripped&#34;
+        fun_name = f&#34;template (chevrons{do_strip})&#34;
+
+    def __exec(inpd: Mapping[str, Any]) -&gt; dict[str, bytes]:
+        &#34;&#34;&#34;Substitute into template.&#34;&#34;&#34;
+        args = {}
+        for key, val in inpd.items():
+            if isinstance(val, bytes):
+                val = val.decode()
+            if isinstance(val, str) and strip and key != template_key:
+                val = val.strip()
+            args[key] = val
+
+        # read template
+        template = args[template_key]
+
+        # read env variables
+        if args[env_key] is not None:
+            env = args[env_key]
+            for key, val in env.items():
+                args[key] = os.environ.get(val)
+
+        del args[template_key]
+        del args[env_key]
+
+        return {&#34;out&#34;: chevron.render(template, args).encode()}
+
+    funsie = python_funsie(
+        __exec, in_types, {&#34;out&#34;: Encoding.blob}, name=fun_name, strict=True
+    )
+    operation = make_op(db, funsie, args, opt)
+    return Artefact.grab(db, operation.out[&#34;out&#34;])</code></pre>
+</details>
+</dd>
+<dt id="funsies.take"><code class="name flex">
+<span>def <span class="ident">take</span></span>(<span>where: Artefact[T], *, strict: bool = True, connection: Optional[Redis[bytes]] = None) ‑> Union[T, Result[T]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Take data corresponding to a given artefact from Redis.</p>
+<p><code><a title="funsies.take" href="#funsies.take">take()</a></code> returns the currently held value of pointed to by the
+<code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instance <code>where</code> as <code>bytes</code>.</p>
+<p>If <code>strict=True</code> (the default) and <code>where</code> points to an <code><a title="funsies.types.Error" href="types.html#funsies.types.Error">Error</a></code>
+value, this function will raise <code><a title="funsies.errors.UnwrapError" href="errors.html#funsies.errors.UnwrapError">UnwrapError</a></code>. This is equivalent
+to running <code><a title="funsies.unwrap" href="#funsies.unwrap">unwrap()</a></code> on the return value.</p>
+<p>However if <code>strict=False</code>, the return value of <code><a title="funsies.take" href="#funsies.take">take()</a></code> is a
+<code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[bytes]</code> variable, that is, either an instance of <code>bytes</code> or
+whatever <code><a title="funsies.types.Error" href="types.html#funsies.types.Error">Error</a></code> is currently held by <code>where</code>.</p>
+<p>Finally, if <code>where</code> does not point to a valid redis-backed
+<code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> an <code><a title="funsies.errors.Error" href="errors.html#funsies.errors.Error">Error</a></code> is returned of kind
+<code><a title="funsies.errors.ErrorKind.Mismatch" href="errors.html#funsies.errors.ErrorKind.Mismatch">ErrorKind.Mismatch</a></code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>where</code></strong></dt>
+<dd><code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> pointer to data taken from the database.</dd>
+<dt><strong><code>strict</code></strong></dt>
+<dd>If <code>False</code>, return a value of type <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[bytes]</code>.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called
+within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Either <code>bytes</code> or <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[bytes]</code> depending on strictness.</p>
+<h2 id="raises">Raises</h2>
+<p>errors.UnwrapError:
+if <code>where</code> contains an <code><a title="funsies.errors.Error" href="errors.html#funsies.errors.Error">Error</a></code> and <code>strict=True</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def take(
+    where: Artefact[T],
+    *,
+    strict: bool = True,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Union[T, Result[T]]:
+    &#34;&#34;&#34;Take data corresponding to a given artefact from Redis.
+
+    `take()` returns the currently held value of pointed to by the
+    `types.Artefact` instance `where` as `bytes`.
+
+    If `strict=True` (the default) and `where` points to an `types.Error`
+    value, this function will raise `errors.UnwrapError`. This is equivalent
+    to running `unwrap()` on the return value.
+
+    However if `strict=False`, the return value of `take()` is a
+    `errors.Result[bytes]` variable, that is, either an instance of `bytes` or
+    whatever `types.Error` is currently held by `where`.
+
+    Finally, if `where` does not point to a valid redis-backed
+    `types.Artefact` an `errors.Error` is returned of kind
+    `errors.ErrorKind.Mismatch`.
+
+    Args:
+        where: `types.Artefact` pointer to data taken from the database.
+        strict: If `False`, return a value of type `errors.Result[bytes]`.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+
+    Returns:
+        Either `bytes` or `errors.Result[bytes]` depending on strictness.
+
+    Raises:
+        errors.UnwrapError:
+            if `where` contains an `errors.Error` and `strict=True`.
+
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    dat = get_data(db, where)
+    __log_error(where.hash, dat)
+    if strict:
+        return unwrap(dat)
+    else:
+        return dat</code></pre>
+</details>
+</dd>
+<dt id="funsies.takeout"><code class="name flex">
+<span>def <span class="ident">takeout</span></span>(<span>where: Artefact, filename: _AnyPath, *, connection: Optional[Redis[bytes]] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p><code><a title="funsies.take" href="#funsies.take">take()</a></code> an artefact and save it to <code>filename</code>.</p>
+<p>This is syntactic sugar around <code><a title="funsies.take" href="#funsies.take">take()</a></code>. This function is always strict.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def takeout(
+    where: Artefact,
+    filename: _AnyPath,
+    *,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; None:  # noqa:DAR101,DAR201
+    &#34;&#34;&#34;`take()` an artefact and save it to `filename`.
+
+    This is syntactic sugar around `take()`. This function is always strict.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    dat = get_bytes(db, where)
+    __log_error(where.hash, dat)
+    dat = unwrap(dat)
+    with open(filename, &#34;wb&#34;) as f:
+        f.write(dat)</code></pre>
+</details>
+</dd>
+<dt id="funsies.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>value: T, *, connection: Optional[Redis[bytes]] = None) ‑> Artefact[T]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save data to Redis and return an Artefact.</p>
+<p><code><a title="funsies.put" href="#funsies.put">put()</a></code> explicitly saves <code>value</code>, a bytes or string value, to the database
+and return an <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> pointing to this value.</p>
+<p>The returned artefact's status is <code><a title="funsies.types.ArtefactStatus.const" href="types.html#funsies.types.ArtefactStatus.const">ArtefactStatus.const</a></code> and its
+parent hash is <code>root</code>. This means that:</p>
+<ul>
+<li>The arterfact is populated before any workflow operation is executed.</li>
+<li>It has no dependencies</li>
+<li>It is hashed according to content, not history.</li>
+</ul>
+<p>Thus, <code><a title="funsies.put" href="#funsies.put">put()</a></code> is used to set input values to workflows.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>value</code></strong></dt>
+<dd>Data to be held in database. <code>str</code> data is encoded to <code>bytes</code>.</dd>
+<dt><strong><code>connection</code></strong> :&ensp;<code>optional</code></dt>
+<dd>An explicit Redis connection. Not required if
+called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>An <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> instance with status <code>const</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(
+    value: T,
+    *,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; Artefact[T]:
+    &#34;&#34;&#34;Save data to Redis and return an Artefact.
+
+    `put()` explicitly saves `value`, a bytes or string value, to the database
+    and return an `types.Artefact` pointing to this value.
+
+    The returned artefact&#39;s status is `types.ArtefactStatus.const` and its
+    parent hash is `root`. This means that:
+
+    - The arterfact is populated before any workflow operation is executed.
+    - It has no dependencies
+    - It is hashed according to content, not history.
+
+    Thus, `put()` is used to set input values to workflows.
+
+    Args:
+        value: Data to be held in database. `str` data is encoded to `bytes`.
+        connection (optional): An explicit Redis connection. Not required if
+            called within a `Fun()` context.
+
+    Returns:
+        An `types.Artefact` instance with status `const`.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    return _artefact(db, value)</code></pre>
+</details>
+</dd>
+<dt id="funsies.execute"><code class="name flex">
+<span>def <span class="ident">execute</span></span>(<span>*outputs: Union[Operation, Artefact, ShellOutput], connection: Optional[Redis[bytes]] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Trigger execution of a workflow to obtain a given output.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>*outputs</code></strong></dt>
+<dd>Final artefacts or operations to be evaluated in the
+workflow. These objects and all of their dependencies will be
+executed by workers.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called
+within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def execute(
+    *outputs: Union[Operation, Artefact, ShellOutput],
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; None:
+    &#34;&#34;&#34;Trigger execution of a workflow to obtain a given output.
+
+    Args:
+        *outputs: Final artefacts or operations to be evaluated in the
+            workflow. These objects and all of their dependencies will be
+            executed by workers.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+    &#34;&#34;&#34;
+    # get redis
+    db = get_db(connection)
+
+    # run dag
+    for el in outputs:
+        start_dag_execution(db, el.hash)</code></pre>
+</details>
+</dd>
+<dt id="funsies.wait_for"><code class="name flex">
+<span>def <span class="ident">wait_for</span></span>(<span>thing: Union[ShellOutput, Artefact, Operation], timeout: Optional[float] = None, *, connection: Optional[Redis[bytes]] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Block execution until an artefact is generated or an operation is executed.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>thing</code></strong></dt>
+<dd><code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> or operation to wait on.</dd>
+<dt><strong><code>timeout</code></strong> :&ensp;<code>optional</code></dt>
+<dd>Number of seconds to wait for before raising an
+exception. If unspecified, timeout is taken to be infinite.</dd>
+<dt><strong><code>connection</code></strong> :&ensp;<code>optional</code></dt>
+<dd>An explicit Redis connection. Not required if
+called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>TimeoutError</code></dt>
+<dd>if timeout is exceeded.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wait_for(
+    thing: Union[ShellOutput, Artefact, Operation],
+    timeout: Optional[float] = None,
+    *,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; None:
+    &#34;&#34;&#34;Block execution until an artefact is generated or an operation is executed.
+
+    Args:
+        thing: `types.Artefact` or operation to wait on.
+        timeout (optional): Number of seconds to wait for before raising an
+            exception. If unspecified, timeout is taken to be infinite.
+        connection (optional): An explicit Redis connection. Not required if
+            called within a `Fun()` context.
+
+    Raises:
+        TimeoutError: if timeout is exceeded.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    if isinstance(thing, Artefact):
+
+        def __stat() -&gt; bool:
+            return get_status(db, resolve_link(db, thing.hash)) &gt; 0
+
+    else:
+        if isinstance(thing, Operation):
+            op = thing
+        else:
+            op = thing.op
+
+        def __stat() -&gt; bool:
+            return is_it_cached(db, op)
+
+    t0 = time.time()
+    while True:
+        t1 = time.time()
+
+        if __stat():
+            return
+
+        if timeout is not None:
+            if t1 - t0 &gt; timeout:
+                raise TimeoutError(
+                    f&#34;waited on {shorten_hash(thing.hash)} &#34; + f&#34;for {t1-t0} seconds.&#34;
+                )
+
+        # avoids hitting the DB way too often
+        time.sleep(0.3)</code></pre>
+</details>
+</dd>
+<dt id="funsies.reset"><code class="name flex">
+<span>def <span class="ident">reset</span></span>(<span>thing: Union[ShellOutput, Operation, Artefact], *, recursive: bool = True, connection: Optional[Redis[bytes]] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Reset data associated with an operation and its dependents.</p>
+<p>This function deletes data associated with an operation or the operation
+generating a given artefact without actually removing it from the
+workflow. This is useful if an operation failed due to circumstances
+outside of the control of <code><a title="funsies" href="#funsies">funsies</a></code>, such as a non-reproducible step or
+worker setup error. When the workflow is executed again, all the <code><a title="funsies.reset" href="#funsies.reset">reset()</a></code>
+steps will be re-computed.</p>
+<p>By default, <code><a title="funsies.reset" href="#funsies.reset">reset()</a></code> is applied recursively to all dependents of an
+operation.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>thing</code></strong></dt>
+<dd>Operation to reset. If an <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> is given, its parent
+operation is <code><a title="funsies.reset" href="#funsies.reset">reset()</a></code>.</dd>
+<dt><strong><code>recursive</code></strong></dt>
+<dd>If False, only this operation is reset; its dependents are
+untouched. Note that this is dangerous, as it can make
+non-reproducible workflows.</dd>
+<dt><strong><code>connection</code></strong></dt>
+<dd>An explicit Redis connection. Not required if called
+within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<p>AttributeError:
+when an <code><a title="funsies.types.Artefact" href="types.html#funsies.types.Artefact">Artefact</a></code> is reset that has status
+<code><a title="funsies.types.ArtefactStatus.const" href="types.html#funsies.types.ArtefactStatus.const">ArtefactStatus.const</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reset(
+    thing: Union[ShellOutput, Operation, Artefact],
+    *,
+    recursive: bool = True,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; None:
+    &#34;&#34;&#34;Reset data associated with an operation and its dependents.
+
+    This function deletes data associated with an operation or the operation
+    generating a given artefact without actually removing it from the
+    workflow. This is useful if an operation failed due to circumstances
+    outside of the control of `funsies`, such as a non-reproducible step or
+    worker setup error. When the workflow is executed again, all the `reset()`
+    steps will be re-computed.
+
+    By default, `reset()` is applied recursively to all dependents of an
+    operation.
+
+    Args:
+        thing: Operation to reset. If an `types.Artefact` is given, its parent
+            operation is `reset()`.
+        recursive: If False, only this operation is reset; its dependents are
+            untouched. Note that this is dangerous, as it can make
+            non-reproducible workflows.
+        connection: An explicit Redis connection. Not required if called
+            within a `Fun()` context.
+
+    Raises:
+        AttributeError:
+            when an `types.Artefact` is reset that has status
+            `types.ArtefactStatus.const`.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    if isinstance(thing, Artefact):
+        h = thing.parent
+        if h == &#34;root&#34;:
+            raise AttributeError(&#34;attempted to delete a const artefact.&#34;)
+    else:
+        h = thing.hash
+
+    # Delete everything from the operation
+    op = Operation.grab(db, h)
+    for art in op.out.values():
+        delete_artefact(db, art)
+
+    if recursive:
+        # and its dependencies
+        for el in descendants(db, h):
+            op = Operation.grab(db, el)
+            for art in op.out.values():
+                delete_artefact(db, art)</code></pre>
+</details>
+</dd>
+<dt id="funsies.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>target: str, connection: Optional[Redis[bytes]] = None) ‑> list[Union[Artefact, Funsie, Operation]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get object or objects that correspond to a given hash value.</p>
+<p><code><a title="funsies.get" href="#funsies.get">get()</a></code> returns a list of objects (<code>Artefact</code>, <code>Operation</code> and <code>Funsie</code>
+instances) currently on the active Redis connection that have a hash
+address starting with <code>target</code>. This function allows programatically
+retrieving hashes like the <code>funsies cat</code> command does.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>target</code></strong></dt>
+<dd>A hash or truncated hash value.</dd>
+<dt><strong><code>connection</code></strong> :&ensp;<code>optional</code></dt>
+<dd>An explicit Redis connection. Not required if
+called within a <code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A list of objects with ids that start with <code>target</code>. Empty if no such
+objects exist.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(
+    target: str,
+    connection: Optional[Redis[bytes]] = None,
+) -&gt; list[Union[Artefact, Funsie, Operation]]:
+    &#34;&#34;&#34;Get object or objects that correspond to a given hash value.
+
+    `get()` returns a list of objects (`Artefact`, `Operation` and `Funsie`
+    instances) currently on the active Redis connection that have a hash
+    address starting with `target`. This function allows programatically
+    retrieving hashes like the ```funsies cat``` command does.
+
+    Args:
+        target: A hash or truncated hash value.
+        connection (optional): An explicit Redis connection. Not required if
+            called within a `Fun()` context.
+
+    Returns:
+        A list of objects with ids that start with `target`. Empty if no such
+        objects exist.
+    &#34;&#34;&#34;
+    db = get_db(connection)
+    hashes = hash_load(db, target)
+    out: list[Union[Artefact, Funsie, Operation]] = []
+    for h in hashes:
+        if db.exists(c.join(c.ARTEFACTS, h)):
+            logger.debug(f&#34;{h} is Artefact&#34;)
+            out += [Artefact.grab(db, h)]
+
+        elif db.exists(c.join(c.FUNSIES, h)):
+            logger.debug(f&#34;{h} is Funsie&#34;)
+            out += [Funsie.grab(db, h)]
+
+        elif db.exists(c.join(c.OPERATIONS, h)):
+            logger.debug(f&#34;{h} is Operation&#34;)
+            out += [Operation.grab(db, h)]
+
+        else:
+            logger.debug(f&#34;{h} does not exist&#34;)
+    return out</code></pre>
+</details>
+</dd>
+<dt id="funsies.Fun"><code class="name flex">
+<span>def <span class="ident">Fun</span></span>(<span>connection: Optional[Redis[bytes]] = None, defaults: Optional[Options] = None, cleanup: bool = False) ‑> Iterator[Redis[bytes]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Context manager for redis connections.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def Fun(
+    connection: Optional[Redis[bytes]] = None,
+    defaults: Optional[Options] = None,
+    cleanup: bool = False,
+) -&gt; Iterator[Redis[bytes]]:
+    &#34;&#34;&#34;Context manager for redis connections.&#34;&#34;&#34;
+    if connection is None:
+        logger.warning(&#34;Opening new redis connection with default settings...&#34;)
+        url = _get_funsies_url()
+        hn = _extract_hostname(url)
+        connection = Redis.from_url(url, decode_responses=False)
+        logger.success(f&#34;connected to {hn}&#34;)
+
+    if defaults is None:
+        defaults = Options()
+
+    if cleanup:
+        cleanup_funsies(connection)
+
+    _connect_stack.push(connection)
+    _options_stack.push(defaults)
+
+    # also push on rq
+    # TODO maybe just use the RQ version of this?
+    rq.connections.push_connection(connection)
+    try:
+        yield _connect_stack.top
+    finally:
+        popped = _connect_stack.pop()
+        assert popped == connection, (
+            &#34;Unexpected Redis connection was popped off the stack. &#34;
+            &#34;Check your Redis connection setup.&#34;
+        )
+        rq.connections.pop_connection()
+        _ = _options_stack.pop()</code></pre>
+</details>
+</dd>
+<dt id="funsies.ManagedFun"><code class="name flex">
+<span>def <span class="ident">ManagedFun</span></span>(<span>nworkers: int = 1, worker_args: Optional[Sequence[str]] = None, redis_args: Optional[Sequence[str]] = None, defaults: Optional[Options] = None, directory: Optional[_AnyPath] = None) ‑> Iterator[Redis[bytes]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Make a fully managed funsies db.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def ManagedFun(
+    nworkers: int = 1,
+    worker_args: Optional[Sequence[str]] = None,
+    redis_args: Optional[Sequence[str]] = None,
+    defaults: Optional[Options] = None,
+    directory: Optional[_AnyPath] = None,
+) -&gt; Iterator[Redis[bytes]]:
+    &#34;&#34;&#34;Make a fully managed funsies db.&#34;&#34;&#34;
+    if directory is None:
+        dir = tempfile.mkdtemp()
+    else:
+        dir = str(directory)
+
+    logger.debug(f&#34;running redis-server in {dir}&#34;)
+
+    if worker_args is not None:
+        wargs = [el for el in worker_args]
+    else:
+        wargs = []
+
+    if redis_args is not None:
+        rargs = [el for el in redis_args]
+    else:
+        rargs = []
+
+    # Start redis
+    port = 16379
+    url = f&#34;redis://localhost:{port}&#34;
+    cmdline = [&#34;redis-server&#34;] + rargs + [&#34;--port&#34;, f&#34;{port}&#34;]
+
+    redis_server = subprocess.Popen(
+        cmdline,
+        cwd=dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    # TODO:CHECK that server started successfully
+    time.sleep(0.1)
+    logger.debug(f&#34;redis running at {url}&#34;)
+
+    # spawn workers
+    logger.debug(f&#34;spawning {nworkers} funsies workers&#34;)
+    worker_pool = [
+        subprocess.Popen([&#34;funsies&#34;, &#34;--url&#34;, url, &#34;worker&#34;] + wargs, cwd=dir)
+        for i in range(nworkers)
+    ]
+
+    try:
+        logger.success(f&#34;{nworkers} workers connected to {url}&#34;)
+        with Fun(Redis.from_url(url), defaults=defaults) as db:
+            yield db
+    finally:
+        logger.debug(&#34;terminating worker pool and server&#34;)
+        for w in worker_pool:
+            w.kill()
+            w.wait()
+        # stop db
+        db.shutdown()  # type:ignore
+        db.connection_pool.disconnect()
+        redis_server.wait()
+        if directory is None:
+            shutil.rmtree(dir)
+        logger.success(&#34;stopping managed fun&#34;)</code></pre>
+</details>
+</dd>
+<dt id="funsies.options"><code class="name flex">
+<span>def <span class="ident">options</span></span>(<span>**kwargs: Any) ‑> <a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set operation and workflow options.</p>
+<p>This function sets specific configuration options for an operation or a
+workflow that do not change hash values or cause re-execution, but do
+change runtime behaviour, such as job timeouts, queue selection, etc.
+Available options and their names are described in the entry for
+<code><a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></code>.</p>
+<p>This function wraps the <code><a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></code> with layering of default values.
+The value of each attribute of <code><a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></code> is set based on:</p>
+<ol>
+<li>
+<p>The values set by the <code>**kwargs</code> dictionary.</p>
+</li>
+<li>
+<p>The values set in the <code>**kwargs</code> dictionary of the enclosing
+<code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code> context, if <code>default=options(**kwargs)</code> is passed to
+<code><a title="funsies.Fun" href="#funsies.Fun">Fun()</a></code>.</p>
+</li>
+<li>
+<p>The default values in <code><a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></code>.</p>
+</li>
+</ol>
+<p>This allows layering of fairly complex runtime behaviour.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def options(**kwargs: Any) -&gt; Options:
+    &#34;&#34;&#34;Set operation and workflow options.
+
+    This function sets specific configuration options for an operation or a
+    workflow that do not change hash values or cause re-execution, but do
+    change runtime behaviour, such as job timeouts, queue selection, etc.
+    Available options and their names are described in the entry for
+    `config.Options`.
+
+    This function wraps the `config.Options` with layering of default values.
+    The value of each attribute of `config.Options` is set based on:
+
+    1. The values set by the `**kwargs` dictionary.
+
+    2. The values set in the `**kwargs` dictionary of the enclosing
+    `funsies.Fun()` context, if `default=options(**kwargs)` is passed to
+    `funsies.Fun()`.
+
+    3. The default values in `config.Options`.
+
+    This allows layering of fairly complex runtime behaviour.
+
+    &#34;&#34;&#34;
+    if _options_stack.top is None:
+        return Options(**kwargs)
+    else:
+        defaults: Options = _options_stack.top
+        return replace(defaults, **kwargs)</code></pre>
+</details>
+</dd>
+<dt id="funsies.unwrap"><code class="name flex">
+<span>def <span class="ident">unwrap</span></span>(<span>it: Result[T]) ‑> ~T</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Unwrap a <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a></code> type.</p>
+<p>Unwrap <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[T]</code> and return <code>T</code>. If <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[T]</code> is of type
+<code>Error</code>, this function raises <code><a title="funsies.errors.UnwrapError" href="errors.html#funsies.errors.UnwrapError">UnwrapError</a></code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>it</code></strong></dt>
+<dd>An object of type <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[T]</code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The value of it with type <code>T</code>.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>UnwrapError</code></dt>
+<dd><code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a>[T]</code> is an <code><a title="funsies.errors.Error" href="errors.html#funsies.errors.Error">Error</a></code> instance.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def unwrap(it: Result[T]) -&gt; T:
+    &#34;&#34;&#34;Unwrap a `errors.Result` type.
+
+    Unwrap `errors.Result[T]` and return `T`. If `errors.Result[T]` is of type
+    `Error`, this function raises `errors.UnwrapError`.
+
+    Args:
+        it: An object of type `errors.Result[T]`.
+
+    Returns:
+        The value of it with type `T`.
+
+    Raises:
+        UnwrapError: `errors.Result[T]` is an `errors.Error` instance.
+
+    &#34;&#34;&#34;
+    if isinstance(it, Error):
+        raise UnwrapError(
+            f&#34;data is errored: kind={it.kind}&#34;
+            + f&#34;\nsource={it.source}&#34;
+            + f&#34;\ndetails={it.details}&#34;
+        )
+    else:
+        return it</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="funsies.config" href="config.html">funsies.config</a></code></li>
+<li><code><a title="funsies.debug" href="debug.html">funsies.debug</a></code></li>
+<li><code><a title="funsies.dynamic" href="dynamic.html">funsies.dynamic</a></code></li>
+<li><code><a title="funsies.errors" href="errors.html">funsies.errors</a></code></li>
+<li><code><a title="funsies.fp" href="fp.html">funsies.fp</a></code></li>
+<li><code><a title="funsies.parametric" href="parametric.html">funsies.parametric</a></code></li>
+<li><code><a title="funsies.types" href="types.html">funsies.types</a></code></li>
+<li><code><a title="funsies.ui" href="ui.html">funsies.ui</a></code></li>
+<li><code><a title="funsies.utils" href="utils.html">funsies.utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="funsies.shell" href="#funsies.shell">shell</a></code></li>
+<li><code><a title="funsies.py" href="#funsies.py">py</a></code></li>
+<li><code><a title="funsies.reduce" href="#funsies.reduce">reduce</a></code></li>
+<li><code><a title="funsies.morph" href="#funsies.morph">morph</a></code></li>
+<li><code><a title="funsies.template" href="#funsies.template">template</a></code></li>
+<li><code><a title="funsies.take" href="#funsies.take">take</a></code></li>
+<li><code><a title="funsies.takeout" href="#funsies.takeout">takeout</a></code></li>
+<li><code><a title="funsies.put" href="#funsies.put">put</a></code></li>
+<li><code><a title="funsies.execute" href="#funsies.execute">execute</a></code></li>
+<li><code><a title="funsies.wait_for" href="#funsies.wait_for">wait_for</a></code></li>
+<li><code><a title="funsies.reset" href="#funsies.reset">reset</a></code></li>
+<li><code><a title="funsies.get" href="#funsies.get">get</a></code></li>
+<li><code><a title="funsies.Fun" href="#funsies.Fun">Fun</a></code></li>
+<li><code><a title="funsies.ManagedFun" href="#funsies.ManagedFun">ManagedFun</a></code></li>
+<li><code><a title="funsies.options" href="#funsies.options">options</a></code></li>
+<li><code><a title="funsies.unwrap" href="#funsies.unwrap">unwrap</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
