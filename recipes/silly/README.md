@@ -2,11 +2,11 @@
 
 Here, we have a [funsies-based implementation](./mergesort.py) of the
 mergesort algorithm, using recursion. This is quite possibly the least
-efficient way to sort a list of integers,[^1] but it does demonstrate quite
-effectively dynamic DAG generation. The attached script will sort a random
-list of 120 integers, which requires 7 nested workflows, all generated
-recursively and dynamically. The final graph [is rather
-interesting.](./mergesort.pdf)
+efficient way to sort a list of integers (parallel though! 😁), but it does
+demonstrate quite effectively dynamic DAG generation. The attached script will
+sort a random list of 120 integers, which requires 7 nested workflows, all
+generated recursively and dynamically. The final graph [is rather
+interesting.](./graph.pdf)
 
 The main challenge in this toy example is that we have to terminate our
 recursions without explicitly extracting the funsies data (for euhm
@@ -22,4 +22,3 @@ demonstrates how funsies can be used for pure python problems.
 
 
 
-[^1]: It's highly parallelizable though :-D
