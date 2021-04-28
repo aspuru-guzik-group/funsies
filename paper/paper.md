@@ -111,7 +111,7 @@ tolerance.
 
 The main distinguishing feature of `funsies` is the hash tree structure that
 is used to encode all operations and their inputs. The causal hashing approach
-used in `funsies` can also be found in Snakemake [@mlder_sustainable_2021] as
+used in `funsies` can also be found in Snakemake [@molder_sustainable_2021] as
 an optional component and the (now defunct) Koji workflow
 system [@maymounkov_koji_2018], as part of the Nix package
 manager [@dolstra_nix_2004] and in the Git version control
