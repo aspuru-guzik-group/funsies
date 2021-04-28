@@ -14,7 +14,9 @@ using the distributed job queue library [RQ](https://python-rq.org/). A hash
 tree data structure enables automatic and transparent caching and incremental
 computing.
 
-[Source docs can be found here.](https://aspuru-guzik-group.github.io/funsies/)
+[Source docs can be found
+here.](https://aspuru-guzik-group.github.io/funsies/) Some example funsies
+scripts can be found in the [recipes folder.](./recipes)
 
 ## Installation
 Using `pip`, 

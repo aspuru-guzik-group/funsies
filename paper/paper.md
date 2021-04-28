@@ -1,4 +1,4 @@
---
+---
 title: 'funsies: A minimalist, distributed and dynamic workflow engine'
 tags:
   - workflow
@@ -14,8 +14,7 @@ authors:
     orcid: 0000-0002-8277-4434
     affiliation: "1, 2, 3, 4"
 affiliations:
-  - name: Department of Computer Science, University of Toronto, 40 St. George
- St, Toronto, Ontario M5S 2E4, Canada
+  - name: Department of Computer Science, University of Toronto, 40 St. George St, Toronto, Ontario M5S 2E4, Canada
     index: 1
   - name: Chemical Physics Theory Group, Department of Chemistry, University of Toronto, 80 St. George St, Toronto, Ontario M5S 3H6, Canada
     index: 2
@@ -25,7 +24,6 @@ affiliations:
     index: 4
 date: 27 April 2021
 bibliography: paper.bib
-
 ---
 
 # Summary
@@ -33,12 +31,12 @@ bibliography: paper.bib
 Large-scale, high-throughput computational investigations are increasingly
 common in chemistry and physics. Until recently, computational chemistry was
 primarily performed using all-in-one monolithic software
-packages.[@smith_psi4_2020; @aquilante_modern_2020; @kuhne_cp2k_2020;
-@apra_nwchem_2020; @barca_recent_2020; @romero_abinit_2020] However, the
+packages [@smith:2020; @aquilante:2020; @kuhne:2020;
+@apra:2020; @barca:2020; @romero:2020]. However, the
 limits of individual programs become evident when tackling complex
 multifaceted problems. As such, it is increasingly common to use multiple
-disparate software packages in a single computational pipeline,
-[@pollice_organic_2021] often stitched together using shell scripts in
+disparate software packages in a single computational pipeline, 
+ often stitched together using shell scripts in
 languages such as Bash, or using Python and other interpreted languages.
 
 These complex computational pipelines are difficult to scale and automate, as
@@ -46,12 +44,12 @@ they often include manual steps and significant “human-in-the-loop” tuning.
 Shell scripting errors are often undetected, which can compromise
 scientific results. Conversely, exception-based error handling, the standard
 approach in Python, can readily bring a computational workflow to a halt when
-exceptions are not properly caught.[@weimer_exceptional_2008]
+exceptions are not properly caught [@weimer:2008].
 
 `funsies` is a set of python programs and modules to describe, execute and
 analyze computational workflows, with first-class support for shell scripting.
 It includes a lightweight, decentralized workflow engine backed by a NoSQL
-store.[@redis] Using `funsies`, external program and python-based computations
+store. Using `funsies`, external program and python-based computations
 are easily mixed together. Errors are detected and propagated throughout
 computations. Automatic, transparent incremental computing (based on a hash
 tree data structure) provides a convenient environment for iterative
@@ -61,15 +59,15 @@ prototyping of computationally expensive workflows.
 
 
 Modern workflow management programs used in the private sector, such as Apache
-Airflow CITE:11/link? and Cadence CITE:12/link?, are robust and extremely
-scalable, but are difficult to deploy. Scientific workflow management systems,
-such as Snakemake and others, CITE:13 are easier to set up on high-performance
-computing clusters, but are tuned to the needs of specific disciplines, such
-as bioinformatics or machine learning. This includes, for example, the use of
-configuration file formats (YAML, JSON, etc.), packaging tools (for example,
-conda or Docker), locked-in compute providers (Amazon Web Services, Google
-Cloud) and storage formats that may be common in specific scientific fields
-but not throughout the greater community.
+Airflow and Uber's Cadence, are robust and extremely scalable,
+but are difficult to deploy. Scientific workflow management systems, such as
+Snakemake and others [@molder_sustainable_2021], are easier to set up on
+high-performance computing clusters, but are tuned to the needs of specific
+disciplines, such as bioinformatics or machine learning. This includes, for
+example, the use of configuration file formats (YAML, JSON, etc.), packaging
+tools (for example, conda or Docker), locked-in compute providers (Amazon Web
+Services, Google Cloud) and storage formats that may be common in specific
+scientific fields but not throughout the greater community.
 
 For our own group's research program, we wanted to have available a
 lightweight workflow management system that could be readily deployed to new
@@ -77,10 +75,11 @@ and varied computational facilities and local workstations with minimal
 effort. This system had to support our existing shell-based and Python-based
 scripts, and be flexible enough for rapid prototyping all the way to
 large-scale computational campaigns, and provide an embeddable solution that
-can be bundled within other software. CITE:14 Finally, we were looking for a
-tool that could integrate data generation and storage, to avoid the common
-practice of transforming the filesystem into what is effectively a schema-less
-database. We developed `funsies` to address those needs.
+can be bundled within other software [@lavigne_automatic_2020]. Finally, we
+were looking for a tool that could integrate data generation and storage, to
+avoid the common practice of transforming the filesystem into what is
+effectively a schema-less database. We developed `funsies` to address those
+needs.
 
 
 # Features and Implementation
@@ -103,19 +102,22 @@ are already cached, and if not, executes the associated function and saves its
 outputs. It then enqueues any dependents for execution, by itself or by other
 workers. In this way, the entire computational graph is evaluated in a
 distributed, decentralized fashion without any scheduler or manager program.
-Errors in workflows are handled using a functional approach inspired by
-Rust.15 Specifically, exceptions are propagated through workflow steps,
-canceling dependent tasks, without interrupting valid workflow branches. This
-provides both easy error tracing and a high degree of fault tolerance.
+Errors in workflows are handled using a functional approach inspired by Rust
+[@klabnik_rust_2019]. Specifically, exceptions are propagated through workflow
+steps, canceling dependent tasks, without interrupting valid workflow
+branches. This provides both easy error tracing and a high degree of fault
+tolerance.
 
 
 The main distinguishing feature of `funsies` is the hash tree structure that
 is used to encode all operations and their inputs. The causal hashing approach
-used in `funsies` can also be found in Snakemake13 as an optional component
-and the (now defunct) Koji workflow system,16 as part of the Nix package
-manager17 and in the Git version control system18. In `funsies`, we replace
-all filesystem operations with hash addressed operations; that is all I/O
-operations and dependencies are tracked.
+used in `funsies` can also be found in Snakemake [@molder_sustainable_2021] as
+an optional component and the (now defunct) Koji workflow
+system [@maymounkov_koji_2018], as part of the Nix package
+manager [@dolstra_nix_2004] and in the Git version control
+system [@chacon_pro_2014]. In `funsies`, we replace all filesystem operations
+with hash addressed operations; that is all I/O operations and dependencies
+are tracked.
 
 Every operation has a hash address that is computed from the hash values of
 its dependencies and a hashed identifier for the associated operation on data.
@@ -129,41 +131,34 @@ this way, the hash tree structure enables transparent and automatic
 incremental recomputing. 
 
 Using hash addresses also enables decentralization, as we can rely on the
-unlikeliness of hash collisions19 to eliminate centralized locks. An important
-advantage of this approach is that it allows worker processes to generate
-their own workflows of tasks dynamically. Results from these dynamic workflows
-can be collected and used further in the workflow description, provided they
-can be reduced to a number of outputs known at compile time, a technique
-similar to MapReduce.20
+unlikeliness of hash collisions [@stevens_first_2017] to eliminate centralized
+locks. An important advantage of this approach is that it allows worker
+processes to generate their own workflows of tasks dynamically. Results from
+these dynamic workflows can be collected and used further in the workflow
+description, provided they can be reduced to a number of outputs known at
+compile time, a technique similar to MapReduce [@dean_mapreduce_2004].
 
-As of now, we have published one project7 that used an earlier iteration of
-`funsies`, and are using it in multiple ongoing inquiries.14 We provide
-several sample workflows on Github, 21 with a focus on computational
-chemistry, quantum computing, and high-performance computing infrastructure.22
+As of now, we have published one project [@pollice:2021] that used an earlier
+iteration of `funsies`, and are using it in multiple ongoing inquiries. We
+provide several sample workflows on Github, with a focus on computational
+chemistry, quantum computing, and high-performance computing infrastructure.
 
 We intend to maintain `funsies` and of course welcome collaborations from
 contributors around the world.
 
 
-# Citations
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-
-
-
 # Acknowledgements
 
-We acknowledge testing by early users Cher-Tian Ser (@chertianser), Kjell Jorner (@kjelljorner) and Gabriel dos Passos Gomes (@gabegomes). CL also thanks Chris Crebolder (@ccrebolder) for help setting up documentation pages. We  acknowledge  the  Defense Advanced  Research  Projects  Agency  (DARPA)  under  the  Accelerated  Molecular  Discovery  Program under  Cooperative  Agreement  No.  HR00111920027  dated  August  1,  2019.  The  content  of  the information  presented  in  this  work  does  not  necessarily  reflect  the  position  or  the  policy  of  the Government. A. A.-G.   thanks Dr. Anders   G.   Frøseth   for   his   generous   support.   A. A.-G.   also acknowledges the generous support of Natural Resources Canada and the Canada 150 Research Chairs program. We thank Compute Canada for providing computational resources.
-
+We acknowledge testing by early users Cher-Tian Ser (@chertianser), Kjell
+Jorner (@kjelljorner) and Gabriel dos Passos Gomes (@gabegomes). CL also
+thanks Chris Crebolder (@ccrebolder) for help setting up documentation pages.
+We acknowledge the Defense Advanced Research Projects Agency (DARPA) under the
+Accelerated Molecular Discovery Program under Cooperative Agreement No.
+HR00111920027 dated August 1, 2019. The content of the information presented
+in this work does not necessarily reflect the position or the policy of the
+Government. A. A.-G. thanks Dr. Anders G. Frøseth for his generous support. A.
+A.-G. also acknowledges the generous support of Natural Resources Canada and
+the Canada 150 Research Chairs program. We thank Compute Canada for providing
+computational resources.
 
 # References

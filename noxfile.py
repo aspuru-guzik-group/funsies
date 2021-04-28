@@ -5,7 +5,7 @@ from nox.sessions import Session
 
 package = "funsies"
 nox.options.sessions = "fmt", "lint", "tests", "mypy"  # default session
-locations = "src", "tests", "noxfile.py"  # Linting locations
+locations = "src", "tests", "noxfile.py", "recipes"  # Linting locations
 pyversions = ["3.7", "3.8", "3.9"]
 
 # to run darglint
