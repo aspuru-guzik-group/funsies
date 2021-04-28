@@ -69,7 +69,9 @@ def docs(session: Session) -> None:
     session.install("-r", "requirements.txt")
     session.install("-e", ".")
     session.install("pdoc3")
+    session.run("rm", "-rfd", "docs", external=True)
     session.run("pdoc", "--template-dir", "src/templates", "--html", "funsies")
+    session.run("mv", "html/funsies", "docs", external=True)
 
 
 # Linting docstrings (slow...)
