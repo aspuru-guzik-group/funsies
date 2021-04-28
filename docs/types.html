@@ -1,0 +1,1631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>funsies.types API documentation</title>
+<meta name="description" content="Object types." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>funsies.types</code></h1>
+</header>
+<section id="section-intro">
+<p>Object types.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;Object types.&#34;&#34;&#34;
+# module
+from ._constants import Encoding, hash_t
+from ._funsies import Funsie, FunsieHow
+from ._graph import Artefact, ArtefactStatus, Operation
+from ._run import RunStatus
+from ._shell import ShellOutput
+from .config import Options
+from .errors import Error, ErrorKind, Result, UnwrapError
+
+# A simple mypy result type
+Result = Result
+&#34;&#34;&#34;see `funsies.errors.Result`.&#34;&#34;&#34;
+
+__all__ = [
+    &#34;Funsie&#34;,
+    &#34;FunsieHow&#34;,
+    &#34;Artefact&#34;,
+    &#34;ArtefactStatus&#34;,
+    &#34;Encoding&#34;,
+    &#34;Operation&#34;,
+    &#34;ShellOutput&#34;,
+    &#34;hash_t&#34;,
+    &#34;Error&#34;,
+    &#34;ErrorKind&#34;,
+    &#34;Result&#34;,
+    &#34;UnwrapError&#34;,
+    &#34;RunStatus&#34;,
+    &#34;Options&#34;,
+]</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-variables">Global variables</h2>
+<dl>
+<dt id="funsies.types.Result"><code class="name">var <span class="ident">Result</span></code></dt>
+<dd>
+<div class="desc"><p>see <code><a title="funsies.errors.Result" href="errors.html#funsies.errors.Result">Result</a></code>.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="funsies.types.hash_t"><code class="name flex">
+<span>def <span class="ident">hash_t</span></span>(<span>x)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_type(x):
+    return x</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="funsies.types.Funsie"><code class="flex name class">
+<span>class <span class="ident">Funsie</span></span>
+<span>(</span><span>how: <a title="funsies.types.FunsieHow" href="#funsies.types.FunsieHow">FunsieHow</a>, what: str, inp: dict[str, <a title="funsies.types.Encoding" href="#funsies.types.Encoding">Encoding</a>], out: dict[str, <a title="funsies.types.Encoding" href="#funsies.types.Encoding">Encoding</a>], extra: dict[str, bytes], error_tolerant: int = 0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A funsie is a wrapped command that can be backed up to the KV store.</p>
+<p>A Funsie has a <code>how</code>, a <code>what</code> (a string that identifies the funsie, such
+as a function name or shell commands) and input and output artefact names.
+All of these are used to generate the hash of the Funsie instance.</p>
+<p>Funsies also have an <code>extra</code> field that include auxiliary data that is not
+to be used in hashing the funsie, but is useful for executing it, such as
+a cloudpickled python function.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class Funsie:
+    &#34;&#34;&#34;A funsie is a wrapped command that can be backed up to the KV store.
+
+    A Funsie has a `how`, a `what` (a string that identifies the funsie, such
+    as a function name or shell commands) and input and output artefact names.
+    All of these are used to generate the hash of the Funsie instance.
+
+    Funsies also have an `extra` field that include auxiliary data that is not
+    to be used in hashing the funsie, but is useful for executing it, such as
+    a cloudpickled python function.
+
+    &#34;&#34;&#34;
+
+    how: FunsieHow
+    what: str
+    inp: dict[str, Encoding]
+    out: dict[str, Encoding]
+    extra: dict[str, bytes]
+    error_tolerant: int = 0
+    hash: hash_t = field(init=False)
+
+    def decode(
+        self: Funsie, input_data: Mapping[str, Result[bytes]]
+    ) -&gt; dict[str, object]:
+        &#34;&#34;&#34;Decode input data according to `inp`.&#34;&#34;&#34;
+        out = {}
+        for key, enc in self.inp.items():
+            element = input_data[key]
+            out[key] = _serdes.decode(enc, element)
+            if self.error_tolerant == 0 and isinstance(out[key], Error):
+                raise RuntimeError(
+                    f&#34;Decoding of input data {key} failed:\n{out[key].details}&#34;
+                )
+        return out
+
+    def put(self: Funsie, db: Redis[bytes]) -&gt; None:
+        &#34;&#34;&#34;Save a Funsie to Redis.&#34;&#34;&#34;
+        db.hset(  # type:ignore
+            join(FUNSIES, self.hash),
+            mapping={
+                &#34;hash&#34;: self.hash,
+                &#34;how&#34;: int(self.how),
+                &#34;what&#34;: self.what,
+                &#34;error_tolerant&#34;: self.error_tolerant,
+            },
+        )
+        if self.inp:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, &#34;inp&#34;),
+                mapping=dict([(k, v.value) for k, v in self.inp.items()]),
+            )
+        if self.out:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, &#34;out&#34;),
+                mapping=dict([(k, v.value) for k, v in self.out.items()]),
+            )
+        if self.extra:
+            db.hset(  # type:ignore
+                join(FUNSIES, self.hash, &#34;extra&#34;), mapping=self.extra  # type:ignore
+            )
+
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
+
+    @classmethod
+    def grab(cls: Type[Funsie], db: Redis[bytes], hash: hash_t) -&gt; &#34;Funsie&#34;:
+        &#34;&#34;&#34;Grab a Funsie from the Redis store.&#34;&#34;&#34;
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(FUNSIES, hash))
+        pipe.hgetall(join(FUNSIES, hash))
+        pipe.hgetall(join(FUNSIES, hash, &#34;inp&#34;))
+        pipe.hgetall(join(FUNSIES, hash, &#34;out&#34;))
+        pipe.hgetall(join(FUNSIES, hash, &#34;extra&#34;))
+        exists, metadata, inp, out, extra = pipe.execute()
+
+        if not exists:
+            raise RuntimeError(f&#34;No funsie at {hash}&#34;)
+
+        return Funsie(
+            how=FunsieHow(int(metadata[b&#34;how&#34;].decode())),
+            what=metadata[b&#34;what&#34;].decode(),
+            error_tolerant=int(metadata[b&#34;error_tolerant&#34;].decode()),
+            inp=_artefacts(inp),
+            out=_artefacts(out),
+            extra=dict([(k.decode(), v) for k, v in extra.items()]),
+        )
+
+    def __str__(self: Funsie) -&gt; str:
+        &#34;&#34;&#34;Get the string representation of a funsie.&#34;&#34;&#34;
+        # ==============================================================
+        #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+        # --------------------------------------------------------------
+        # When hashes change, previous databases become deprecated. This
+        # (will) require a change in version number!
+        out = f&#34;how={self.how}\n&#34; + f&#34;what={self.what}\n&#34;
+        for key in sorted(self.inp.keys()):
+            out += f&#34;input:{key} -&gt; {self.inp[key].value}\n&#34;
+        for key in sorted(self.out.keys()):
+            out += f&#34;output:{key} -&gt; {self.out[key].value}\n&#34;
+        out += f&#34;error tolerant:{self.error_tolerant}\n&#34;
+        # ==============================================================
+        return out
+
+    def __post_init__(self: Funsie) -&gt; None:
+        &#34;&#34;&#34;Calculate the hash.&#34;&#34;&#34;
+        # ==============================================================
+        #     ALERT: DO NOT TOUCH THIS CODE WITHOUT CAREFUL THOUGHT
+        # --------------------------------------------------------------
+        # When hashes change, previous databases become deprecated. This
+        # (will) require a change in version number!
+        m = hashlib.sha1()
+        # header
+        m.update(b&#34;funsie&#34;)
+        # funsie
+        m.update(str(self).encode())
+        self.hash = hash_t(m.hexdigest())
+        # ==============================================================</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Funsie.how"><code class="name">var <span class="ident">how</span> : funsies._funsies.FunsieHow</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.what"><code class="name">var <span class="ident">what</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.inp"><code class="name">var <span class="ident">inp</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.out"><code class="name">var <span class="ident">out</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.extra"><code class="name">var <span class="ident">extra</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.hash"><code class="name">var <span class="ident">hash</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Funsie.error_tolerant"><code class="name">var <span class="ident">error_tolerant</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.types.Funsie.grab"><code class="name flex">
+<span>def <span class="ident">grab</span></span>(<span>db: Redis[bytes], hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>) ‑> '<a title="funsies.types.Funsie" href="#funsies.types.Funsie">Funsie</a>'</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Grab a Funsie from the Redis store.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def grab(cls: Type[Funsie], db: Redis[bytes], hash: hash_t) -&gt; &#34;Funsie&#34;:
+    &#34;&#34;&#34;Grab a Funsie from the Redis store.&#34;&#34;&#34;
+    pipe: Pipeline = db.pipeline(transaction=False)
+    pipe.exists(join(FUNSIES, hash))
+    pipe.hgetall(join(FUNSIES, hash))
+    pipe.hgetall(join(FUNSIES, hash, &#34;inp&#34;))
+    pipe.hgetall(join(FUNSIES, hash, &#34;out&#34;))
+    pipe.hgetall(join(FUNSIES, hash, &#34;extra&#34;))
+    exists, metadata, inp, out, extra = pipe.execute()
+
+    if not exists:
+        raise RuntimeError(f&#34;No funsie at {hash}&#34;)
+
+    return Funsie(
+        how=FunsieHow(int(metadata[b&#34;how&#34;].decode())),
+        what=metadata[b&#34;what&#34;].decode(),
+        error_tolerant=int(metadata[b&#34;error_tolerant&#34;].decode()),
+        inp=_artefacts(inp),
+        out=_artefacts(out),
+        extra=dict([(k.decode(), v) for k, v in extra.items()]),
+    )</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.types.Funsie.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self: <a title="funsies.types.Funsie" href="#funsies.types.Funsie">Funsie</a>, input_data: Mapping[str, <a title="funsies.types.Result" href="#funsies.types.Result">Result</a>[bytes]]) ‑> dict</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Decode input data according to <code>inp</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decode(
+    self: Funsie, input_data: Mapping[str, Result[bytes]]
+) -&gt; dict[str, object]:
+    &#34;&#34;&#34;Decode input data according to `inp`.&#34;&#34;&#34;
+    out = {}
+    for key, enc in self.inp.items():
+        element = input_data[key]
+        out[key] = _serdes.decode(enc, element)
+        if self.error_tolerant == 0 and isinstance(out[key], Error):
+            raise RuntimeError(
+                f&#34;Decoding of input data {key} failed:\n{out[key].details}&#34;
+            )
+    return out</code></pre>
+</details>
+</dd>
+<dt id="funsies.types.Funsie.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>self: <a title="funsies.types.Funsie" href="#funsies.types.Funsie">Funsie</a>, db: Redis[bytes]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save a Funsie to Redis.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(self: Funsie, db: Redis[bytes]) -&gt; None:
+    &#34;&#34;&#34;Save a Funsie to Redis.&#34;&#34;&#34;
+    db.hset(  # type:ignore
+        join(FUNSIES, self.hash),
+        mapping={
+            &#34;hash&#34;: self.hash,
+            &#34;how&#34;: int(self.how),
+            &#34;what&#34;: self.what,
+            &#34;error_tolerant&#34;: self.error_tolerant,
+        },
+    )
+    if self.inp:
+        db.hset(  # type:ignore
+            join(FUNSIES, self.hash, &#34;inp&#34;),
+            mapping=dict([(k, v.value) for k, v in self.inp.items()]),
+        )
+    if self.out:
+        db.hset(  # type:ignore
+            join(FUNSIES, self.hash, &#34;out&#34;),
+            mapping=dict([(k, v.value) for k, v in self.out.items()]),
+        )
+    if self.extra:
+        db.hset(  # type:ignore
+            join(FUNSIES, self.hash, &#34;extra&#34;), mapping=self.extra  # type:ignore
+        )
+
+    # Save the hash in the quickhash db
+    hash_save(db, self.hash)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.FunsieHow"><code class="flex name class">
+<span>class <span class="ident">FunsieHow</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Kinds of funsies.</p>
+<p>This enum contains the various kinds of funsies: python code, shell code,
+etc.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FunsieHow(IntEnum):
+    &#34;&#34;&#34;Kinds of funsies.
+
+    This enum contains the various kinds of funsies: python code, shell code,
+    etc.
+    &#34;&#34;&#34;
+
+    python = 0
+    shell = 1
+    subdag = 2</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.FunsieHow.python"><code class="name">var <span class="ident">python</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.FunsieHow.shell"><code class="name">var <span class="ident">shell</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.FunsieHow.subdag"><code class="name">var <span class="ident">subdag</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.Artefact"><code class="flex name class">
+<span>class <span class="ident">Artefact</span></span>
+<span>(</span><span>hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>, parent: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>, kind: <a title="funsies.types.Encoding" href="#funsies.types.Encoding">Encoding</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Artefacts are the main data structure.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class Artefact(Generic[T]):
+    &#34;&#34;&#34;Artefacts are the main data structure.&#34;&#34;&#34;
+
+    hash: hash_t
+    parent: hash_t
+    kind: Encoding
+
+    def put(self: Artefact[Any], db: Redis[bytes]) -&gt; None:
+        &#34;&#34;&#34;Save an artefact to Redis.&#34;&#34;&#34;
+        data = dict(hash=self.hash, parent=self.parent, kind=self.kind.value)
+        db.hset(  # type:ignore
+            join(ARTEFACTS, self.hash),
+            mapping=data,  # type:ignore
+        )
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
+
+    @classmethod
+    def grab(cls: Type[Artefact[T]], db: Redis[bytes], hash: hash_t) -&gt; Artefact[T]:
+        &#34;&#34;&#34;Grab an artefact from the Redis store.&#34;&#34;&#34;
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.exists(join(ARTEFACTS, hash))
+        pipe.hgetall(join(ARTEFACTS, hash))
+        exists, data = pipe.execute()
+
+        if not exists:
+            raise RuntimeError(f&#34;No artefact at {hash}&#34;)
+
+        return Artefact[T](
+            hash=hash_t(data[b&#34;hash&#34;].decode()),
+            parent=hash_t(data[b&#34;parent&#34;].decode()),
+            kind=Encoding(data[b&#34;kind&#34;].decode()),
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Artefact.hash"><code class="name">var <span class="ident">hash</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Artefact.parent"><code class="name">var <span class="ident">parent</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Artefact.kind"><code class="name">var <span class="ident">kind</span> : funsies._constants.Encoding</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.types.Artefact.grab"><code class="name flex">
+<span>def <span class="ident">grab</span></span>(<span>db: Redis[bytes], hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>) ‑> <a title="funsies.types.Artefact" href="#funsies.types.Artefact">Artefact</a>[T]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Grab an artefact from the Redis store.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def grab(cls: Type[Artefact[T]], db: Redis[bytes], hash: hash_t) -&gt; Artefact[T]:
+    &#34;&#34;&#34;Grab an artefact from the Redis store.&#34;&#34;&#34;
+    pipe: Pipeline = db.pipeline(transaction=False)
+    pipe.exists(join(ARTEFACTS, hash))
+    pipe.hgetall(join(ARTEFACTS, hash))
+    exists, data = pipe.execute()
+
+    if not exists:
+        raise RuntimeError(f&#34;No artefact at {hash}&#34;)
+
+    return Artefact[T](
+        hash=hash_t(data[b&#34;hash&#34;].decode()),
+        parent=hash_t(data[b&#34;parent&#34;].decode()),
+        kind=Encoding(data[b&#34;kind&#34;].decode()),
+    )</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.types.Artefact.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>self: <a title="funsies.types.Artefact" href="#funsies.types.Artefact">Artefact</a>[Any], db: Redis[bytes]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save an artefact to Redis.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(self: Artefact[Any], db: Redis[bytes]) -&gt; None:
+    &#34;&#34;&#34;Save an artefact to Redis.&#34;&#34;&#34;
+    data = dict(hash=self.hash, parent=self.parent, kind=self.kind.value)
+    db.hset(  # type:ignore
+        join(ARTEFACTS, self.hash),
+        mapping=data,  # type:ignore
+    )
+    # Save the hash in the quickhash db
+    hash_save(db, self.hash)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.ArtefactStatus"><code class="flex name class">
+<span>class <span class="ident">ArtefactStatus</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Status of data associated with an artefact.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ArtefactStatus(IntEnum):
+    &#34;&#34;&#34;Status of data associated with an artefact.&#34;&#34;&#34;
+
+    deleted = -2
+    not_found = -1
+    no_data = 0
+    # &gt; absent  =  artefact has been computed
+    done = 1
+    const = 2
+    error = 3
+    linked = 4</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.ArtefactStatus.deleted"><code class="name">var <span class="ident">deleted</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.not_found"><code class="name">var <span class="ident">not_found</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.no_data"><code class="name">var <span class="ident">no_data</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.done"><code class="name">var <span class="ident">done</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.const"><code class="name">var <span class="ident">const</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.error"><code class="name">var <span class="ident">error</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ArtefactStatus.linked"><code class="name">var <span class="ident">linked</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.Encoding"><code class="flex name class">
+<span>class <span class="ident">Encoding</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Types for data objects.</p>
+<p>Funsies does not support a full-blown type system. For this, we defer to
+json's encoding of various data structures.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Encoding(str, Enum):
+    &#34;&#34;&#34;Types for data objects.
+
+    Funsies does not support a full-blown type system. For this, we defer to
+    json&#39;s encoding of various data structures.
+    &#34;&#34;&#34;
+
+    json = &#34;json&#34;
+    blob = &#34;blob&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.str</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Encoding.json"><code class="name">var <span class="ident">json</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Encoding.blob"><code class="name">var <span class="ident">blob</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.Operation"><code class="flex name class">
+<span>class <span class="ident">Operation</span></span>
+<span>(</span><span>hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>, funsie: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>, inp: dict[str, <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>], out: dict[str, <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>], options: Optional[<a title="funsies.types.Options" href="#funsies.types.Options">Options</a>] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An operation on data in the graph.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class Operation:
+    &#34;&#34;&#34;An operation on data in the graph.&#34;&#34;&#34;
+
+    hash: hash_t
+    funsie: hash_t
+    inp: dict[str, hash_t]
+    out: dict[str, hash_t]
+    options: Optional[Options] = None
+
+    # pipeline-able
+    def put(self: &#34;Operation&#34;, db: Redis[bytes]) -&gt; None:
+        &#34;&#34;&#34;Save an operation to Redis.&#34;&#34;&#34;
+        if self.inp:
+            db.hset(join(OPERATIONS, self.hash, &#34;inp&#34;), mapping=self.inp)  # type:ignore
+        if self.out:
+            db.hset(join(OPERATIONS, self.hash, &#34;out&#34;), mapping=self.out)  # type:ignore
+        if self.options:
+            db.set(join(OPERATIONS, self.hash, &#34;options&#34;), self.options.pack())
+        db.hset(  # type:ignore
+            join(OPERATIONS, self.hash),
+            mapping={&#34;funsie&#34;: self.funsie, &#34;hash&#34;: self.hash},
+        )
+
+        # Save the hash in the quickhash db
+        hash_save(db, self.hash)
+
+    # pipelined
+    @classmethod
+    def grab(cls: Type[&#34;Operation&#34;], db: Redis[bytes], hash: hash_t) -&gt; &#34;Operation&#34;:
+        &#34;&#34;&#34;Grab an operation from the Redis store.&#34;&#34;&#34;
+        if not db.exists(join(OPERATIONS, hash)):
+            raise RuntimeError(f&#34;No operation at {hash}&#34;)
+
+        pipe: Pipeline = db.pipeline(transaction=False)
+        pipe.hgetall(join(OPERATIONS, hash))
+        pipe.hgetall(join(OPERATIONS, hash, &#34;inp&#34;))
+        pipe.hgetall(join(OPERATIONS, hash, &#34;out&#34;))
+        pipe.get(join(OPERATIONS, hash, &#34;options&#34;))
+        metadata, inp, out, tmp = pipe.execute()
+
+        if tmp is not None:
+            options: Optional[Options] = Options.unpack(tmp.decode())
+        else:
+            options = None
+
+        return Operation(
+            hash=hash_t(metadata[b&#34;hash&#34;].decode()),
+            funsie=hash_t(metadata[b&#34;funsie&#34;].decode()),
+            inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
+            out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
+            options=options,
+        )</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Operation.hash"><code class="name">var <span class="ident">hash</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Operation.funsie"><code class="name">var <span class="ident">funsie</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Operation.inp"><code class="name">var <span class="ident">inp</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Operation.out"><code class="name">var <span class="ident">out</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Operation.options"><code class="name">var <span class="ident">options</span> : Optional[<a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.types.Operation.grab"><code class="name flex">
+<span>def <span class="ident">grab</span></span>(<span>db: Redis[bytes], hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>) ‑> '<a title="funsies.types.Operation" href="#funsies.types.Operation">Operation</a>'</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Grab an operation from the Redis store.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def grab(cls: Type[&#34;Operation&#34;], db: Redis[bytes], hash: hash_t) -&gt; &#34;Operation&#34;:
+    &#34;&#34;&#34;Grab an operation from the Redis store.&#34;&#34;&#34;
+    if not db.exists(join(OPERATIONS, hash)):
+        raise RuntimeError(f&#34;No operation at {hash}&#34;)
+
+    pipe: Pipeline = db.pipeline(transaction=False)
+    pipe.hgetall(join(OPERATIONS, hash))
+    pipe.hgetall(join(OPERATIONS, hash, &#34;inp&#34;))
+    pipe.hgetall(join(OPERATIONS, hash, &#34;out&#34;))
+    pipe.get(join(OPERATIONS, hash, &#34;options&#34;))
+    metadata, inp, out, tmp = pipe.execute()
+
+    if tmp is not None:
+        options: Optional[Options] = Options.unpack(tmp.decode())
+    else:
+        options = None
+
+    return Operation(
+        hash=hash_t(metadata[b&#34;hash&#34;].decode()),
+        funsie=hash_t(metadata[b&#34;funsie&#34;].decode()),
+        inp=dict([(k.decode(), hash_t(v.decode())) for k, v in inp.items()]),
+        out=dict([(k.decode(), hash_t(v.decode())) for k, v in out.items()]),
+        options=options,
+    )</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.types.Operation.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>self: "'<a title="funsies.types.Operation" href="#funsies.types.Operation">Operation</a>'", db: Redis[bytes]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save an operation to Redis.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(self: &#34;Operation&#34;, db: Redis[bytes]) -&gt; None:
+    &#34;&#34;&#34;Save an operation to Redis.&#34;&#34;&#34;
+    if self.inp:
+        db.hset(join(OPERATIONS, self.hash, &#34;inp&#34;), mapping=self.inp)  # type:ignore
+    if self.out:
+        db.hset(join(OPERATIONS, self.hash, &#34;out&#34;), mapping=self.out)  # type:ignore
+    if self.options:
+        db.set(join(OPERATIONS, self.hash, &#34;options&#34;), self.options.pack())
+    db.hset(  # type:ignore
+        join(OPERATIONS, self.hash),
+        mapping={&#34;funsie&#34;: self.funsie, &#34;hash&#34;: self.hash},
+    )
+
+    # Save the hash in the quickhash db
+    hash_save(db, self.hash)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.ShellOutput"><code class="flex name class">
+<span>class <span class="ident">ShellOutput</span></span>
+<span>(</span><span>store: Redis[bytes], op: <a title="funsies.types.Operation" href="#funsies.types.Operation">Operation</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A convenience wrapper for a shell operation.</p>
+<p>Generate a ShellOutput wrapper around a shell operation.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ShellOutput:
+    &#34;&#34;&#34;A convenience wrapper for a shell operation.&#34;&#34;&#34;
+
+    op: Operation
+    hash: hash_t
+    out: dict[str, Artefact[bytes]]
+    inp: dict[str, Artefact[Any]]
+
+    def __init__(self: &#34;ShellOutput&#34;, store: Redis[bytes], op: Operation) -&gt; None:
+        &#34;&#34;&#34;Generate a ShellOutput wrapper around a shell operation.&#34;&#34;&#34;
+        # import the constants
+        # module
+        from ._shell import RETURNCODE, SPECIAL, STDERR, STDOUT
+
+        # stuff that is the same
+        self.op = op
+        self.hash = op.hash
+
+        self.out = {}
+        self.n = 0
+        for key, val in op.out.items():
+            if SPECIAL in key:
+                if RETURNCODE in key:
+                    self.n += 1  # count the number of commands
+            else:
+                self.out[key] = Artefact[bytes].grab(store, val)
+
+        self.inp = {}
+        for key, val in op.inp.items():
+            self.inp[key] = Artefact[Any].grab(store, val)
+
+        self.stdouts = []
+        self.stderrs = []
+        self.returncodes = []
+        for i in range(self.n):
+            self.stdouts += [Artefact[bytes].grab(store, op.out[f&#34;{STDOUT}{i}&#34;])]
+            self.stderrs += [Artefact[bytes].grab(store, op.out[f&#34;{STDERR}{i}&#34;])]
+            self.returncodes += [Artefact[int].grab(store, op.out[f&#34;{RETURNCODE}{i}&#34;])]
+
+    def __check_len(self: &#34;ShellOutput&#34;) -&gt; None:
+        if self.n &gt; 1:
+            raise AttributeError(
+                &#34;More than one shell command are included in this run.&#34;
+            )
+
+    @property
+    def returncode(self: &#34;ShellOutput&#34;) -&gt; Artefact[int]:
+        &#34;&#34;&#34;Return code of a shell command.&#34;&#34;&#34;
+        self.__check_len()
+        return self.returncodes[0]
+
+    @property
+    def stdout(self: &#34;ShellOutput&#34;) -&gt; Artefact[bytes]:
+        &#34;&#34;&#34;Stdout of a shell command.&#34;&#34;&#34;
+        self.__check_len()
+        return self.stdouts[0]
+
+    @property
+    def stderr(self: &#34;ShellOutput&#34;) -&gt; Artefact[bytes]:
+        &#34;&#34;&#34;Stderr of a shell command.&#34;&#34;&#34;
+        self.__check_len()
+        return self.stderrs[0]</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.ShellOutput.op"><code class="name">var <span class="ident">op</span> : funsies._graph.Operation</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ShellOutput.hash"><code class="name">var <span class="ident">hash</span> : <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ShellOutput.out"><code class="name">var <span class="ident">out</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ShellOutput.inp"><code class="name">var <span class="ident">inp</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="funsies.types.ShellOutput.returncode"><code class="name">var <span class="ident">returncode</span> : funsies._graph.Artefact[int]</code></dt>
+<dd>
+<div class="desc"><p>Return code of a shell command.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def returncode(self: &#34;ShellOutput&#34;) -&gt; Artefact[int]:
+    &#34;&#34;&#34;Return code of a shell command.&#34;&#34;&#34;
+    self.__check_len()
+    return self.returncodes[0]</code></pre>
+</details>
+</dd>
+<dt id="funsies.types.ShellOutput.stdout"><code class="name">var <span class="ident">stdout</span> : funsies._graph.Artefact[bytes]</code></dt>
+<dd>
+<div class="desc"><p>Stdout of a shell command.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def stdout(self: &#34;ShellOutput&#34;) -&gt; Artefact[bytes]:
+    &#34;&#34;&#34;Stdout of a shell command.&#34;&#34;&#34;
+    self.__check_len()
+    return self.stdouts[0]</code></pre>
+</details>
+</dd>
+<dt id="funsies.types.ShellOutput.stderr"><code class="name">var <span class="ident">stderr</span> : funsies._graph.Artefact[bytes]</code></dt>
+<dd>
+<div class="desc"><p>Stderr of a shell command.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def stderr(self: &#34;ShellOutput&#34;) -&gt; Artefact[bytes]:
+    &#34;&#34;&#34;Stderr of a shell command.&#34;&#34;&#34;
+    self.__check_len()
+    return self.stderrs[0]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.Error"><code class="flex name class">
+<span>class <span class="ident">Error</span></span>
+<span>(</span><span>kind: <a title="funsies.types.ErrorKind" href="#funsies.types.ErrorKind">ErrorKind</a>, source: Optional[<a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>] = None, details: Optional[str] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An Error value for artefacts.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class Error:
+    &#34;&#34;&#34;An Error value for artefacts.&#34;&#34;&#34;
+
+    kind: ErrorKind
+    source: Optional[hash_t] = None
+    details: Optional[str] = None
+
+    def put(self: &#34;Error&#34;, db: Redis[bytes], hash: hash_t) -&gt; None:
+        &#34;&#34;&#34;Save an Error to Redis.&#34;&#34;&#34;
+        data = dict(kind=self.kind.name)
+        if self.source:
+            data[&#34;source&#34;] = str(self.source)
+        if self.details:
+            data[&#34;details&#34;] = str(self.details)
+        db.hset(  # type:ignore
+            join(ARTEFACTS, hash, &#34;error&#34;),
+            mapping=data,  # type:ignore
+        )
+
+    @classmethod
+    def grab(cls: Type[&#34;Error&#34;], db: Redis[bytes], hash: hash_t) -&gt; &#34;Error&#34;:
+        &#34;&#34;&#34;Grab an Error from the Redis store.&#34;&#34;&#34;
+        if not join(ARTEFACTS, hash, &#34;error&#34;):
+            raise RuntimeError(f&#34;No error for artefact at {hash}&#34;)
+
+        data = db.hgetall(join(ARTEFACTS, hash, &#34;error&#34;))
+        kind = ErrorKind(data[b&#34;kind&#34;].decode())
+
+        # Sometimes the python boilerplate is really freaking annoying...
+        tmp = data.get(b&#34;source&#34;, None)
+        if tmp is not None:
+            source: Optional[hash_t] = hash_t(tmp.decode())
+        else:
+            source = None
+        tmp = data.get(b&#34;details&#34;, None)
+        if tmp is not None:
+            details: Optional[str] = tmp.decode()
+        else:
+            details = None
+
+        return Error(kind, source=source, details=details)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Error.kind"><code class="name">var <span class="ident">kind</span> : <a title="funsies.errors.ErrorKind" href="errors.html#funsies.errors.ErrorKind">ErrorKind</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Error.source"><code class="name">var <span class="ident">source</span> : Optional[<a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.Error.details"><code class="name">var <span class="ident">details</span> : Optional[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.types.Error.grab"><code class="name flex">
+<span>def <span class="ident">grab</span></span>(<span>db: Redis[bytes], hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>) ‑> '<a title="funsies.types.Error" href="#funsies.types.Error">Error</a>'</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Grab an Error from the Redis store.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def grab(cls: Type[&#34;Error&#34;], db: Redis[bytes], hash: hash_t) -&gt; &#34;Error&#34;:
+    &#34;&#34;&#34;Grab an Error from the Redis store.&#34;&#34;&#34;
+    if not join(ARTEFACTS, hash, &#34;error&#34;):
+        raise RuntimeError(f&#34;No error for artefact at {hash}&#34;)
+
+    data = db.hgetall(join(ARTEFACTS, hash, &#34;error&#34;))
+    kind = ErrorKind(data[b&#34;kind&#34;].decode())
+
+    # Sometimes the python boilerplate is really freaking annoying...
+    tmp = data.get(b&#34;source&#34;, None)
+    if tmp is not None:
+        source: Optional[hash_t] = hash_t(tmp.decode())
+    else:
+        source = None
+    tmp = data.get(b&#34;details&#34;, None)
+    if tmp is not None:
+        details: Optional[str] = tmp.decode()
+    else:
+        details = None
+
+    return Error(kind, source=source, details=details)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.types.Error.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>self: "'<a title="funsies.types.Error" href="#funsies.types.Error">Error</a>'", db: Redis[bytes], hash: <a title="funsies.types.hash_t" href="#funsies.types.hash_t">NewType.<locals>.new_type()</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save an Error to Redis.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(self: &#34;Error&#34;, db: Redis[bytes], hash: hash_t) -&gt; None:
+    &#34;&#34;&#34;Save an Error to Redis.&#34;&#34;&#34;
+    data = dict(kind=self.kind.name)
+    if self.source:
+        data[&#34;source&#34;] = str(self.source)
+    if self.details:
+        data[&#34;details&#34;] = str(self.details)
+    db.hset(  # type:ignore
+        join(ARTEFACTS, hash, &#34;error&#34;),
+        mapping=data,  # type:ignore
+    )</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.ErrorKind"><code class="flex name class">
+<span>class <span class="ident">ErrorKind</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Kinds of errors.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ErrorKind(str, Enum):
+    &#34;&#34;&#34;Kinds of errors.&#34;&#34;&#34;
+
+    # db errors
+    NotFound = &#34;NotFound&#34;
+    Mismatch = &#34;Mismatch&#34;
+    UnresolvedLink = &#34;UnresolvedLink&#34;
+    # Type errors
+    WrongType = &#34;WrongType&#34;
+    JSONEncodingError = &#34;JSONEncodingError&#34;
+    JSONDecodingError = &#34;JSONDecodingError&#34;
+    UnknownEncodingError = &#34;UnknownEncodingError&#34;
+    # Job error conditions
+    MissingOutput = &#34;MissingOutput&#34;
+    MissingInput = &#34;MissingInput&#34;
+    ExceptionRaised = &#34;ExceptionRaised&#34;
+    JobTimedOut = &#34;JobTimedOut&#34;
+    NoErrorData = &#34;NoErrorData&#34;
+    KilledBySignal = &#34;KilledBySignal&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.str</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.ErrorKind.NotFound"><code class="name">var <span class="ident">NotFound</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.Mismatch"><code class="name">var <span class="ident">Mismatch</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.UnresolvedLink"><code class="name">var <span class="ident">UnresolvedLink</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.WrongType"><code class="name">var <span class="ident">WrongType</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.JSONEncodingError"><code class="name">var <span class="ident">JSONEncodingError</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.JSONDecodingError"><code class="name">var <span class="ident">JSONDecodingError</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.UnknownEncodingError"><code class="name">var <span class="ident">UnknownEncodingError</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.MissingOutput"><code class="name">var <span class="ident">MissingOutput</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.MissingInput"><code class="name">var <span class="ident">MissingInput</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.ExceptionRaised"><code class="name">var <span class="ident">ExceptionRaised</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.JobTimedOut"><code class="name">var <span class="ident">JobTimedOut</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.NoErrorData"><code class="name">var <span class="ident">NoErrorData</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.ErrorKind.KilledBySignal"><code class="name">var <span class="ident">KilledBySignal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.UnwrapError"><code class="flex name class">
+<span>class <span class="ident">UnwrapError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Exception thrown when unwrapping an error.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UnwrapError(Exception):
+    &#34;&#34;&#34;Exception thrown when unwrapping an error.&#34;&#34;&#34;
+
+    pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="funsies.types.RunStatus"><code class="flex name class">
+<span>class <span class="ident">RunStatus</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Possible status of running an operation.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RunStatus(IntEnum):
+    &#34;&#34;&#34;Possible status of running an operation.&#34;&#34;&#34;
+
+    # &lt;= 0 -&gt; issue prevented running job.
+    subdag_ready = -5
+    delayed = -3
+    unmet_dependencies = -2
+    not_ready = -1
+    # &gt; 0 -&gt; executed, can run dependents.
+    executed = 1
+    using_cached = 2
+    input_error = 4</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.RunStatus.subdag_ready"><code class="name">var <span class="ident">subdag_ready</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.delayed"><code class="name">var <span class="ident">delayed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.unmet_dependencies"><code class="name">var <span class="ident">unmet_dependencies</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.not_ready"><code class="name">var <span class="ident">not_ready</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.executed"><code class="name">var <span class="ident">executed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.using_cached"><code class="name">var <span class="ident">using_cached</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="funsies.types.RunStatus.input_error"><code class="name">var <span class="ident">input_error</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="funsies.types.Options"><code class="flex name class">
+<span>class <span class="ident">Options</span></span>
+<span>(</span><span>timeout: int = -1, queue: str = 'default', distributed: bool = True, reset: bool = False, evaluate: bool = True, ttl: int = 86400, result_ttl: int = 60, failure_ttl: int = 86400, serializer: str = 'rq.serializers.JSONSerializer')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Runtime options for an Operation.</p>
+<p>This is a class that basically contains all the random options that may
+need to be set when building a workflow, such as timeouts, heterogeneous
+compute etc. It should generally be instantiated using the
+<code><a title="funsies.options" href="index.html#funsies.options">options()</a></code> function.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class Options:
+    &#34;&#34;&#34;Runtime options for an Operation.
+
+    This is a class that basically contains all the random options that may
+    need to be set when building a workflow, such as timeouts, heterogeneous
+    compute etc. It should generally be instantiated using the
+    `funsies.options()` function.
+
+    &#34;&#34;&#34;
+
+    timeout: int = INFINITE
+    &#34;&#34;&#34;Max execution time for this operation, in seconds or -1 for an operation
+    that never timeouts. Defaults to -1.&#34;&#34;&#34;
+
+    queue: str = &#34;default&#34;
+    &#34;&#34;&#34;Defines which queue this operation should be executed by. For example,
+    if a complex workflow requires GPUs for certain jobs, those jobs would be
+    setup with option `queue=&#34;gpu&#34;` and workers on the nodes with available
+    GPUs would be instantiated with `funsies worker gpu`. Then, only worker
+    processes in the GPU queue would execute the GPU jobs.&#34;&#34;&#34;
+
+    distributed: bool = True
+    &#34;&#34;&#34;If False, jobs are executed by the local enqueuing process. Used to
+    test workflows without having to start workers.&#34;&#34;&#34;
+
+    reset: bool = False
+    &#34;&#34;&#34;If `True`, this operation is `funsies.reset()` when generated.&#34;&#34;&#34;
+
+    evaluate: bool = True
+    &#34;&#34;&#34;If False, calling `funsies.execute()` on this job or its dependencies will fail.
+    Can be used to ensure a specific branch is never executed.&#34;&#34;&#34;
+
+    ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+    to the [rq keyword with the same name](https://python-rq.org/docs/). &#34;&#34;&#34;
+
+    result_ttl: int = ONE_MINUTE
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects. Defaults to one
+    minute. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    failure_ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects of failing jobs.
+    Defaults to one day. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    # TODO: make meaningfully adjustable
+    serializer: str = &#34;rq.serializers.JSONSerializer&#34;
+
+    @property
+    def job_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.enqueue&#39;s job_args.&#34;&#34;&#34;
+        return dict(
+            timeout=self.timeout,
+            ttl=self.ttl,
+            result_ttl=self.result_ttl,
+            failure_ttl=self.failure_ttl,
+        )
+
+    @property
+    def task_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for dag.task().&#34;&#34;&#34;
+        return dict(
+            evaluate=self.evaluate,
+        )
+
+    @property
+    def queue_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.Queue.&#34;&#34;&#34;
+        return dict(is_async=self.distributed, serializer=self.serializer)
+
+    def pack(self: &#34;Options&#34;) -&gt; str:
+        &#34;&#34;&#34;Pack an Options instance to a bytestring.&#34;&#34;&#34;
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type[&#34;Options&#34;], data: str) -&gt; &#34;Options&#34;:
+        &#34;&#34;&#34;Unpack an Options instance from a byte string.&#34;&#34;&#34;
+        return Options(**json.loads(data))</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.types.Options.timeout"><code class="name">var <span class="ident">timeout</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Max execution time for this operation, in seconds or -1 for an operation
+that never timeouts. Defaults to -1.</p></div>
+</dd>
+<dt id="funsies.types.Options.queue"><code class="name">var <span class="ident">queue</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Defines which queue this operation should be executed by. For example,
+if a complex workflow requires GPUs for certain jobs, those jobs would be
+setup with option <code>queue="gpu"</code> and workers on the nodes with available
+GPUs would be instantiated with <code><a title="funsies" href="index.html">funsies</a> worker gpu</code>. Then, only worker
+processes in the GPU queue would execute the GPU jobs.</p></div>
+</dd>
+<dt id="funsies.types.Options.distributed"><code class="name">var <span class="ident">distributed</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If False, jobs are executed by the local enqueuing process. Used to
+test workflows without having to start workers.</p></div>
+</dd>
+<dt id="funsies.types.Options.reset"><code class="name">var <span class="ident">reset</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If <code>True</code>, this operation is <code><a title="funsies.reset" href="index.html#funsies.reset">reset()</a></code> when generated.</p></div>
+</dd>
+<dt id="funsies.types.Options.evaluate"><code class="name">var <span class="ident">evaluate</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If False, calling <code><a title="funsies.execute" href="index.html#funsies.execute">execute()</a></code> on this job or its dependencies will fail.
+Can be used to ensure a specific branch is never executed.</p></div>
+</dd>
+<dt id="funsies.types.Options.ttl"><code class="name">var <span class="ident">ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+to the <a href="https://python-rq.org/docs/">rq keyword with the same name</a>.</p></div>
+</dd>
+<dt id="funsies.types.Options.result_ttl"><code class="name">var <span class="ident">result_ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the rq result objects. Defaults to one
+minute. Equivalent to the <a href="https://python-rq.org/docs/">rq keyword with the same
+name</a>. (Note that this has nothing to do with
+the actual data results.)</p></div>
+</dd>
+<dt id="funsies.types.Options.failure_ttl"><code class="name">var <span class="ident">failure_ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the rq result objects of failing jobs.
+Defaults to one day. Equivalent to the <a href="https://python-rq.org/docs/">rq keyword with the same
+name</a>. (Note that this has nothing to do with
+the actual data results.)</p></div>
+</dd>
+<dt id="funsies.types.Options.serializer"><code class="name">var <span class="ident">serializer</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.types.Options.unpack"><code class="name flex">
+<span>def <span class="ident">unpack</span></span>(<span>data: str) ‑> <a title="funsies.config.Options" href="config.html#funsies.config.Options">Options</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Unpack an Options instance from a byte string.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def unpack(cls: Type[&#34;Options&#34;], data: str) -&gt; &#34;Options&#34;:
+    &#34;&#34;&#34;Unpack an Options instance from a byte string.&#34;&#34;&#34;
+    return Options(**json.loads(data))</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="funsies.types.Options.job_args"><code class="name">var <span class="ident">job_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for rq.enqueue's job_args.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def job_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for rq.enqueue&#39;s job_args.&#34;&#34;&#34;
+    return dict(
+        timeout=self.timeout,
+        ttl=self.ttl,
+        result_ttl=self.result_ttl,
+        failure_ttl=self.failure_ttl,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.types.Options.task_args"><code class="name">var <span class="ident">task_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for dag.task().</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def task_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for dag.task().&#34;&#34;&#34;
+    return dict(
+        evaluate=self.evaluate,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.types.Options.queue_args"><code class="name">var <span class="ident">queue_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for rq.Queue.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def queue_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for rq.Queue.&#34;&#34;&#34;
+    return dict(is_async=self.distributed, serializer=self.serializer)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.types.Options.pack"><code class="name flex">
+<span>def <span class="ident">pack</span></span>(<span>self: <a title="funsies.types.Options" href="#funsies.types.Options">Options</a>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pack an Options instance to a bytestring.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pack(self: &#34;Options&#34;) -&gt; str:
+    &#34;&#34;&#34;Pack an Options instance to a bytestring.&#34;&#34;&#34;
+    return json.dumps(asdict(self))</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="funsies" href="index.html">funsies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-variables">Global variables</a></h3>
+<ul class="">
+<li><code><a title="funsies.types.Result" href="#funsies.types.Result">Result</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="funsies.types.hash_t" href="#funsies.types.hash_t">hash_t</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="funsies.types.Funsie" href="#funsies.types.Funsie">Funsie</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.Funsie.grab" href="#funsies.types.Funsie.grab">grab</a></code></li>
+<li><code><a title="funsies.types.Funsie.decode" href="#funsies.types.Funsie.decode">decode</a></code></li>
+<li><code><a title="funsies.types.Funsie.put" href="#funsies.types.Funsie.put">put</a></code></li>
+<li><code><a title="funsies.types.Funsie.how" href="#funsies.types.Funsie.how">how</a></code></li>
+<li><code><a title="funsies.types.Funsie.what" href="#funsies.types.Funsie.what">what</a></code></li>
+<li><code><a title="funsies.types.Funsie.inp" href="#funsies.types.Funsie.inp">inp</a></code></li>
+<li><code><a title="funsies.types.Funsie.out" href="#funsies.types.Funsie.out">out</a></code></li>
+<li><code><a title="funsies.types.Funsie.extra" href="#funsies.types.Funsie.extra">extra</a></code></li>
+<li><code><a title="funsies.types.Funsie.hash" href="#funsies.types.Funsie.hash">hash</a></code></li>
+<li><code><a title="funsies.types.Funsie.error_tolerant" href="#funsies.types.Funsie.error_tolerant">error_tolerant</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.FunsieHow" href="#funsies.types.FunsieHow">FunsieHow</a></code></h4>
+<ul class="">
+<li><code><a title="funsies.types.FunsieHow.python" href="#funsies.types.FunsieHow.python">python</a></code></li>
+<li><code><a title="funsies.types.FunsieHow.shell" href="#funsies.types.FunsieHow.shell">shell</a></code></li>
+<li><code><a title="funsies.types.FunsieHow.subdag" href="#funsies.types.FunsieHow.subdag">subdag</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.Artefact" href="#funsies.types.Artefact">Artefact</a></code></h4>
+<ul class="">
+<li><code><a title="funsies.types.Artefact.grab" href="#funsies.types.Artefact.grab">grab</a></code></li>
+<li><code><a title="funsies.types.Artefact.put" href="#funsies.types.Artefact.put">put</a></code></li>
+<li><code><a title="funsies.types.Artefact.hash" href="#funsies.types.Artefact.hash">hash</a></code></li>
+<li><code><a title="funsies.types.Artefact.parent" href="#funsies.types.Artefact.parent">parent</a></code></li>
+<li><code><a title="funsies.types.Artefact.kind" href="#funsies.types.Artefact.kind">kind</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.ArtefactStatus" href="#funsies.types.ArtefactStatus">ArtefactStatus</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.ArtefactStatus.deleted" href="#funsies.types.ArtefactStatus.deleted">deleted</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.not_found" href="#funsies.types.ArtefactStatus.not_found">not_found</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.no_data" href="#funsies.types.ArtefactStatus.no_data">no_data</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.done" href="#funsies.types.ArtefactStatus.done">done</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.const" href="#funsies.types.ArtefactStatus.const">const</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.error" href="#funsies.types.ArtefactStatus.error">error</a></code></li>
+<li><code><a title="funsies.types.ArtefactStatus.linked" href="#funsies.types.ArtefactStatus.linked">linked</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.Encoding" href="#funsies.types.Encoding">Encoding</a></code></h4>
+<ul class="">
+<li><code><a title="funsies.types.Encoding.json" href="#funsies.types.Encoding.json">json</a></code></li>
+<li><code><a title="funsies.types.Encoding.blob" href="#funsies.types.Encoding.blob">blob</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.Operation" href="#funsies.types.Operation">Operation</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.Operation.grab" href="#funsies.types.Operation.grab">grab</a></code></li>
+<li><code><a title="funsies.types.Operation.put" href="#funsies.types.Operation.put">put</a></code></li>
+<li><code><a title="funsies.types.Operation.hash" href="#funsies.types.Operation.hash">hash</a></code></li>
+<li><code><a title="funsies.types.Operation.funsie" href="#funsies.types.Operation.funsie">funsie</a></code></li>
+<li><code><a title="funsies.types.Operation.inp" href="#funsies.types.Operation.inp">inp</a></code></li>
+<li><code><a title="funsies.types.Operation.out" href="#funsies.types.Operation.out">out</a></code></li>
+<li><code><a title="funsies.types.Operation.options" href="#funsies.types.Operation.options">options</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.ShellOutput" href="#funsies.types.ShellOutput">ShellOutput</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.ShellOutput.returncode" href="#funsies.types.ShellOutput.returncode">returncode</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.stdout" href="#funsies.types.ShellOutput.stdout">stdout</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.stderr" href="#funsies.types.ShellOutput.stderr">stderr</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.op" href="#funsies.types.ShellOutput.op">op</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.hash" href="#funsies.types.ShellOutput.hash">hash</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.out" href="#funsies.types.ShellOutput.out">out</a></code></li>
+<li><code><a title="funsies.types.ShellOutput.inp" href="#funsies.types.ShellOutput.inp">inp</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.Error" href="#funsies.types.Error">Error</a></code></h4>
+<ul class="">
+<li><code><a title="funsies.types.Error.grab" href="#funsies.types.Error.grab">grab</a></code></li>
+<li><code><a title="funsies.types.Error.put" href="#funsies.types.Error.put">put</a></code></li>
+<li><code><a title="funsies.types.Error.kind" href="#funsies.types.Error.kind">kind</a></code></li>
+<li><code><a title="funsies.types.Error.source" href="#funsies.types.Error.source">source</a></code></li>
+<li><code><a title="funsies.types.Error.details" href="#funsies.types.Error.details">details</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.ErrorKind" href="#funsies.types.ErrorKind">ErrorKind</a></code></h4>
+<ul class="">
+<li><code><a title="funsies.types.ErrorKind.NotFound" href="#funsies.types.ErrorKind.NotFound">NotFound</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.Mismatch" href="#funsies.types.ErrorKind.Mismatch">Mismatch</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.UnresolvedLink" href="#funsies.types.ErrorKind.UnresolvedLink">UnresolvedLink</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.WrongType" href="#funsies.types.ErrorKind.WrongType">WrongType</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.JSONEncodingError" href="#funsies.types.ErrorKind.JSONEncodingError">JSONEncodingError</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.JSONDecodingError" href="#funsies.types.ErrorKind.JSONDecodingError">JSONDecodingError</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.UnknownEncodingError" href="#funsies.types.ErrorKind.UnknownEncodingError">UnknownEncodingError</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.MissingOutput" href="#funsies.types.ErrorKind.MissingOutput">MissingOutput</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.MissingInput" href="#funsies.types.ErrorKind.MissingInput">MissingInput</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.ExceptionRaised" href="#funsies.types.ErrorKind.ExceptionRaised">ExceptionRaised</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.JobTimedOut" href="#funsies.types.ErrorKind.JobTimedOut">JobTimedOut</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.NoErrorData" href="#funsies.types.ErrorKind.NoErrorData">NoErrorData</a></code></li>
+<li><code><a title="funsies.types.ErrorKind.KilledBySignal" href="#funsies.types.ErrorKind.KilledBySignal">KilledBySignal</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.UnwrapError" href="#funsies.types.UnwrapError">UnwrapError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="funsies.types.RunStatus" href="#funsies.types.RunStatus">RunStatus</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.RunStatus.subdag_ready" href="#funsies.types.RunStatus.subdag_ready">subdag_ready</a></code></li>
+<li><code><a title="funsies.types.RunStatus.delayed" href="#funsies.types.RunStatus.delayed">delayed</a></code></li>
+<li><code><a title="funsies.types.RunStatus.unmet_dependencies" href="#funsies.types.RunStatus.unmet_dependencies">unmet_dependencies</a></code></li>
+<li><code><a title="funsies.types.RunStatus.not_ready" href="#funsies.types.RunStatus.not_ready">not_ready</a></code></li>
+<li><code><a title="funsies.types.RunStatus.executed" href="#funsies.types.RunStatus.executed">executed</a></code></li>
+<li><code><a title="funsies.types.RunStatus.using_cached" href="#funsies.types.RunStatus.using_cached">using_cached</a></code></li>
+<li><code><a title="funsies.types.RunStatus.input_error" href="#funsies.types.RunStatus.input_error">input_error</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="funsies.types.Options" href="#funsies.types.Options">Options</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.types.Options.unpack" href="#funsies.types.Options.unpack">unpack</a></code></li>
+<li><code><a title="funsies.types.Options.pack" href="#funsies.types.Options.pack">pack</a></code></li>
+<li><code><a title="funsies.types.Options.job_args" href="#funsies.types.Options.job_args">job_args</a></code></li>
+<li><code><a title="funsies.types.Options.task_args" href="#funsies.types.Options.task_args">task_args</a></code></li>
+<li><code><a title="funsies.types.Options.queue_args" href="#funsies.types.Options.queue_args">queue_args</a></code></li>
+<li><code><a title="funsies.types.Options.timeout" href="#funsies.types.Options.timeout">timeout</a></code></li>
+<li><code><a title="funsies.types.Options.queue" href="#funsies.types.Options.queue">queue</a></code></li>
+<li><code><a title="funsies.types.Options.distributed" href="#funsies.types.Options.distributed">distributed</a></code></li>
+<li><code><a title="funsies.types.Options.reset" href="#funsies.types.Options.reset">reset</a></code></li>
+<li><code><a title="funsies.types.Options.evaluate" href="#funsies.types.Options.evaluate">evaluate</a></code></li>
+<li><code><a title="funsies.types.Options.ttl" href="#funsies.types.Options.ttl">ttl</a></code></li>
+<li><code><a title="funsies.types.Options.result_ttl" href="#funsies.types.Options.result_ttl">result_ttl</a></code></li>
+<li><code><a title="funsies.types.Options.failure_ttl" href="#funsies.types.Options.failure_ttl">failure_ttl</a></code></li>
+<li><code><a title="funsies.types.Options.serializer" href="#funsies.types.Options.serializer">serializer</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

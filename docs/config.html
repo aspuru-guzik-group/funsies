@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>funsies.config API documentation</title>
+<meta name="description" content="Configuration dictionaries for jobs." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>funsies.config</code></h1>
+</header>
+<section id="section-intro">
+<p>Configuration dictionaries for jobs.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;Configuration dictionaries for jobs.&#34;&#34;&#34;
+# std
+from dataclasses import asdict, dataclass
+import json
+import os
+from typing import Any, Mapping, Optional, Type
+
+# Constants
+INFINITE = -1
+ONE_DAY = 86400
+ONE_MINUTE = 60
+
+
+def _get_funsies_url(url: Optional[str] = None) -&gt; str:
+    &#34;&#34;&#34;Get the default funsies URL.&#34;&#34;&#34;
+    if url is not None:
+        return url
+    else:
+        try:
+            default = os.environ[&#34;FUNSIES_URL&#34;]
+        except KeyError:
+            default = &#34;redis://localhost:6379&#34;
+        return default
+
+
+def _extract_hostname(url: str) -&gt; str:
+    &#34;&#34;&#34;Get the hostname part of the url.&#34;&#34;&#34;
+    if &#34;@&#34; in url:
+        hn = url.split(&#34;@&#34;)[-1]
+    else:
+        hn = url.split(&#34;//&#34;)[-1]
+    return hn
+
+
+@dataclass
+class Options:
+    &#34;&#34;&#34;Runtime options for an Operation.
+
+    This is a class that basically contains all the random options that may
+    need to be set when building a workflow, such as timeouts, heterogeneous
+    compute etc. It should generally be instantiated using the
+    `funsies.options()` function.
+
+    &#34;&#34;&#34;
+
+    timeout: int = INFINITE
+    &#34;&#34;&#34;Max execution time for this operation, in seconds or -1 for an operation
+    that never timeouts. Defaults to -1.&#34;&#34;&#34;
+
+    queue: str = &#34;default&#34;
+    &#34;&#34;&#34;Defines which queue this operation should be executed by. For example,
+    if a complex workflow requires GPUs for certain jobs, those jobs would be
+    setup with option `queue=&#34;gpu&#34;` and workers on the nodes with available
+    GPUs would be instantiated with `funsies worker gpu`. Then, only worker
+    processes in the GPU queue would execute the GPU jobs.&#34;&#34;&#34;
+
+    distributed: bool = True
+    &#34;&#34;&#34;If False, jobs are executed by the local enqueuing process. Used to
+    test workflows without having to start workers.&#34;&#34;&#34;
+
+    reset: bool = False
+    &#34;&#34;&#34;If `True`, this operation is `funsies.reset()` when generated.&#34;&#34;&#34;
+
+    evaluate: bool = True
+    &#34;&#34;&#34;If False, calling `funsies.execute()` on this job or its dependencies will fail.
+    Can be used to ensure a specific branch is never executed.&#34;&#34;&#34;
+
+    ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+    to the [rq keyword with the same name](https://python-rq.org/docs/). &#34;&#34;&#34;
+
+    result_ttl: int = ONE_MINUTE
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects. Defaults to one
+    minute. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    failure_ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects of failing jobs.
+    Defaults to one day. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    # TODO: make meaningfully adjustable
+    serializer: str = &#34;rq.serializers.JSONSerializer&#34;
+
+    @property
+    def job_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.enqueue&#39;s job_args.&#34;&#34;&#34;
+        return dict(
+            timeout=self.timeout,
+            ttl=self.ttl,
+            result_ttl=self.result_ttl,
+            failure_ttl=self.failure_ttl,
+        )
+
+    @property
+    def task_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for dag.task().&#34;&#34;&#34;
+        return dict(
+            evaluate=self.evaluate,
+        )
+
+    @property
+    def queue_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.Queue.&#34;&#34;&#34;
+        return dict(is_async=self.distributed, serializer=self.serializer)
+
+    def pack(self: &#34;Options&#34;) -&gt; str:
+        &#34;&#34;&#34;Pack an Options instance to a bytestring.&#34;&#34;&#34;
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type[&#34;Options&#34;], data: str) -&gt; &#34;Options&#34;:
+        &#34;&#34;&#34;Unpack an Options instance from a byte string.&#34;&#34;&#34;
+        return Options(**json.loads(data))</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="funsies.config.Options"><code class="flex name class">
+<span>class <span class="ident">Options</span></span>
+<span>(</span><span>timeout: int = -1, queue: str = 'default', distributed: bool = True, reset: bool = False, evaluate: bool = True, ttl: int = 86400, result_ttl: int = 60, failure_ttl: int = 86400, serializer: str = 'rq.serializers.JSONSerializer')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Runtime options for an Operation.</p>
+<p>This is a class that basically contains all the random options that may
+need to be set when building a workflow, such as timeouts, heterogeneous
+compute etc. It should generally be instantiated using the
+<code><a title="funsies.options" href="index.html#funsies.options">options()</a></code> function.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class Options:
+    &#34;&#34;&#34;Runtime options for an Operation.
+
+    This is a class that basically contains all the random options that may
+    need to be set when building a workflow, such as timeouts, heterogeneous
+    compute etc. It should generally be instantiated using the
+    `funsies.options()` function.
+
+    &#34;&#34;&#34;
+
+    timeout: int = INFINITE
+    &#34;&#34;&#34;Max execution time for this operation, in seconds or -1 for an operation
+    that never timeouts. Defaults to -1.&#34;&#34;&#34;
+
+    queue: str = &#34;default&#34;
+    &#34;&#34;&#34;Defines which queue this operation should be executed by. For example,
+    if a complex workflow requires GPUs for certain jobs, those jobs would be
+    setup with option `queue=&#34;gpu&#34;` and workers on the nodes with available
+    GPUs would be instantiated with `funsies worker gpu`. Then, only worker
+    processes in the GPU queue would execute the GPU jobs.&#34;&#34;&#34;
+
+    distributed: bool = True
+    &#34;&#34;&#34;If False, jobs are executed by the local enqueuing process. Used to
+    test workflows without having to start workers.&#34;&#34;&#34;
+
+    reset: bool = False
+    &#34;&#34;&#34;If `True`, this operation is `funsies.reset()` when generated.&#34;&#34;&#34;
+
+    evaluate: bool = True
+    &#34;&#34;&#34;If False, calling `funsies.execute()` on this job or its dependencies will fail.
+    Can be used to ensure a specific branch is never executed.&#34;&#34;&#34;
+
+    ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+    to the [rq keyword with the same name](https://python-rq.org/docs/). &#34;&#34;&#34;
+
+    result_ttl: int = ONE_MINUTE
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects. Defaults to one
+    minute. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    failure_ttl: int = ONE_DAY
+    &#34;&#34;&#34;Time to live (ttl) in queue for the rq result objects of failing jobs.
+    Defaults to one day. Equivalent to the [rq keyword with the same
+    name](https://python-rq.org/docs/). (Note that this has nothing to do with
+    the actual data results.) &#34;&#34;&#34;
+
+    # TODO: make meaningfully adjustable
+    serializer: str = &#34;rq.serializers.JSONSerializer&#34;
+
+    @property
+    def job_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.enqueue&#39;s job_args.&#34;&#34;&#34;
+        return dict(
+            timeout=self.timeout,
+            ttl=self.ttl,
+            result_ttl=self.result_ttl,
+            failure_ttl=self.failure_ttl,
+        )
+
+    @property
+    def task_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for dag.task().&#34;&#34;&#34;
+        return dict(
+            evaluate=self.evaluate,
+        )
+
+    @property
+    def queue_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+        &#34;&#34;&#34;Return a dictionary of arguments for rq.Queue.&#34;&#34;&#34;
+        return dict(is_async=self.distributed, serializer=self.serializer)
+
+    def pack(self: &#34;Options&#34;) -&gt; str:
+        &#34;&#34;&#34;Pack an Options instance to a bytestring.&#34;&#34;&#34;
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def unpack(cls: Type[&#34;Options&#34;], data: str) -&gt; &#34;Options&#34;:
+        &#34;&#34;&#34;Unpack an Options instance from a byte string.&#34;&#34;&#34;
+        return Options(**json.loads(data))</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="funsies.config.Options.timeout"><code class="name">var <span class="ident">timeout</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Max execution time for this operation, in seconds or -1 for an operation
+that never timeouts. Defaults to -1.</p></div>
+</dd>
+<dt id="funsies.config.Options.queue"><code class="name">var <span class="ident">queue</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Defines which queue this operation should be executed by. For example,
+if a complex workflow requires GPUs for certain jobs, those jobs would be
+setup with option <code>queue="gpu"</code> and workers on the nodes with available
+GPUs would be instantiated with <code><a title="funsies" href="index.html">funsies</a> worker gpu</code>. Then, only worker
+processes in the GPU queue would execute the GPU jobs.</p></div>
+</dd>
+<dt id="funsies.config.Options.distributed"><code class="name">var <span class="ident">distributed</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If False, jobs are executed by the local enqueuing process. Used to
+test workflows without having to start workers.</p></div>
+</dd>
+<dt id="funsies.config.Options.reset"><code class="name">var <span class="ident">reset</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If <code>True</code>, this operation is <code><a title="funsies.reset" href="index.html#funsies.reset">reset()</a></code> when generated.</p></div>
+</dd>
+<dt id="funsies.config.Options.evaluate"><code class="name">var <span class="ident">evaluate</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>If False, calling <code><a title="funsies.execute" href="index.html#funsies.execute">execute()</a></code> on this job or its dependencies will fail.
+Can be used to ensure a specific branch is never executed.</p></div>
+</dd>
+<dt id="funsies.config.Options.ttl"><code class="name">var <span class="ident">ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the operation. Defaults to 24h. Equivalent
+to the <a href="https://python-rq.org/docs/">rq keyword with the same name</a>.</p></div>
+</dd>
+<dt id="funsies.config.Options.result_ttl"><code class="name">var <span class="ident">result_ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the rq result objects. Defaults to one
+minute. Equivalent to the <a href="https://python-rq.org/docs/">rq keyword with the same
+name</a>. (Note that this has nothing to do with
+the actual data results.)</p></div>
+</dd>
+<dt id="funsies.config.Options.failure_ttl"><code class="name">var <span class="ident">failure_ttl</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Time to live (ttl) in queue for the rq result objects of failing jobs.
+Defaults to one day. Equivalent to the <a href="https://python-rq.org/docs/">rq keyword with the same
+name</a>. (Note that this has nothing to do with
+the actual data results.)</p></div>
+</dd>
+<dt id="funsies.config.Options.serializer"><code class="name">var <span class="ident">serializer</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="funsies.config.Options.unpack"><code class="name flex">
+<span>def <span class="ident">unpack</span></span>(<span>data: str) ‑> <a title="funsies.config.Options" href="#funsies.config.Options">Options</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Unpack an Options instance from a byte string.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def unpack(cls: Type[&#34;Options&#34;], data: str) -&gt; &#34;Options&#34;:
+    &#34;&#34;&#34;Unpack an Options instance from a byte string.&#34;&#34;&#34;
+    return Options(**json.loads(data))</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="funsies.config.Options.job_args"><code class="name">var <span class="ident">job_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for rq.enqueue's job_args.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def job_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for rq.enqueue&#39;s job_args.&#34;&#34;&#34;
+    return dict(
+        timeout=self.timeout,
+        ttl=self.ttl,
+        result_ttl=self.result_ttl,
+        failure_ttl=self.failure_ttl,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.config.Options.task_args"><code class="name">var <span class="ident">task_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for dag.task().</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def task_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for dag.task().&#34;&#34;&#34;
+    return dict(
+        evaluate=self.evaluate,
+    )</code></pre>
+</details>
+</dd>
+<dt id="funsies.config.Options.queue_args"><code class="name">var <span class="ident">queue_args</span> : Mapping[str, Any]</code></dt>
+<dd>
+<div class="desc"><p>Return a dictionary of arguments for rq.Queue.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def queue_args(self: &#34;Options&#34;) -&gt; Mapping[str, Any]:
+    &#34;&#34;&#34;Return a dictionary of arguments for rq.Queue.&#34;&#34;&#34;
+    return dict(is_async=self.distributed, serializer=self.serializer)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="funsies.config.Options.pack"><code class="name flex">
+<span>def <span class="ident">pack</span></span>(<span>self: <a title="funsies.config.Options" href="#funsies.config.Options">Options</a>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pack an Options instance to a bytestring.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pack(self: &#34;Options&#34;) -&gt; str:
+    &#34;&#34;&#34;Pack an Options instance to a bytestring.&#34;&#34;&#34;
+    return json.dumps(asdict(self))</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="funsies" href="index.html">funsies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="funsies.config.Options" href="#funsies.config.Options">Options</a></code></h4>
+<ul class="two-column">
+<li><code><a title="funsies.config.Options.unpack" href="#funsies.config.Options.unpack">unpack</a></code></li>
+<li><code><a title="funsies.config.Options.pack" href="#funsies.config.Options.pack">pack</a></code></li>
+<li><code><a title="funsies.config.Options.job_args" href="#funsies.config.Options.job_args">job_args</a></code></li>
+<li><code><a title="funsies.config.Options.task_args" href="#funsies.config.Options.task_args">task_args</a></code></li>
+<li><code><a title="funsies.config.Options.queue_args" href="#funsies.config.Options.queue_args">queue_args</a></code></li>
+<li><code><a title="funsies.config.Options.timeout" href="#funsies.config.Options.timeout">timeout</a></code></li>
+<li><code><a title="funsies.config.Options.queue" href="#funsies.config.Options.queue">queue</a></code></li>
+<li><code><a title="funsies.config.Options.distributed" href="#funsies.config.Options.distributed">distributed</a></code></li>
+<li><code><a title="funsies.config.Options.reset" href="#funsies.config.Options.reset">reset</a></code></li>
+<li><code><a title="funsies.config.Options.evaluate" href="#funsies.config.Options.evaluate">evaluate</a></code></li>
+<li><code><a title="funsies.config.Options.ttl" href="#funsies.config.Options.ttl">ttl</a></code></li>
+<li><code><a title="funsies.config.Options.result_ttl" href="#funsies.config.Options.result_ttl">result_ttl</a></code></li>
+<li><code><a title="funsies.config.Options.failure_ttl" href="#funsies.config.Options.failure_ttl">failure_ttl</a></code></li>
+<li><code><a title="funsies.config.Options.serializer" href="#funsies.config.Options.serializer">serializer</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
