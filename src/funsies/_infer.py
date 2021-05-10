@@ -29,8 +29,11 @@ def output_types(fun: Callable[..., Any]) -> tuple[Encoding, ...]:
     try:
         hints = get_type_hints(fun)
     except NameError:
-        logger.warning("type inference met an unknown reference")
         hints = fun.__annotations__
+        logger.warning(
+            "type inference met an unknown reference\n"
+            + f"signature: {hints} name: {fun.__name__}"
+        )
 
     if "return" not in hints:
         if fun.__name__ == "<lambda>":
