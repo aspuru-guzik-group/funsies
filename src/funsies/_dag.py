@@ -48,15 +48,24 @@ def delete_all_dags(db: Redis[bytes]) -> None:
     db.delete(DAG_INDEX)
 
 
-def ancestors(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
+def ancestors(
+    db: Redis[bytes], *addresses: hash_t, include_subdags: bool = False
+) -> set[hash_t]:
     """Get all ancestors of a given hash."""
     queue = list(addresses)
     out = set()
 
     while len(queue) > 0:
         curr = queue.pop()
+        parents = db.smembers(join(OPERATIONS, curr, "parents"))
 
-        for el in db.smembers(join(OPERATIONS, curr, "parents")):
+        if include_subdags:
+            # special case for subdag operations
+            parents = parents.union(
+                db.smembers(join(OPERATIONS, curr, "parents.subdag"))
+            )
+
+        for el in parents:
             if el == b"root":
                 continue
 
@@ -81,9 +90,11 @@ def descendants(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
                 queue.append(h)
     return out
 
+
 def get_nearest_operation(
-        db: Redis[bytes], address: hash_t, subdag: Optional[str] = None
+    db: Redis[bytes], address: hash_t, subdag: Optional[str] = None
 ) -> Optional[Operation]:
+    """Return the operation at address or the operation generating address."""
     root = "root"
     art = None
     try:

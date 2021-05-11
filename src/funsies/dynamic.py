@@ -12,7 +12,6 @@ from ._constants import _Data, Encoding
 from ._context import get_db, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._subdag import subdag_funsie
-from ._logging import logger
 from .config import Options
 from .ui import _Target, put
 

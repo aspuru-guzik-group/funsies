@@ -1,19 +1,19 @@
 """Test of visualization routines."""
 from __future__ import annotations
 
-from typing import Sequence, Any
+# std
+from typing import Any, Sequence
 
 # external
 from fakeredis import FakeStrictRedis as Redis
 
 # funsies
 import funsies
-from funsies.types import Artefact, Encoding
 from funsies import (
     _dag,
     _graphviz,
-    execute,
     dynamic,
+    execute,
     Fun,
     morph,
     options,
@@ -23,6 +23,7 @@ from funsies import (
     utils,
     wait_for,
 )
+from funsies.types import Artefact, Encoding
 
 
 def raises(k: bytes) -> bytes:
@@ -70,7 +71,6 @@ def test_dag_dump() -> None:
             f.write(dot)
 
 
-
 def test_dynamic_dump() -> None:
     """Test whether a dynamic DAG gets graphed properly."""
 
@@ -87,12 +87,15 @@ def test_dynamic_dump() -> None:
             ]
         return out
 
-    def apply(inp: Artefact[dict[str,Any]]) -> Artefact[str]:
+    def apply(inp: Artefact[dict[str, Any]]) -> Artefact[str]:
         out = funsies.morph(lambda x: f"{x['sum']}//{x['product']}", inp)
         return out
 
-    def combine(inp: Sequence[Artefact[str]])->Artefact[bytes]:
-        out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
+    def combine(inp: Sequence[Artefact[str]]) -> Artefact[bytes]:
+        def enc(inp: str) -> bytes:
+            return inp.encode()
+
+        out = [funsies.morph(enc, x, out=Encoding.blob) for x in inp]
         return funsies.utils.concat(*out)
 
     with funsies.ManagedFun(nworkers=1) as db:
@@ -109,10 +112,10 @@ def test_dynamic_dump() -> None:
         )
         outputs = funsies.morph(lambda x: x, outputs)
         nodes, artefacts, labels, links = _graphviz.export(db, [outputs.hash])
+        assert len(artefacts) == 4  # not yet generated subdag parents
         print(len(artefacts))
         funsies.execute(outputs)
-        funsies.wait_for(outputs)
+        funsies.wait_for(outputs, timeout=1.0)
         nodes, artefacts, labels, links = _graphviz.export(db, [outputs.hash])
-        print(len(artefacts))
+        assert len(artefacts) == 22  # generated subdag parents
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
-        raise RuntimeError()

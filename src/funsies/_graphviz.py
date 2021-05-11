@@ -4,14 +4,14 @@ from __future__ import annotations
 # std
 import itertools
 import os.path
-from typing import cast, Dict, Optional
+from typing import Dict, Optional
 
 # external
 from redis import Redis
 
 # module
-from ._constants import ARTEFACTS, DAG_INDEX, DAG_OPERATIONS, FUNSIES, hash_t, join
-from ._dag import build_dag, ancestors, get_nearest_operation
+from ._constants import ARTEFACTS, FUNSIES, hash_t, join
+from ._dag import ancestors, get_nearest_operation
 from ._graph import ArtefactStatus, Operation, resolve_link
 from ._logging import logger
 from ._short_hash import shorten_hash
@@ -57,7 +57,7 @@ def export(
         if node is None:
             continue
 
-        curr_nodes = ancestors(db, node.hash)
+        curr_nodes = ancestors(db, node.hash, include_subdags=True)
         curr_nodes.add(node.hash)
         logger.info(f"graph contains {len(curr_nodes)} nodes")
 
