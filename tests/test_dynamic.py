@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # std
-from typing import Sequence
+from typing import Any, Sequence
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -128,3 +128,5 @@ def test_nested_map_reduce(nworkers: int) -> None:
         funsies.execute(outputs)
         funsies.wait_for(outputs, timeout=20.0)
         assert funsies.take(outputs) == ans
+
+

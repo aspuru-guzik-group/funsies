@@ -1,14 +1,19 @@
 """Test of visualization routines."""
 from __future__ import annotations
 
+from typing import Sequence, Any
+
 # external
 from fakeredis import FakeStrictRedis as Redis
 
 # funsies
+import funsies
+from funsies.types import Artefact, Encoding
 from funsies import (
     _dag,
     _graphviz,
     execute,
+    dynamic,
     Fun,
     morph,
     options,
@@ -57,7 +62,57 @@ def test_dag_dump() -> None:
             nodes, artefacts, labels, links, [out.hash, step4b.hash]
         )
         assert len(dot) > 0
+        assert len(nodes) == 8
+        assert len(labels) == 8
 
         # TODO pass through dot for testing?
         with open("g.dot", "w") as f:
             f.write(dot)
+
+
+
+def test_dynamic_dump() -> None:
+    """Test whether a dynamic DAG gets graphed properly."""
+
+    def split(a: bytes, b: bytes) -> list[dict[str, int]]:
+        a = a.split()
+        b = b.split()
+        out = []
+        for ia, ib in zip(a, b):
+            out += [
+                {
+                    "sum": int(ia.decode()) + int(ib.decode()),
+                    "product": int(ia.decode()) * int(ib.decode()),
+                }
+            ]
+        return out
+
+    def apply(inp: Artefact[dict[str,Any]]) -> Artefact[str]:
+        out = funsies.morph(lambda x: f"{x['sum']}//{x['product']}", inp)
+        return out
+
+    def combine(inp: Sequence[Artefact[str]])->Artefact[bytes]:
+        out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
+        return funsies.utils.concat(*out)
+
+    with funsies.ManagedFun(nworkers=1) as db:
+        num1 = funsies.put(b"1 2 3 4 5")
+        num2 = funsies.put(b"11 10 11 10 11")
+
+        outputs = dynamic.sac(
+            split,
+            apply,
+            combine,
+            num1,
+            num2,
+            out=Encoding.blob,
+        )
+        outputs = funsies.morph(lambda x: x, outputs)
+        nodes, artefacts, labels, links = _graphviz.export(db, [outputs.hash])
+        print(len(artefacts))
+        funsies.execute(outputs)
+        funsies.wait_for(outputs)
+        nodes, artefacts, labels, links = _graphviz.export(db, [outputs.hash])
+        print(len(artefacts))
+        assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
+        raise RuntimeError()
