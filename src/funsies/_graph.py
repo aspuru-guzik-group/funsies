@@ -42,7 +42,9 @@ class ArtefactStatus(IntEnum):
     linked = 4
 
 
-def get_status(db: Redis[bytes], address: hash_t, resolve_links=False) -> ArtefactStatus:
+def get_status(
+    db: Redis[bytes], address: hash_t, resolve_links: bool = False
+) -> ArtefactStatus:
     """Get the status of an artefact."""
     if resolve_links:
         address = resolve_link(db, address)

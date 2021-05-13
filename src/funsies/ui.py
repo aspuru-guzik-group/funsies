@@ -28,7 +28,6 @@ from ._graph import (
     get_status,
     make_op,
     Operation,
-    resolve_link,
 )
 from ._logging import logger
 from ._run import is_it_cached

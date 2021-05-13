@@ -3,7 +3,6 @@ from __future__ import annotations
 
 # std
 from typing import Sequence
-import time
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -169,6 +168,5 @@ def test_waiting_on_map_reduce() -> None:
             out=Encoding.blob,
         )
         funsies.execute(outputs)
-        things = funsies.get(outputs.hash)
         funsies.wait_for(outputs)
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"
