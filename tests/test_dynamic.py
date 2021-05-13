@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # std
 from typing import Sequence
+import time
 
 # external
 from fakeredis import FakeStrictRedis as Redis
@@ -128,3 +129,46 @@ def test_nested_map_reduce(nworkers: int) -> None:
         funsies.execute(outputs)
         funsies.wait_for(outputs, timeout=20.0)
         assert funsies.take(outputs) == ans
+
+
+@pytest.mark.slow
+def test_waiting_on_map_reduce() -> None:
+    """Test waiting on the (linked) result of map-reduce."""
+
+    def split(a: bytes, b: bytes) -> list[dict[str, int]]:
+        a = a.split()
+        b = b.split()
+        out = []
+        for ia, ib in zip(a, b):
+            out += [
+                {
+                    "sum": int(ia.decode()) + int(ib.decode()),
+                    "product": int(ia.decode()) * int(ib.decode()),
+                }
+            ]
+        return out
+
+    def apply(inp: Artefact) -> Artefact:
+        out = funsies.morph(lambda x: f"{x['sum']}//{x['product']}", inp)
+        return out
+
+    def combine(inp: Sequence[Artefact]) -> Artefact:
+        out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
+        return funsies.utils.concat(*out)
+
+    with funsies.ManagedFun(nworkers=1):
+        num1 = funsies.put(b"1 2 3 4 5")
+        num2 = funsies.put(b"11 10 11 10 11")
+
+        outputs = dynamic.sac(
+            split,
+            apply,
+            combine,
+            num1,
+            num2,
+            out=Encoding.blob,
+        )
+        funsies.execute(outputs)
+        things = funsies.get(outputs.hash)
+        funsies.wait_for(outputs)
+        assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"

@@ -317,7 +317,7 @@ def wait_for(
     if isinstance(thing, Artefact):
 
         def __stat() -> bool:
-            return get_status(db, resolve_link(db, thing.hash)) > 0
+            return get_status(db, thing.hash, resolve_links=True) > 0
 
     else:
         if isinstance(thing, Operation):
