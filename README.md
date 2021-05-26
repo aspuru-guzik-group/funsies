@@ -160,4 +160,4 @@ funsies is provided under the MIT license.
 ## Contributing
 
 All contributions are welcome! Consult [the CONTRIBUTING](./CONTRIBUTING.md)
-file for help. Please file issues for bugs and documentation issues.
+file for help. Please file issues for any bugs and documentation problems.
