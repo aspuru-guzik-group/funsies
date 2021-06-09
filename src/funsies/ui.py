@@ -23,7 +23,6 @@ from ._graph import (
     Artefact,
     constant_artefact,
     delete_artefact,
-    get_bytes,
     get_data,
     get_status,
     make_op,
@@ -287,7 +286,7 @@ def takeout(
     This is syntactic sugar around `take()`. This function is always strict.
     """
     db = get_db(connection)
-    dat = get_bytes(db, where)
+    dat = get_data(db, where, as_bytes=True)
     __log_error(where.hash, dat)
     dat = unwrap(dat)
     with open(filename, "wb") as f:

@@ -7,7 +7,17 @@ from enum import IntEnum
 import hashlib
 import io
 import traceback
-from typing import Any, Generic, Mapping, Optional, Type, TypeVar
+from typing import (
+    Any,
+    Generic,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    overload,
+    Literal,
+    Union,
+)
 
 # external
 from redis import Redis
@@ -31,7 +41,7 @@ MAX_VALUE_SIZE = 512 * MIB
 class StorageUnit:
 
     artefact: hash_t
-    where: str
+    key: str
 
 
 # --------------------------------------------------------------------------------
@@ -284,7 +294,7 @@ def set_bytes(
             tb_exc = traceback.format_exc()
             return Error(
                 kind=ErrorKind.ExceptionRaised,
-                source=loc.address,
+                source=loc.artefact,
                 details=tb_exc,
             )
 
@@ -294,15 +304,39 @@ def set_bytes(
             pipe.rpush(loc.key, dat)
         first = False
     pipe.execute()
+    return None
 
 
 # Save and load artefacts
+@overload
 def get_data(
     db: Redis[bytes],
     source: Artefact[T],
+    as_bytes: Literal[True],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[bytes]:
+    ...
+
+
+@overload
+def get_data(
+    db: Redis[bytes],
+    source: Artefact[T],
+    as_bytes: Literal[False] = False,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
 ) -> Result[T]:
+    ...
+
+
+def get_data(
+    db: Redis[bytes],
+    source: Artefact[T],
+    as_bytes: bool = False,
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Union[Result[T], Result[bytes]]:
     """Retrieve data corresponding to an artefact."""
     loc = __get_storage_read(db, source.hash, carry_error, do_resolve_link)
     raw = get_bytes(db, loc)
@@ -329,7 +363,7 @@ def set_data(
     # get location for writing
     loc = __get_storage_write(db, address)
     if isinstance(loc, Error):
-        mark_error(db, address, error=value)
+        mark_error(db, address, error=loc)
         return
 
     err = set_bytes(db, loc, value)

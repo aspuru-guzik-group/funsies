@@ -22,7 +22,7 @@ from ._graph import (
     Artefact,
     ArtefactStatus,
     create_link,
-    get_bytes,
+    get_data,
     get_status,
     mark_error,
     Operation,
@@ -166,7 +166,7 @@ def run_op(  # noqa:C901
     input_data: dict[str, Result[bytes]] = {}
     for key, val in op.inp.items():
         artefact = Artefact[Any].grab(db, val)
-        dat = get_bytes(db, artefact, carry_error=op.hash)
+        dat = get_data(db, artefact, carry_error=op.hash, as_bytes=True)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
