@@ -27,6 +27,13 @@ MIB = 1024 * 1024
 MAX_VALUE_SIZE = 512 * MIB
 
 
+@dataclass
+class StorageUnit:
+
+    artefact: hash_t
+    where: str
+
+
 # --------------------------------------------------------------------------------
 # Artefact status
 class ArtefactStatus(IntEnum):
@@ -184,15 +191,13 @@ def _set_block_size(n: int) -> None:
     BLOCK_SIZE = n
 
 
-def __get_data_loc(
+def __get_storage_read(
     store: Redis[bytes],
-    artefact: Artefact[Any],
+    address: hash_t,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[str]:
+) -> Result[StorageUnit]:
     """Perform all the prior step before actually retrieving data."""
-    address = artefact.hash
-
     if do_resolve_link:
         address = resolve_link(store, address)
 
@@ -223,84 +228,116 @@ def __get_data_loc(
                 source=carry_error,
             )
         else:
-            return key
+            return StorageUnit(key=key, artefact=address)
+
+
+def __get_storage_write(
+    store: Redis[bytes],
+    address: hash_t,
+    do_resolve_link: bool = True,
+) -> Result[StorageUnit]:
+    """Perform all the prior step before actually retrieving data."""
+    if do_resolve_link:
+        address = resolve_link(store, address)
+
+    # First check the status
+    stat = get_status(store, address)
+
+    # if it's a link, we move over to the link
+    if stat == ArtefactStatus.linked:
+        return Error(
+            kind=ErrorKind.UnresolvedLink,
+            details=f"artefact at {address} is a link and thus we can't set data to it",
+        )
+    key = join(ARTEFACTS, address, "data")
+    return StorageUnit(key=key, artefact=address)
 
 
 def get_bytes(
     store: Redis[bytes],
-    source: Artefact[Any],
-    carry_error: Optional[hash_t] = None,
-    do_resolve_link: bool = True,
+    loc: Result[StorageUnit],
 ) -> Result[bytes]:
     """Retrieve bytes corresponding to an artefact."""
     raw = match(
-        __get_data_loc(store, source, carry_error, do_resolve_link),
-        some=lambda x: b"".join(store.lrange(x, 0, -1)),
+        loc,
+        some=lambda x: b"".join(store.lrange(x.key, 0, -1)),
         none=lambda x: x,
     )
     return raw
 
 
+def set_bytes(
+    store: Redis[bytes],
+    loc: StorageUnit,
+    value: bytes,
+) -> Result[None]:
+    """Set bytes corresponding to an artefact."""
+    # write
+    first = True  # this workaround is to make sure that writing no data is ok.
+    pipe = store.pipeline(transaction=True)
+    pipe.delete(loc.key)
+    buf = io.BytesIO(value)
+    while True:
+        try:
+            dat = buf.read(BLOCK_SIZE)
+        except Exception:
+            tb_exc = traceback.format_exc()
+            return Error(
+                kind=ErrorKind.ExceptionRaised,
+                source=loc.address,
+                details=tb_exc,
+            )
+
+        if len(dat) == 0 and not first:
+            break
+        else:
+            pipe.rpush(loc.key, dat)
+        first = False
+    pipe.execute()
+
+
 # Save and load artefacts
 def get_data(
-    store: Redis[bytes],
+    db: Redis[bytes],
     source: Artefact[T],
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
-    raw = get_bytes(store, source, carry_error, do_resolve_link)
+    loc = __get_storage_read(db, source.hash, carry_error, do_resolve_link)
+    raw = get_bytes(db, loc)
     return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
 def set_data(
-    store: Redis[bytes],
+    db: Redis[bytes],
     address: hash_t,
     value: Result[bytes],
     status: ArtefactStatus,
 ) -> None:
     """Update an artefact with a value."""
-    if get_status(store, address) == ArtefactStatus.const:
+    if get_status(db, address) == ArtefactStatus.const:
         if status == ArtefactStatus.const:
             pass
         else:
             raise TypeError("Attempted to set data to a const artefact.")
 
     if isinstance(value, Error):
-        # fail gracefully
-        mark_error(store, address, error=value)
+        mark_error(db, address, error=value)
         return
 
-    key = join(ARTEFACTS, address, "data")
-    buf = io.BytesIO(value)
+    # get location for writing
+    loc = __get_storage_write(db, address)
+    if isinstance(loc, Error):
+        mark_error(db, address, error=value)
+        return
 
-    # write
-    first = True  # this workaround is to make sure that writing no data is ok.
-    pipe = store.pipeline(transaction=True)
-    pipe.delete(key)
-    while True:
-        try:
-            dat = buf.read(BLOCK_SIZE)
-        except Exception:
-            tb_exc = traceback.format_exc()
-            mark_error(
-                store,
-                address,
-                error=Error(
-                    kind=ErrorKind.ExceptionRaised,
-                    source=address,
-                    details=tb_exc,
-                ),
-            )
-            return
+    err = set_bytes(db, loc, value)
+    if err is not None:
+        mark_error(db, address, error=err)
+        return
 
-        if len(dat) == 0 and not first:
-            break
-        else:
-            pipe.rpush(key, dat)
-        first = False
-    set_status(pipe, address, status)
-    pipe.execute()
+    set_status(db, address, status)
 
 
 # not pipeline-able (because of set_data)
