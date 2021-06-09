@@ -5,25 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
-import io
-import traceback
-from typing import (
-    Any,
-    Generic,
-    Mapping,
-    Optional,
-    Type,
-    TypeVar,
-    overload,
-    Union,
-)
+from typing import Any, Generic, Mapping, Optional, overload, Type, TypeVar, Union
 
 # python 3.7 imports Literal from typing_extensions
 try:
     # std
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal  # type:ignore
 
 # external
 from redis import Redis
@@ -31,23 +20,13 @@ from redis.client import Pipeline
 
 # module
 from . import _serdes
-from ._constants import _Data, ARTEFACTS, BLOCK_SIZE, Encoding, hash_t, join, OPERATIONS
+from ._constants import _Data, ARTEFACTS, Encoding, hash_t, join, OPERATIONS
 from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
+from ._storage import get_location, Location
 from .config import Options
 from .errors import Error, ErrorKind, match, Result
-
-# Max redis value size in bytes
-MIB = 1024 * 1024
-MAX_VALUE_SIZE = 512 * MIB
-
-
-@dataclass
-class StorageUnit:
-
-    artefact: hash_t
-    key: str
 
 
 # --------------------------------------------------------------------------------
@@ -201,18 +180,12 @@ def resolve_link(db: Redis[bytes], address: hash_t) -> hash_t:
         return resolve_link(db, out)
 
 
-def _set_block_size(n: int) -> None:
-    """Change block size."""
-    global BLOCK_SIZE
-    BLOCK_SIZE = n
-
-
 def __get_storage_read(
     store: Redis[bytes],
     address: hash_t,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[StorageUnit]:
+) -> Result[Location]:
     """Perform all the prior step before actually retrieving data."""
     if do_resolve_link:
         address = resolve_link(store, address)
@@ -236,22 +209,14 @@ def __get_storage_read(
             source=carry_error,
         )
     else:
-        key = join(ARTEFACTS, address, "data")
-        if not store.exists(key):
-            return Error(
-                kind=ErrorKind.Mismatch,
-                details="expected data was not found",
-                source=carry_error,
-            )
-        else:
-            return StorageUnit(key=key, artefact=address)
+        return get_location(store, address)
 
 
 def __get_storage_write(
     store: Redis[bytes],
     address: hash_t,
     do_resolve_link: bool = True,
-) -> Result[StorageUnit]:
+) -> Result[Location]:
     """Perform all the prior step before actually retrieving data."""
     if do_resolve_link:
         address = resolve_link(store, address)
@@ -265,52 +230,7 @@ def __get_storage_write(
             kind=ErrorKind.UnresolvedLink,
             details=f"artefact at {address} is a link and thus we can't set data to it",
         )
-    key = join(ARTEFACTS, address, "data")
-    return StorageUnit(key=key, artefact=address)
-
-
-def _get_bytes(
-    store: Redis[bytes],
-    loc: Result[StorageUnit],
-) -> Result[bytes]:
-    """Retrieve bytes corresponding to an artefact."""
-    raw = match(
-        loc,
-        some=lambda x: b"".join(store.lrange(x.key, 0, -1)),
-        none=lambda x: x,
-    )
-    return raw
-
-
-def _set_bytes(
-    store: Redis[bytes],
-    loc: StorageUnit,
-    value: bytes,
-) -> Result[None]:
-    """Set bytes corresponding to an artefact."""
-    # write
-    first = True  # this workaround is to make sure that writing no data is ok.
-    pipe = store.pipeline(transaction=True)
-    pipe.delete(loc.key)
-    buf = io.BytesIO(value)
-    while True:
-        try:
-            dat = buf.read(BLOCK_SIZE)
-        except Exception:
-            tb_exc = traceback.format_exc()
-            return Error(
-                kind=ErrorKind.ExceptionRaised,
-                source=loc.artefact,
-                details=tb_exc,
-            )
-
-        if len(dat) == 0 and not first:
-            break
-        else:
-            pipe.rpush(loc.key, dat)
-        first = False
-    pipe.execute()
-    return None
+    return get_location(store, address)
 
 
 # Save and load artefacts
@@ -345,7 +265,10 @@ def get_data(
 ) -> Union[Result[T], Result[bytes]]:
     """Retrieve data corresponding to an artefact."""
     loc = __get_storage_read(db, source.hash, carry_error, do_resolve_link)
-    raw = _get_bytes(db, loc)
+    if isinstance(loc, Error):
+        return loc
+
+    raw = loc.get_bytes()
     if as_bytes:
         return raw
     else:
@@ -375,7 +298,7 @@ def set_data(
         mark_error(db, address, error=loc)
         return
 
-    err = _set_bytes(db, loc, value)
+    err = loc.set_bytes(value)
     if err is not None:
         mark_error(db, address, error=err)
         return
