@@ -8,7 +8,7 @@ import funsies as f
 
 
 def test_cleanup() -> None:
-    """Test truncation."""
+    """Test cleanup of a broken DAG, such as when a worker drops off prematurely."""
     # std
     import os
 

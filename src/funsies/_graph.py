@@ -15,9 +15,15 @@ from typing import (
     Type,
     TypeVar,
     overload,
-    Literal,
     Union,
 )
+
+# python 3.7 imports Literal from typing_extensions
+try:
+    # std
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 # external
 from redis import Redis
@@ -263,7 +269,7 @@ def __get_storage_write(
     return StorageUnit(key=key, artefact=address)
 
 
-def get_bytes(
+def _get_bytes(
     store: Redis[bytes],
     loc: Result[StorageUnit],
 ) -> Result[bytes]:
@@ -276,7 +282,7 @@ def get_bytes(
     return raw
 
 
-def set_bytes(
+def _set_bytes(
     store: Redis[bytes],
     loc: StorageUnit,
     value: bytes,
@@ -339,8 +345,11 @@ def get_data(
 ) -> Union[Result[T], Result[bytes]]:
     """Retrieve data corresponding to an artefact."""
     loc = __get_storage_read(db, source.hash, carry_error, do_resolve_link)
-    raw = get_bytes(db, loc)
-    return _serdes.decode(source.kind, raw, carry_error=carry_error)
+    raw = _get_bytes(db, loc)
+    if as_bytes:
+        return raw
+    else:
+        return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
 def set_data(
@@ -366,7 +375,7 @@ def set_data(
         mark_error(db, address, error=loc)
         return
 
-    err = set_bytes(db, loc, value)
+    err = _set_bytes(db, loc, value)
     if err is not None:
         mark_error(db, address, error=err)
         return
