@@ -156,7 +156,7 @@ def test_job_killed(nworkers: int, sig: int) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("nworkers", [1, 2, 8])
+@pytest.mark.parametrize("nworkers", [1, 2, 4])
 def test_data_race(nworkers: int) -> None:
     """Test a data race when execute calls are interleaved."""
     with f.ManagedFun(nworkers=nworkers):
@@ -170,8 +170,8 @@ def test_data_race(nworkers: int) -> None:
 
         f.execute(step1)
         f.execute(step2)
-        f.wait_for(step1, timeout=10.0)
-        f.wait_for(step2, timeout=10.0)
+        f.wait_for(step1, timeout=20.0)
+        f.wait_for(step2, timeout=20.0)
 
 
 @pytest.mark.slow
@@ -185,7 +185,7 @@ def test_double_execution(nworkers: int) -> None:
     def track_runs(inp: bytes) -> bytes:
         job = get_current_job()
         db: Redis[bytes] = job.connection
-        val = db.incrby("sentinel", 1)  # type:ignore
+        val = db.incrby("sentinel", 1)
         time.sleep(0.5)
         return str(val).encode()
 

@@ -104,7 +104,7 @@ def test_nested_map_reduce(nworkers: int) -> None:
             split_inner, apply_inner, combine_inner, num1, out=Encoding.json
         )
         funsies.execute(outputs)
-        funsies.wait_for(outputs, timeout=10.0)
+        funsies.wait_for(outputs, timeout=30.0)
         assert funsies.take(outputs) == 20
 
         # Now try the nested one
@@ -126,7 +126,7 @@ def test_nested_map_reduce(nworkers: int) -> None:
             out=Encoding.blob,
         )
         funsies.execute(outputs)
-        funsies.wait_for(outputs, timeout=20.0)
+        funsies.wait_for(outputs, timeout=30.0)
         assert funsies.take(outputs) == ans
 
 

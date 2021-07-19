@@ -30,7 +30,7 @@ def hash_load(db: Redis[bytes], short_hash: str) -> list[hash_t]:
     if len(short_hash) > 40:
         raise AttributeError(f"hash {short_hash} has length {len(short_hash)} > 40")
 
-    data = db.zrangebylex(HASH_INDEX, f"[{short_hash}", "+")  # type:ignore
+    data = db.zrangebylex(HASH_INDEX, f"[{short_hash}", "+")
     out = []
     for key in data:
         k = key.decode()

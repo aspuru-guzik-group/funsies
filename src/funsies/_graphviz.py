@@ -87,7 +87,7 @@ def export(
     logger.info(f"gathering status for {len(art_hashes)} artefacts")
     artefact_hashes = list(art_hashes)
     redis_keys = [join(ARTEFACTS, address, "status") for address in artefact_hashes]
-    statuses: list[Optional[bytes]] = db.mget(redis_keys)  # type:ignore
+    statuses: list[Optional[bytes]] = db.mget(redis_keys)
     for h, s in zip(artefact_hashes, statuses):
         if s is None:
             artefacts[h] = ArtefactStatus.not_found
