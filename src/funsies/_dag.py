@@ -48,15 +48,24 @@ def delete_all_dags(db: Redis[bytes]) -> None:
     db.delete(DAG_INDEX)
 
 
-def ancestors(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
+def ancestors(
+    db: Redis[bytes], *addresses: hash_t, include_subdags: bool = False
+) -> set[hash_t]:
     """Get all ancestors of a given hash."""
     queue = list(addresses)
     out = set()
 
     while len(queue) > 0:
         curr = queue.pop()
+        parents = db.smembers(join(OPERATIONS, curr, "parents"))
 
-        for el in db.smembers(join(OPERATIONS, curr, "parents")):
+        if include_subdags:
+            # special case for subdag operations
+            parents = parents.union(
+                db.smembers(join(OPERATIONS, curr, "parents.subdag"))
+            )
+
+        for el in parents:
             if el == b"root":
                 continue
 
@@ -82,33 +91,39 @@ def descendants(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
     return out
 
 
-def build_dag(
+def get_nearest_operation(
     db: Redis[bytes], address: hash_t, subdag: Optional[str] = None
-) -> None:  # noqa:C901
-    """Setup DAG required to compute the result at a specific address."""
+) -> Optional[Operation]:
+    """Return the operation at address or the operation generating address."""
     root = "root"
     art = None
     try:
         node = Operation.grab(db, address)
-        logger.debug(f"building dag for op at {address[:6]}")
+        return node
     except RuntimeError:
         # one possibility is that address is an artefact...
         try:
             art = Artefact[Any].grab(db, address)
-            logger.debug(f"artefact at {address[:6]}")
         except RuntimeError:
             raise RuntimeError(
                 f"address {address} neither a valid operation nor a valid artefact."
             )
 
-    if art is not None:
-        if art.parent == root:
-            # We have basically just a single artefact as the network...
-            logger.debug("no dependencies to execute")
-            return
-        else:
-            node = Operation.grab(db, art.parent)
-            logger.debug(f"building dag for op at {node.hash[:6]}")
+    if art.parent == root:
+        # We have basically just a single artefact as the network...
+        return None
+    else:
+        node = Operation.grab(db, art.parent)
+        return node
+
+
+def build_dag(
+    db: Redis[bytes], address: hash_t, subdag: Optional[str] = None
+) -> None:  # noqa:C901
+    """Setup DAG required to compute the result at a specific address."""
+    node = get_nearest_operation(db, address)
+    if node is None:
+        return
 
     # Ok, so now we finally know we have a node, and we want to extract the whole DAG
     # from it.

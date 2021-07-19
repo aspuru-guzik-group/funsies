@@ -300,7 +300,7 @@ def wait(  # noqa:C901
                     logger.warning(f"ignoring {type(t)} at {t.hash}")
 
         while len(h) > 0:
-            stat = get_status(db, h[0])
+            stat = get_status(db, h[0], resolve_links=True)
             if stat > 0:
                 h.pop(0)
                 logger.success(f"{len(h)} things left to wait for.")

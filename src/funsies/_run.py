@@ -15,7 +15,7 @@ import rq
 
 # module
 from . import _serdes
-from ._constants import ARTEFACTS, hash_t, join
+from ._constants import ARTEFACTS, hash_t, join, OPERATIONS
 from ._context import _options_stack
 from ._funsies import Funsie, FunsieHow
 from ._graph import (
@@ -236,6 +236,7 @@ def run_op(  # noqa:C901
         logger.error("DONE: runner raised exception.")
         return RunStatus.executed
 
+    subdag_parents = []
     for key, val in out_data.items():
         if val is None:
             logger.warning(f"no output data for {key}")
@@ -250,20 +251,49 @@ def run_op(  # noqa:C901
             )
             # not that in this case, the other outputs are not necesserarily
             # invalidated, only this one.
+
         elif funsie.how == FunsieHow.subdag:
-            assert isinstance(val, Artefact)
-            create_link(db, op.out[key], val.hash)
+            # Special case for subdag, create links and update parents
+            if isinstance(val, Artefact):
+                create_link(db, op.out[key], val.hash)
+                subdag_parents += [val.parent]
+            else:
+                logger.error("expected artefact, got value")
+                mark_error(
+                    db,
+                    op.out[key],
+                    error=Error(
+                        kind=ErrorKind.Mismatch,
+                        source=op.hash,
+                        details="subdag should have returned an artefact"
+                        + f" but it returned {val}",
+                    ),
+                )
         else:
-            assert not isinstance(val, Artefact)
-            set_data(
-                db,
-                op.out[key],
-                _serdes.encode(funsie.out[key], val),
-                status=ArtefactStatus.done,
-            )
+            if isinstance(val, Artefact):
+                logger.error(f"expected value, got artefact with hash {val.hash}")
+                mark_error(
+                    db,
+                    op.out[key],
+                    error=Error(
+                        kind=ErrorKind.Mismatch,
+                        source=op.hash,
+                        details="op should have returned a value"
+                        + f" but it returned an artefact {val}",
+                    ),
+                )
+            else:
+                set_data(
+                    db,
+                    op.out[key],
+                    _serdes.encode(funsie.out[key], val),
+                    status=ArtefactStatus.done,
+                )
 
     if funsie.how == FunsieHow.subdag:
         logger.success("DONE: subdag ready.")
+        db.sadd(join(OPERATIONS, op.hash, "parents.subdag"), *subdag_parents)
+        logger.info(f"added {len(subdag_parents)} new parent nodes")
         return RunStatus.subdag_ready
     else:
         logger.success("DONE: successful eval.")

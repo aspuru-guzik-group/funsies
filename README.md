@@ -27,17 +27,28 @@ pip install funsies
 
 This will enable the `funsies` CLI tool as well as the `funsies` python
 module. Python 3.7, 3.8 and 3.9 are supported. To run workflows, you'll need a
-redis server. Redis can be installed using conda,
+Redis server, version 4.x or higher. On Linux Redis can be installed using conda,
 
 ```bash
 conda install redis
 ```
 
-or pip,
+pip,
 
 ```bash
 pip install redis-server
 ```
+
+or your system package manager. On Mac OSX, Redis can be downloaded using
+Homebrew,
+
+```bash
+brew install redis
+```
+
+(Windows is not supported by Redis, but a third-party package can be obtained
+from [this repository](https://github.com/tporadowski/redis). This has **not**
+been tested, however.)
 
 ## Hello, funsies!
 To run workflows, three components need to be connected:

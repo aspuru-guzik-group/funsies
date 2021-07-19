@@ -4,14 +4,14 @@ from __future__ import annotations
 # std
 import itertools
 import os.path
-from typing import cast, Dict, Optional
+from typing import Dict, Optional
 
 # external
 from redis import Redis
 
 # module
-from ._constants import ARTEFACTS, DAG_INDEX, DAG_OPERATIONS, FUNSIES, hash_t, join
-from ._dag import build_dag
+from ._constants import ARTEFACTS, FUNSIES, hash_t, join
+from ._dag import ancestors, get_nearest_operation
 from ._graph import ArtefactStatus, Operation, resolve_link
 from ._logging import logger
 from ._short_hash import shorten_hash
@@ -53,25 +53,18 @@ def export(
     art_hashes = set()
 
     for address in addresses:
-        if address.encode() not in db.smembers(DAG_INDEX):
-            logger.warning(
-                f"attempted to print dag for {address}, but "
-                + "it has not been generated. building now."
-            )
-            build_dag(db, address)
+        node = get_nearest_operation(db, address)
+        if node is None:
+            continue
 
-        logger.info("generating graph for")
-        logger.info(f"{'/'.join([shorten_hash(a) for a in address.split('/')])}")
-        # add node data
-        curr_nodes = db.smembers(join(DAG_OPERATIONS, address))
+        curr_nodes = ancestors(db, node.hash, include_subdags=True)
+        curr_nodes.add(node.hash)
         logger.info(f"graph contains {len(curr_nodes)} nodes")
 
-        for k, element in enumerate(curr_nodes):
+        for k, h in enumerate(curr_nodes):
             if k % 100 == 0 and k > 0:
                 logger.info(f"done: {k} / {len(curr_nodes)}")
-            element = cast(bytes, element)
             # all the operations
-            h = hash_t(element.decode())
             nodes[h] = {}
             obj = Operation.grab(db, h)
 
