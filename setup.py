@@ -8,7 +8,7 @@ with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 setuptools.setup(
     name="funsies",
-    version="0.7.0",
+    version="0.7.1",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
     description="Funsies is a library to build and exectution engine for"
