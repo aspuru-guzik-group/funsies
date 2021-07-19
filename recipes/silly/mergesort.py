@@ -11,11 +11,21 @@ from funsies.types import Artefact, Encoding, Error, Result
 
 T = TypeVar("T")
 
+# We stop recusion dynamically using an Exception, in a manner similar to
+# raising StopIteration in a standard python program. This Exception is caught
+# below in __main__ using ignore_error().
+
+
+class RecursionStop(Exception):
+    """Exception raised recursion limit has been reached."""
+
+    pass
+
 
 def split(inp: list[int]) -> tuple[list[int], list[int]]:
     """Split a list into two sublist, raise if given less than 2 elements."""
     if len(inp) < 2:
-        raise RuntimeError()
+        raise RecursionStop("Mergesort recursion completed successfully!")
 
     middle = len(inp) // 2
     left = inp[:middle]
@@ -66,6 +76,7 @@ def funsies_mergesort(art: Artefact[list[int]]) -> Artefact[list[int]]:
         result,
         art,
         strict=False,
+        out=Encoding.json,
     )
 
 

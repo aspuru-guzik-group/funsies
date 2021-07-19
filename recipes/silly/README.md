@@ -11,8 +11,9 @@ interesting.](./graph.pdf)
 The main challenge in this toy example is that we have to terminate our
 recursions without explicitly extracting the funsies data (for euhm
 performance reasons?). We use error propagation for this: basically in each
-nested sub-workflow, we raise if less than 2 elements are present and stop
-recursing deeper. What we get is basically recursive, nested
+nested sub-workflow, we raise the `StopRecursion` exception if less than 2
+elements are present and stop recursing deeper. What we get is basically
+recursive, nested
 [MapReduce.](https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html)
 
 Although this is rather silly, a similar approach could conceivably be used
