@@ -55,7 +55,7 @@ class Error:
             data["source"] = str(self.source)
         if self.details:
             data["details"] = str(self.details)
-        db.hset(  # type:ignore
+        db.hset(
             join(ARTEFACTS, hash, "error"),
             mapping=data,  # type:ignore
         )

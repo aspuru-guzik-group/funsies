@@ -56,4 +56,4 @@ except ImportError:
     # external
     import importlib_metadata
 
-    __version__ = importlib_metadata.version("funsies")
+    __version__ = importlib_metadata.version("funsies")  # type:ignore

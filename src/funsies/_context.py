@@ -34,7 +34,7 @@ def cleanup_funsies(connection: Redis[bytes]) -> None:
 
     # Reset operation status
     ops = join(OPERATIONS, hash_t("*"), "owner")
-    keys = connection.keys(ops)  # type:ignore
+    keys = connection.keys(ops)
     if len(keys):
         logger.info(f"clearing {len(keys)} unfinished ops")
         for k in keys:

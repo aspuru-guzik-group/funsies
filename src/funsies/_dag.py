@@ -69,7 +69,7 @@ def ancestors(
             if el == b"root":
                 continue
 
-            h = hash_t(el.decode())  # type:ignore
+            h = hash_t(el.decode())
             out.add(h)
             if h not in queue:
                 queue.append(h)
@@ -84,7 +84,7 @@ def descendants(db: Redis[bytes], *addresses: hash_t) -> set[hash_t]:
     while len(queue) > 0:
         curr = queue.pop()
         for el in db.smembers(join(OPERATIONS, curr, "children")):
-            h = hash_t(el.decode())  # type:ignore
+            h = hash_t(el.decode())
             out.add(h)
             if h not in queue:
                 queue.append(h)
@@ -201,7 +201,7 @@ def acquire_task(db: Redis[bytes], op_hash: hash_t, worker_name: Optional[str]) 
         return True
 
     owner_key = join(OPERATIONS, op_hash, "owner")
-    response = db.setnx(owner_key, worker_name)  # type:ignore
+    response = db.setnx(owner_key, worker_name)
     if response:
         return True
     else:

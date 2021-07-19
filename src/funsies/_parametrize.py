@@ -36,7 +36,7 @@ def _parametrize_subgraph(
     for name, inp in inputs.items():
         inp_dependent_ops = []
         for dependent in db.smembers(join(ARTEFACTS, inp.hash, "dependents")):
-            d: str = dependent.decode()  # type:ignore
+            d: str = dependent.decode()
             if d in out_ancestors:
                 inp_dependent_ops += [d]
 
@@ -58,7 +58,7 @@ def _subgraph_edges(db: Redis[bytes], nodes: set[hash_t]) -> dict[hash_t, set[ha
     edges: dict[hash_t, set[hash_t]] = {}
     for n in nodes:
         for value in db.smembers(join(OPERATIONS, n, "parents")):
-            parent: hash_t = hash_t(value.decode())  # type:ignore
+            parent: hash_t = hash_t(value.decode())
             if parent in nodes:
                 edges[parent] = edges.get(parent, set()).union([n])
     return edges

@@ -76,7 +76,7 @@ class Funsie:
 
     def put(self: Funsie, db: Redis[bytes]) -> None:
         """Save a Funsie to Redis."""
-        db.hset(  # type:ignore
+        db.hset(
             join(FUNSIES, self.hash),
             mapping={
                 "hash": self.hash,
@@ -86,17 +86,17 @@ class Funsie:
             },
         )
         if self.inp:
-            db.hset(  # type:ignore
+            db.hset(
                 join(FUNSIES, self.hash, "inp"),
                 mapping=dict([(k, v.value) for k, v in self.inp.items()]),
             )
         if self.out:
-            db.hset(  # type:ignore
+            db.hset(
                 join(FUNSIES, self.hash, "out"),
                 mapping=dict([(k, v.value) for k, v in self.out.items()]),
             )
         if self.extra:
-            db.hset(  # type:ignore
+            db.hset(
                 join(FUNSIES, self.hash, "extra"), mapping=self.extra  # type:ignore
             )
 

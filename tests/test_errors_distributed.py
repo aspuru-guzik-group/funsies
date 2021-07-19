@@ -185,7 +185,7 @@ def test_double_execution(nworkers: int) -> None:
     def track_runs(inp: bytes) -> bytes:
         job = get_current_job()
         db: Redis[bytes] = job.connection
-        val = db.incrby("sentinel", 1)  # type:ignore
+        val = db.incrby("sentinel", 1)
         time.sleep(0.5)
         return str(val).encode()
 

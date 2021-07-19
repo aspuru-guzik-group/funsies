@@ -59,6 +59,7 @@ def mypy(session: Session) -> None:
     """Run the static type checker."""
     args = session.posargs or locations
     session.install("mypy")
+    session.install("types-redis")
     session.run("mypy", *args)
 
 

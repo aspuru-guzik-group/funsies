@@ -63,7 +63,7 @@ def set_status(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
 
 def set_status_nx(db: Redis[bytes], address: hash_t, stat: ArtefactStatus) -> None:
     """Set the status of an artefact iff it has no status."""
-    _ = db.setnx(join(ARTEFACTS, address, "status"), int(stat))  # type:ignore
+    _ = db.setnx(join(ARTEFACTS, address, "status"), int(stat))
 
 
 # --------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ class Artefact(Generic[T]):
     def put(self: Artefact[Any], db: Redis[bytes]) -> None:
         """Save an artefact to Redis."""
         data = dict(hash=self.hash, parent=self.parent, kind=self.kind.value)
-        db.hset(  # type:ignore
+        db.hset(
             join(ARTEFACTS, self.hash),
             mapping=data,  # type:ignore
         )
@@ -379,7 +379,7 @@ class Operation:
             db.hset(join(OPERATIONS, self.hash, "out"), mapping=self.out)  # type:ignore
         if self.options:
             db.set(join(OPERATIONS, self.hash, "options"), self.options.pack())
-        db.hset(  # type:ignore
+        db.hset(
             join(OPERATIONS, self.hash),
             mapping={"funsie": self.funsie, "hash": self.hash},
         )
