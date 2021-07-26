@@ -139,6 +139,43 @@ permanent data storage, as is often the case in containerized deployment.
 File-driven workflows using only a
 container's [tmpfs](https://docs.docker.com/storage/tmpfs/).
 
+## Recovering from failures
+
+Raised exceptions in python codes, worker failures, missing output files and
+other error conditions are automatically caught by funsies workers, providing
+fault tolerance to workflows. Errors are logged on `stderr` with full
+traceback and can be recovered from the database.
+
+Steps that depend on failed ones propagate those
+errors and their provenance. Errors can then be dealt with wherever it is most
+appropriate to do so [using techniques from functional
+programming.](https://fsharpforfunandprofit.com/rop/) 
+
+As an example, consider a workflow that first runs a CLI program `simulate`
+that ought to produce a `results.csv` file, which is subsequently analyzed
+using a python function `analyze_data()`,
+
+```python
+import funsies as f
+
+sim = f.shell("simulate data.inp", inp={"data.inp":"some input"}, out=["results.csv"])
+final = f.reduce(analyze_data, sim.out["results.csv"])
+```
+
+In a normal python program, `analyze_data()` would need to guard against the
+possibility that `results.csv` is absent, or risk a fatal exception. In the
+above funsies script, if `results.csv` is not produced, then it is replaced by
+an instance of `Error` which tracks the failing step. The workflow engine
+automatically shortcircuit the execution of `analyze_data` and insteads
+forward the `Error` to `final`. In this way, the value of `final` provides
+direct error tracing to the failed step. Furthermore, it means that
+`analyze_data` does not need it's own error handling code if its output is
+optional or if the error is better dealt with in a later step.
+
+This error-handling approach is heavily influenced by the `Result<T,E>` type
+from [the Rust programming language.](https://doc.rust-lang.org/std/result/)
+
+
 ## Is it production-ready?
 
 🧪 warning: funsies is research-grade code ! 🧪
