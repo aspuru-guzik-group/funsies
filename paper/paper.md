@@ -59,15 +59,16 @@ prototyping of computationally expensive workflows.
 
 
 Modern workflow management programs used in the private sector, such as Apache
-Airflow and Uber's Cadence, are robust and extremely scalable,
-but are difficult to deploy. Scientific workflow management systems, such as
-Snakemake and others [@molder_sustainable_2021], are easier to set up on
-high-performance computing clusters, but are tuned to the needs of specific
-disciplines, such as bioinformatics or machine learning. This includes, for
-example, the use of configuration file formats (YAML, JSON, etc.), packaging
-tools (for example, conda or Docker), locked-in compute providers (Amazon Web
-Services, Google Cloud) and storage formats that may be common in specific
-scientific fields but not throughout the greater community.
+Airflow and Uber's Cadence, are robust and extremely scalable, but are
+difficult to deploy. Scientific workflow management systems, many of which are
+compiled in [@awesome_pipeline] and systematically reviewed in
+[@molder_sustainable_2021], are easier to set up on high-performance computing
+clusters, but are tuned to the needs of specific disciplines, such as
+bioinformatics or machine learning. This includes, for example, the use of
+configuration file formats (YAML, JSON, etc.), packaging tools (for example,
+conda or Docker), locked-in compute providers (Amazon Web Services, Google
+Cloud) and storage formats that may be common in specific scientific fields
+but not throughout the greater community.
 
 For our own group's research program, we wanted to have available a
 lightweight workflow management system that could be readily deployed to new
