@@ -22,7 +22,6 @@ from ._graph import (
     Artefact,
     ArtefactStatus,
     create_link,
-    get_bytes,
     get_status,
     mark_error,
     Operation,

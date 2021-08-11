@@ -23,7 +23,6 @@ from ._graph import (
     Artefact,
     constant_artefact,
     delete_artefact,
-    get_bytes,
     get_data,
     get_status,
     make_op,
@@ -47,7 +46,7 @@ def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
     if isinstance(data, Artefact):
         return data
     else:
-        return constant_artefact(db, data)
+        return constant_artefact(db, server, data)
 
 
 # --------------------------------------------------------------------------------

@@ -22,8 +22,8 @@ from ._logging import logger
 from .config import Options, Server
 
 # A thread local stack of connections (adapted from RQ)
-_server_stack = LocalStack()
 _options_stack = LocalStack()
+_storage_stack = LocalStack()
 
 
 def cleanup_funsies(connection: Redis[bytes]) -> None:
@@ -67,10 +67,11 @@ def Fun(
     if defaults is None:
         defaults = Options()
 
-    _server_stack.push(server)
     _options_stack.push(defaults)
 
     connection = server.new_connection()
+    storage = server.new_storage()
+    _storage_stack.push(storage)
 
     if cleanup:
         cleanup_funsies(connection)
@@ -103,6 +104,18 @@ def get_redis(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
             raise RuntimeError("No redis instance available.")
     else:
         return db
+
+
+def get_storage(store=None):
+    """Get current storage method."""
+    if store is not None:
+        return store
+    else:
+        if _storage_stack.top is not None:
+            out = _storage_stack.top
+            return out
+        else:
+            raise RuntimeError("No Storage instance available.")
 
 
 def get_options(opt: Optional[Options] = None) -> Options:

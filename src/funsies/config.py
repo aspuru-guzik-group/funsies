@@ -14,6 +14,7 @@ from redis import Redis
 
 # module
 from ._logging import logger
+from ._storage import StorageType, store_dispatch
 
 # Constants
 INFINITE = -1
@@ -43,14 +44,22 @@ def _extract_hostname(url: str) -> str:
 
 
 class Server:
-    """Runtime options for the funsies server."""
+    """Runtime options for the funsies server and artefact storage."""
 
     # Connection settings
     redis_url: str
 
-    def __init__(self: Server, redis_url: Optional[str] = None) -> None:
+    # Storage setting
+    storage: StorageType
+
+    def __init__(
+        self: Server,
+        redis_url: Optional[str] = None,
+        storage: StorageType = StorageType.RedisOnly,
+    ) -> None:
         """Create a new funsies server configuration."""
         self.redis_url = _get_redis_url(redis_url)
+        self.storage = storage
 
     def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
         """Create a new redis connection."""
@@ -69,6 +78,9 @@ class Server:
         logger.debug("connection sucessful")
         logger.info(f"connected to {hn}")
         return db
+
+    def new_storage(self: Server):
+        return store_dispatch(self.storage)
 
 
 class MockServer(Server):
