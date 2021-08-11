@@ -47,7 +47,6 @@ def main(ctx: click.Context, url: str) -> None:
     Alternatively, the url can be set using the environment variables
     FUNSIES_URL environment variable.
     """
-
     ctx.obj = Server(url)
 
 

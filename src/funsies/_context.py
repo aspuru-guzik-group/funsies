@@ -93,7 +93,7 @@ def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
     if db is None:
         myjob = rq.get_current_job()
-        connect = rq.connections.get_current_connection()
+        connect: Optional[Redis[bytes]] = rq.connections.get_current_connection()
         if connect is not None:
             return connect
         elif myjob is not None:
@@ -198,6 +198,7 @@ def ManagedFun(
     time.sleep(0.1)
     stat = redis_server.poll()
     if stat is not None:
+        assert redis_server.stderr is not None
         stdout = redis_server.stderr.read().decode()
         raise RuntimeError(f"Redis server failed to start, errcode={stat}\n{stdout}")
 

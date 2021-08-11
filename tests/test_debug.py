@@ -29,7 +29,7 @@ def test_shell_run() -> None:
 
 def test_shell_norun() -> None:
     """Test run on a shell command that didn't run."""
-    with Fun(MockServer()) as db:
+    with Fun(MockServer()):
         cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"])
 
         with tempfile.TemporaryDirectory() as d:

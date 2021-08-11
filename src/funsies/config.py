@@ -48,7 +48,7 @@ class Server:
     # Connection settings
     redis_url: str
 
-    def __init__(self, redis_url=None):
+    def __init__(self: Server, redis_url: Optional[str] = None) -> None:
         """Create a new funsies server configuration."""
         self.redis_url = _get_redis_url(redis_url)
 
@@ -76,19 +76,24 @@ class MockServer(Server):
 
     # Connection settings
     redis_url: str
-    instance: Redis[bytes]
+    _instance: Redis[bytes]
 
-    def __init__(self, redis_url=None):
+    def __init__(self: Server, redis_url: Optional[str] = None) -> None:
         """Create a new funsies server configuration."""
-        self.redis_url = _get_redis_url(redis_url)
+        if redis_url is None:
+            self.redis_url = "fakeredis://mock_server"
+        else:
+            self.redis_url = redis_url
+
+        # make the connection
         # external
         from fakeredis import FakeStrictRedis as Redis
 
-        self.instance = Redis()
+        self._instance = Redis()  # type:ignore
 
     def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
         """Create a new redis connection."""
-        return self.instance
+        return self._instance  # type:ignore
 
 
 @dataclass

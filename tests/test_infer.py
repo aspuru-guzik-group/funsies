@@ -69,7 +69,7 @@ def test_infer_forward_ref() -> None:
 
 def test_infer_errs() -> None:
     """Test inference applied to functions."""
-    with f.Fun(MockServer()) as db:
+    with f.Fun(MockServer()):
         a = f.put(b"bla bla")
         b = f.put(3)
         with pytest.raises(TypeError):
