@@ -1,14 +1,13 @@
 """Test of Funsies 'get'."""
-# external
-from fakeredis import FakeStrictRedis as Redis
 
 # funsies
 from funsies import _getter, Fun, types, ui
+from funsies.config import MockServer
 
 
 def test_get() -> None:
     """Test get."""
-    with Fun(Redis()):
+    with Fun(MockServer()):
         s1 = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
 
         data = _getter.get(s1.hash)

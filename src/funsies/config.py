@@ -1,9 +1,19 @@
 """Configuration dictionaries for jobs."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 import json
 import os
+import sys
 from typing import Any, Mapping, Optional, Type
+
+# external
+# redis
+from redis import Redis
+
+# module
+from ._logging import logger
 
 # Constants
 INFINITE = -1
@@ -11,8 +21,8 @@ ONE_DAY = 86400
 ONE_MINUTE = 60
 
 
-def _get_funsies_url(url: Optional[str] = None) -> str:
-    """Get the default funsies URL."""
+def _get_redis_url(url: Optional[str] = None) -> str:
+    """Get the default funsies redis URL."""
     if url is not None:
         return url
     else:
@@ -30,6 +40,55 @@ def _extract_hostname(url: str) -> str:
     else:
         hn = url.split("//")[-1]
     return hn
+
+
+class Server:
+    """Runtime options for the funsies server."""
+
+    # Connection settings
+    redis_url: str
+
+    def __init__(self, redis_url=None):
+        """Create a new funsies server configuration."""
+        self.redis_url = _get_redis_url(redis_url)
+
+    def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
+        """Create a new redis connection."""
+        hn = _extract_hostname(self.redis_url)
+        logger.info(f"connecting to {hn}")
+        db = Redis.from_url(self.redis_url, decode_responses=False)
+        try:
+            db.ping()
+        except Exception as e:
+            if try_fail:
+                raise e
+            else:
+                logger.error("could not connect to server! exiting")
+                logger.error(str(e))
+                sys.exit(-1)
+        logger.debug("connection sucessful")
+        logger.info(f"connected to {hn}")
+        return db
+
+
+class MockServer(Server):
+    """Mock redis server using FakeRedis for testing."""
+
+    # Connection settings
+    redis_url: str
+    instance: Redis[bytes]
+
+    def __init__(self, redis_url=None):
+        """Create a new funsies server configuration."""
+        self.redis_url = _get_redis_url(redis_url)
+        # external
+        from fakeredis import FakeStrictRedis as Redis
+
+        self.instance = Redis()
+
+    def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
+        """Create a new redis connection."""
+        return self.instance
 
 
 @dataclass

@@ -21,6 +21,7 @@ from . import __version__, types  # noqa
 from ._constants import hash_t
 from ._graph import get_status
 from ._logging import logger
+from .config import Server
 
 # required funsies libraries loaded in advance
 import hashlib, subprocess, loguru  # noqa isort:skip
@@ -34,8 +35,7 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     "-u",
     type=str,
     nargs=1,
-    default=funsies.config._get_funsies_url(),
-    show_default=True,
+    default=None,
     help="Redis connection URL.",
 )
 @click.pass_context
@@ -47,25 +47,8 @@ def main(ctx: click.Context, url: str) -> None:
     Alternatively, the url can be set using the environment variables
     FUNSIES_URL environment variable.
     """
-    hn = funsies.config._extract_hostname(url)
-    logger.debug(f"connecting to {hn}")
 
-    def connect2db(try_fail: bool = False) -> Redis[bytes]:
-        db = Redis.from_url(url, decode_responses=False)
-        try:
-            db.ping()
-        except Exception as e:
-            if try_fail:
-                raise e
-            else:
-                logger.error("could not connect to server! exiting")
-                logger.error(str(e))
-                sys.exit(-1)
-        logger.debug("connection sucessful")
-        logger.info(f"connected to {hn}")
-        return db
-
-    ctx.obj = connect2db
+    ctx.obj = Server(url)
 
 
 @main.command()
@@ -86,7 +69,7 @@ def main(ctx: click.Context, url: str) -> None:
 @click.pass_context
 def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
-    db: Redis[bytes] = ctx.obj()
+    db: Redis[bytes] = ctx.obj.new_connection()
     with Connection(db):
         queues = queues or ["default"]
         if burst:
@@ -107,7 +90,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 @click.pass_context
 def clean(ctx: click.Context) -> None:
     """Clean job queues and DAGs."""
-    db = ctx.obj()
+    db = ctx.obj.new_connection()
     logger.info("shutting down workers")
     funsies._context.shutdown_workers(db, True)
     logger.info("cleaning up")
@@ -125,7 +108,7 @@ def clean(ctx: click.Context) -> None:
 @click.pass_context
 def shutdown(ctx: click.Context, force: bool) -> None:
     """Tell workers to shutdown."""
-    db = ctx.obj()
+    db = ctx.obj.new_connection()
     funsies._context.shutdown_workers(db, force)
     logger.success("done")
 
@@ -135,9 +118,7 @@ def shutdown(ctx: click.Context, force: bool) -> None:
 @click.pass_context
 def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Print artefacts to stdout."""
-    db = ctx.obj()
-
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj):
         for hash in hashes:
             logger.info(f"extracting {hash}")
             things = funsies.get(hash)
@@ -195,14 +176,13 @@ def cat(ctx: click.Context, hashes: tuple[str, ...]) -> None:
 def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
     """Extract all data related to a given hash value."""
     logger.info(f"extracting {hash}")
-    db = ctx.obj()
     if output is None:
         output = hash
         output2 = ""
     else:
         output2 = output + "_"
 
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj):
         things = funsies.get(hash)
         if len(things) == 0:
             logger.error(f"{hash} does not correspond to anything!")
@@ -229,8 +209,7 @@ def debug(ctx: click.Context, hash: str, output: Optional[str]) -> None:
 @click.pass_context
 def reset(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Reset operations and their dependents."""
-    db = ctx.obj()
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj):
         for hash in hashes:
             things = funsies.get(hash)
             if len(things) == 0:
@@ -271,7 +250,7 @@ def wait(  # noqa:C901
 
     while True:
         try:
-            db = ctx.obj(try_fail=True)
+            db = ctx.obj.new_connection(try_fail=True)
             db.ping()
             break
         except Exception:
@@ -283,7 +262,7 @@ def wait(  # noqa:C901
                 logger.error("timeout exceeded")
                 raise SystemExit(2)
 
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj) as db:
         h = []
         for hash in hashes:
             things = funsies.get(hash)
@@ -330,8 +309,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...], inputs: bool) -> None:
     # funsies
     import funsies._graphviz
 
-    db = ctx.obj()
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj) as db:
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(
@@ -370,8 +348,7 @@ def graph(ctx: click.Context, hashes: tuple[str, ...], inputs: bool) -> None:
 @click.pass_context
 def execute(ctx: click.Context, hashes: tuple[str, ...]) -> None:
     """Enqueue execution of hashes."""
-    db = ctx.obj()
-    with funsies._context.Fun(db):
+    with funsies._context.Fun(ctx.obj):
         exec_list = []
         for hash in hashes:
             things = funsies.get(hash)

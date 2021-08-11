@@ -101,7 +101,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
     def kill_funsies_worker(*inp: bytes) -> bytes:
         pid = os.getppid()
         os.kill(pid, sig)
-        time.sleep(2.0)
+        time.sleep(1.0)
         return b"what"
 
     def cap(inp: bytes) -> bytes:
@@ -110,7 +110,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
     with f.ManagedFun(nworkers=nworkers) as db:
         wait_for_workers(db, nworkers)
         s1 = f.reduce(
-            kill_funsies_worker, b"bla bla", b"bla bla", opt=f.options(timeout=3)
+            kill_funsies_worker, b"bla bla", b"bla bla", opt=f.options(timeout=5)
         )
         s1b = f.morph(cap, s1)
         f.execute(s1b)
@@ -121,7 +121,7 @@ def test_worker_killed(nworkers: int, sig: int) -> None:
                 f.wait_for(s1b, timeout=1)
         else:
             # everything is ok
-            f.wait_for(s1b, timeout=1)
+            f.wait_for(s1b, timeout=5)
             assert f.take(s1b) == b"WHAT"
 
 

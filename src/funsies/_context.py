@@ -19,10 +19,10 @@ from rq.local import LocalStack
 # module
 from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
-from .config import _extract_hostname, _get_funsies_url, Options
+from .config import Options, Server
 
 # A thread local stack of connections (adapted from RQ)
-_connect_stack = LocalStack()
+_server_stack = LocalStack()
 _options_stack = LocalStack()
 
 
@@ -55,39 +55,37 @@ def shutdown_workers(db: Redis[bytes], force: bool) -> None:
 # Main DB context manager
 @contextmanager
 def Fun(
-    connection: Optional[Redis[bytes]] = None,
+    server: Optional[Server] = None,
     defaults: Optional[Options] = None,
     cleanup: bool = False,
 ) -> Iterator[Redis[bytes]]:
     """Context manager for redis connections."""
-    if connection is None:
+    if server is None:
         logger.warning("Opening new redis connection with default settings...")
-        url = _get_funsies_url()
-        hn = _extract_hostname(url)
-        connection = Redis.from_url(url, decode_responses=False)
-        logger.success(f"connected to {hn}")
+        server = Server()
 
     if defaults is None:
         defaults = Options()
 
+    _server_stack.push(server)
+    _options_stack.push(defaults)
+
+    connection = server.new_connection()
+
     if cleanup:
         cleanup_funsies(connection)
 
-    _connect_stack.push(connection)
-    _options_stack.push(defaults)
-
     # also push on rq
-    # TODO maybe just use the RQ version of this?
     rq.connections.push_connection(connection)
+
     try:
-        yield _connect_stack.top
+        yield rq.connections.get_current_connection()
     finally:
-        popped = _connect_stack.pop()
+        popped = rq.connections.pop_connection()
         assert popped == connection, (
             "Unexpected Redis connection was popped off the stack. "
             "Check your Redis connection setup."
         )
-        rq.connections.pop_connection()
         _ = _options_stack.pop()
 
 
@@ -95,10 +93,9 @@ def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
     if db is None:
         myjob = rq.get_current_job()
-        if _connect_stack.top is not None:
-            # try context instance
-            out: Redis[bytes] = _connect_stack.top
-            return out
+        connect = rq.connections.get_current_connection()
+        if connect is not None:
+            return connect
         elif myjob is not None:
             out2: Redis[bytes] = myjob.connection
             return out2
@@ -159,6 +156,7 @@ def ManagedFun(
     redis_args: Optional[Sequence[str]] = None,
     defaults: Optional[Options] = None,
     directory: Optional[_AnyPath] = None,
+    pw: Optional[str] = None,
 ) -> Iterator[Redis[bytes]]:
     """Make a fully managed funsies db."""
     if directory is None:
@@ -178,10 +176,17 @@ def ManagedFun(
     else:
         rargs = []
 
+    if pw is None:
+        # std
+        import secrets
+
+        pw = secrets.token_hex(12)
+
     # Start redis
     port = 16379
-    url = f"redis://localhost:{port}"
-    cmdline = ["redis-server"] + rargs + ["--port", f"{port}"]
+    url = f"redis://:{pw}@localhost:{port}"
+    cmdline = ["redis-server"] + rargs + ["--port", f"{port}", "--requirepass" f" {pw}"]
+    server = Server(redis_url=url)
 
     redis_server = subprocess.Popen(
         cmdline,
@@ -189,8 +194,13 @@ def ManagedFun(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    # TODO:CHECK that server started successfully
+
     time.sleep(0.1)
+    stat = redis_server.poll()
+    if stat is not None:
+        stdout = redis_server.stderr.read().decode()
+        raise RuntimeError(f"Redis server failed to start, errcode={stat}\n{stdout}")
+
     logger.debug(f"redis running at {url}")
 
     # spawn workers
@@ -201,8 +211,9 @@ def ManagedFun(
     ]
 
     try:
-        logger.success(f"{nworkers} workers connected to {url}")
-        with Fun(Redis.from_url(url), defaults=defaults) as db:
+        logger.success(f"{nworkers} workers connected to {url.split('@')[-1]}")
+        with Fun(server=server, defaults=defaults) as db:
+            db.set("bla", 3)
             yield db
     finally:
         logger.debug("terminating worker pool and server")

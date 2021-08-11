@@ -2,9 +2,6 @@
 # std
 from typing import Dict
 
-# external
-from fakeredis import FakeStrictRedis as Redis
-
 # funsies
 from funsies import _graph
 from funsies import _pyfunc as p
@@ -12,6 +9,7 @@ from funsies import _shell as s
 from funsies import _subdag as sub
 from funsies import options
 from funsies._run import run_op
+from funsies.config import MockServer
 from funsies.types import Encoding, RunStatus
 
 
@@ -34,7 +32,8 @@ def uncapitalize(inputs: Dict[str, bytes]) -> Dict[str, bytes]:
 def test_shell_run() -> None:
     """Test run on a shell command."""
     opt = options()
-    db = Redis()
+    serv = MockServer()
+    db = serv.new_connection()
     cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
     inp = {"file1": _graph.constant_artefact(db, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
@@ -55,7 +54,8 @@ def test_shell_run() -> None:
 
 def test_pyfunc_run() -> None:
     """Test run on a python function."""
-    db = Redis()
+    serv = MockServer()
+    db = serv.new_connection()
     opt = options()
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -77,7 +77,8 @@ def test_pyfunc_run() -> None:
 
 def test_cached_run() -> None:
     """Test cached result."""
-    db = Redis()
+    serv = MockServer()
+    db = serv.new_connection()
     opt = options()
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -94,7 +95,8 @@ def test_cached_run() -> None:
 
 def test_cached_instances() -> None:
     """Test cached result from running same code twice."""
-    db = Redis()
+    serv = MockServer()
+    db = serv.new_connection()
     opt = options()
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -116,7 +118,8 @@ def test_cached_instances() -> None:
 
 def test_dependencies() -> None:
     """Test cached result."""
-    db = Redis()
+    serv = MockServer()
+    db = serv.new_connection()
     opt = options()
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -147,9 +150,9 @@ def test_subdag() -> None:
     # funsies
     import funsies as f
 
-    db = Redis()
+    serv = MockServer()
     opt = options()
-    with f.Fun(db):
+    with f.Fun(serv) as db:
 
         def map_reduce(inputs: Dict[str, bytes]) -> Dict[str, _graph.Artefact]:
             """Basic map reduce."""

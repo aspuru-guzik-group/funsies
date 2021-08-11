@@ -1,17 +1,15 @@
 """Test of Funsies template()."""
 # std
 
-# external
-from fakeredis import FakeStrictRedis as Redis
-
 # funsies
 from funsies import Fun, put, take, template
 from funsies._run import run_op
+from funsies.config import MockServer
 
 
 def test_template() -> None:
     """Basic test of chevron templating."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         t = "Hello, {{ mustache }}!"
         result = template(t, {"mustache": "world"})
         run_op(db, result.parent)
@@ -20,7 +18,7 @@ def test_template() -> None:
 
 def test_template_complicated() -> None:
     """Test templating with funky types."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         t = "wazzaa, {{ mustache }}!"
         result = template(t, {"mustache": put(b"people")})
         run_op(db, result.parent)

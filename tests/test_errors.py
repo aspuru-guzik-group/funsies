@@ -9,6 +9,7 @@ import pytest
 import funsies
 from funsies import _graph, Fun, options
 from funsies._run import run_op
+from funsies.config import MockServer
 from funsies.types import Encoding, Error, hash_t, Result, UnwrapError
 
 
@@ -45,7 +46,7 @@ def test_artefact_update() -> None:
 
 def test_not_generated() -> None:
     """What happens when an artefact is not generated?"""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         s = funsies.shell("cp file1 file2", inp=dict(file1="bla"), out=["file3"])
         run_op(db, s.op.hash)
         assert funsies.take(s.returncode) == 0
@@ -55,7 +56,7 @@ def test_not_generated() -> None:
 
 def test_error_propagation() -> None:
     """Test propagation of errors."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         s1 = funsies.shell("cp file1 file3", inp=dict(file1="bla"), out=["file2"])
         s2 = funsies.shell(
             "cat file1 file2", inp=dict(file1="a file", file2=s1.out["file2"])
@@ -70,7 +71,7 @@ def test_error_propagation() -> None:
 
 def test_error_propagation_morph() -> None:
     """Test propagation of errors."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         s1 = funsies.shell("cp file1 file3", inp=dict(file1="bla"), out=["file2"])
 
         def fun_strict(inp: bytes) -> bytes:
@@ -128,15 +129,13 @@ def test_error_propagation_shell() -> None:
         funsies.take(s2.stderr, connection=store)
 
     run_op(store, s3.op.hash)
-    with Fun(store):
-        assert funsies.take(s3.stderr) != b""
-        assert isinstance(funsies.take(s3.returncode), int)
-        assert funsies.take(s3.returncode) != 0
+    assert funsies.take(s3.stderr, connection=store) != b""
+    assert isinstance(funsies.take(s3.returncode, connection=store), int)
+    assert funsies.take(s3.returncode, connection=store) != 0
 
 
 def test_error_tolerant() -> None:
     """Test error tolerant funsie."""
-    store = Redis()
 
     def error_tolerant_fun(inp: Result[bytes]) -> bytes:
         if isinstance(inp, Error):
@@ -144,7 +143,7 @@ def test_error_tolerant() -> None:
         else:
             return b""
 
-    with Fun(store):
+    with Fun(MockServer()) as store:
         s1 = funsies.shell("cp file1 file3", inp=dict(file1="bla"), out=["file2"])
         s2 = funsies.morph(error_tolerant_fun, s1.out["file2"], strict=False)
 

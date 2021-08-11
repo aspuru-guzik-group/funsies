@@ -3,18 +3,18 @@
 from typing import List
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
 from funsies import errors, Fun, morph, options, put, take, utils
 from funsies._run import run_op
+from funsies.config import MockServer
 from funsies.types import Error, ErrorKind, UnwrapError
 
 
 def test_concat() -> None:
     """Test concatenation."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         dat1 = put(b"bla")
         dat2 = put(b"bla")
         cat = utils.concat(dat1, dat2)
@@ -49,7 +49,7 @@ def test_match() -> None:
 
 def test_truncate() -> None:
     """Test truncation."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         inp = "\n".join([f"{k}" for k in range(10)])
         dat1 = put(inp.encode())
         trunc = utils.truncate(dat1, 2, 3)
@@ -59,7 +59,7 @@ def test_truncate() -> None:
 
 def test_exec_all() -> None:
     """Test execute_all."""
-    with Fun(Redis(), defaults=options(distributed=False)):
+    with Fun(MockServer(), defaults=options(distributed=False)):
         results = []
 
         def div_by(x: float) -> float:

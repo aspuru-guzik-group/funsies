@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
@@ -19,12 +18,13 @@ from funsies import (
     take,
 )
 from funsies._constants import DAG_OPERATIONS, Encoding, hash_t, join
+from funsies.config import MockServer
 from funsies.utils import concat
 
 
 def test_dag_build() -> None:
     """Test simple DAG build."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -47,7 +47,7 @@ def test_dag_build() -> None:
 
 def test_dag_efficient() -> None:
     """Test that DAG building doesn't do extra work."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell(
@@ -70,8 +70,8 @@ def test_dag_efficient() -> None:
 
 def test_dag_cached() -> None:
     """Test that DAG caching works."""
-    db = Redis()
-    with Fun(db, options(distributed=False)):
+    serv = MockServer()
+    with Fun(serv, options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2b = shell("echo 'not'", inp=dict(file1=step1))
@@ -80,7 +80,7 @@ def test_dag_cached() -> None:
         )
         execute(merge)
 
-    with Fun(db, options(distributed=False, evaluate=False)):
+    with Fun(serv, options(distributed=False, evaluate=False)):
         # Same as above, should run through with no evaluation
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
@@ -90,7 +90,7 @@ def test_dag_cached() -> None:
         )
         execute(merge)
 
-    with Fun(db, options(distributed=False, evaluate=False)):
+    with Fun(serv, options(distributed=False, evaluate=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         # DIFFERENT HERE: Trigger re-evaluation and raise
@@ -104,7 +104,7 @@ def test_dag_cached() -> None:
 
 def test_dag_execute() -> None:
     """Test execution of a _dag."""
-    with Fun(Redis(), options(distributed=False)):
+    with Fun(MockServer(), options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -118,7 +118,7 @@ def test_dag_execute() -> None:
 
 def test_dag_execute2() -> None:
     """Test execution of a _dag."""
-    with Fun(Redis(), options(distributed=False)):
+    with Fun(MockServer(), options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -136,7 +136,7 @@ def test_dag_execute2() -> None:
 
 def test_dag_execute_same_root() -> None:
     """Test execution of two dags that share the same origin."""
-    with Fun(Redis(), options(distributed=False)):
+    with Fun(MockServer(), options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -154,7 +154,7 @@ def test_dag_execute_same_root() -> None:
 @pytest.mark.slow
 def test_dag_large() -> None:
     """Test that DAG building doesn't do extra work for large operations."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()) as db:
         outputs = []
         for i in range(100):
             dat = put(f"bla{i}".encode())
@@ -185,7 +185,7 @@ def test_subdag() -> None:
             out += [morph(cap, el, opt=options(distributed=False))]
         return {"out": concat(*out, join="-")}
 
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla lol what")
         inp = {"inp": dat}
         cmd = _subdag.subdag_funsie(
