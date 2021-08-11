@@ -89,7 +89,7 @@ def Fun(
         _ = _options_stack.pop()
 
 
-def get_db(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
+def get_redis(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
     """Get Redis instance."""
     if db is None:
         myjob = rq.get_current_job()

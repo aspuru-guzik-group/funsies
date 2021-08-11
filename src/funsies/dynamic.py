@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from ._constants import _Data, Encoding
-from ._context import get_db, get_options
+from ._context import get_options, get_redis
 from ._graph import Artefact, constant_artefact, make_op
 from ._subdag import subdag_funsie
 from .config import Options
@@ -35,7 +35,7 @@ def sac(
 ) -> Artefact[T3]:
     """Perform a split/apply/combine dynamic DAG."""
     opt = get_options(opt)
-    db = get_db(connection)
+    db = get_redis(connection)
 
     inputs: dict[str, Artefact] = {}
     # Parse input  -------------------------------------
@@ -59,7 +59,7 @@ def sac(
 
     def __sac(inpd: dict[str, Any]) -> dict[str, Artefact[T3]]:
         """Perform the map reduce."""
-        db = get_db()
+        db = get_redis()
         args = [inpd[k] for k in arg_names]
         split_data = [constant_artefact(db, d) for d in split_fun(*args)]
         apply_data = [apply_fun(d) for d in split_data]

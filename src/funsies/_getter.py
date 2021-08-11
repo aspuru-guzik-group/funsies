@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from . import _constants as c
-from ._context import get_db
+from ._context import get_redis
 from ._funsies import Funsie
 from ._graph import Artefact, Operation
 from ._logging import logger
@@ -36,7 +36,7 @@ def get(
         A list of objects with ids that start with `target`. Empty if no such
         objects exist.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     hashes = hash_load(db, target)
     out: list[Union[Artefact, Funsie, Operation]] = []
     for h in hashes:

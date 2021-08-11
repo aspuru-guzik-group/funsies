@@ -17,7 +17,7 @@ except ImportError:
 
 # module
 from ._constants import _AnyPath, _Data, hash_t
-from ._context import get_db, get_options
+from ._context import get_options, get_redis
 from ._dag import descendants, start_dag_execution
 from ._graph import (
     Artefact,
@@ -66,7 +66,7 @@ def execute(
             within a `Fun()` context.
     """
     # get redis
-    db = get_db(connection)
+    db = get_redis(connection)
 
     # run dag
     for el in outputs:
@@ -141,7 +141,7 @@ def shell(
 
     """
     opt = get_options(opt)
-    db = get_db(connection)
+    db = get_redis(connection)
 
     # Parse args --------------------------------------------
     cmds: list[str] = []
@@ -209,7 +209,7 @@ def put(
     Returns:
         An `types.Artefact` instance with status `const`.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     return _artefact(db, value)
 
 
@@ -267,7 +267,7 @@ def take(
             if `where` contains an `errors.Error` and `strict=True`.
 
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     dat = get_data(db, where)
     __log_error(where.hash, dat)
     if strict:
@@ -286,7 +286,7 @@ def takeout(
 
     This is syntactic sugar around `take()`. This function is always strict.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     dat = get_bytes(db, where)
     __log_error(where.hash, dat)
     dat = unwrap(dat)
@@ -312,7 +312,7 @@ def wait_for(
     Raises:
         TimeoutError: if timeout is exceeded.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     if isinstance(thing, Artefact):
 
         def __stat() -> bool:
@@ -376,7 +376,7 @@ def reset(
             when an `types.Artefact` is reset that has status
             `types.ArtefactStatus.const`.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     if isinstance(thing, Artefact):
         h = thing.parent
         if h == "root":

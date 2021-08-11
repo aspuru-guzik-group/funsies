@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from ._constants import hash_t
-from ._context import get_db
+from ._context import get_redis
 from ._graph import Artefact
 from ._parametrize import make_parametric, Parametric
 from .ui import _Target, put
@@ -75,7 +75,7 @@ def commit(
     Returns:
         The hash value of the committed Parametric DAG.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     param = make_parametric(db, name, inp, out)
     return param.hash
 
@@ -109,7 +109,7 @@ def recall(
         A dictionary of artefacts that corresponds to the `out=` argument of
         `parametric.commit()`.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
 
     # first, check if its a name
     h = Parametric.resolve_name(db, name_or_hash)

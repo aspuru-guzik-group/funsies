@@ -11,7 +11,7 @@ from redis import Redis
 
 # module
 from ._constants import Encoding
-from ._context import get_db, get_options
+from ._context import get_options, get_redis
 from ._graph import Artefact, constant_artefact, make_op
 from ._pyfunc import python_funsie
 from .config import Options
@@ -113,7 +113,7 @@ def template(
     """  # noqa:D300,D301
     # Get context elements
     opt = get_options(opt)
-    db = get_db(connection)
+    db = get_redis(connection)
 
     # Make sure template is a string in the db
     if isinstance(template, bytes):

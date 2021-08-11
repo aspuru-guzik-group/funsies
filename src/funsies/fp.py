@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from ._constants import _AnyPath, _Data, Encoding
-from ._context import get_db, get_options
+from ._context import get_options, get_redis
 from ._graph import Artefact, constant_artefact, make_op
 from ._infer import output_types
 from ._pyfunc import python_funsie
@@ -109,7 +109,7 @@ def py(  # noqa:C901
         out = output_types(fun)
 
     opt = get_options(opt)
-    db = get_db(connection)
+    db = get_redis(connection)
     inputs = {}
     for k, arg in enumerate(inp):
         inputs[f"in{k}"] = _artefact(db, arg)
@@ -165,7 +165,7 @@ def morph(
     match the input type if it can't be inferred, but it can be set to a given
     `types.Encoding` using the `out=` keyword.
     """
-    db = get_db(connection)
+    db = get_redis(connection)
     inp2 = _artefact(db, inp)
     if out is None:
         try:
@@ -215,7 +215,7 @@ def reduce(
 
     """
     inps = list(inp)
-    db = get_db(connection)
+    db = get_redis(connection)
     inps2 = [_artefact(db, inp) for inp in inps]
     if out is None:
         try:

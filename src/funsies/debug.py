@@ -13,7 +13,7 @@ from redis import Redis
 
 # module
 from ._constants import _AnyPath
-from ._context import get_db
+from ._context import get_redis
 from ._funsies import Funsie, FunsieHow
 from ._graph import Artefact, get_data, Operation
 from ._shell import ShellOutput
@@ -32,7 +32,7 @@ def shell(  # noqa:C901
     os.makedirs(directory, exist_ok=True)
     inp = os.path.join(directory, "input_files")
     out = os.path.join(directory, "output_files")
-    db = get_db(connection)
+    db = get_redis(connection)
     errors = {}
 
     for key, val in shell_output.inp.items():
@@ -101,7 +101,7 @@ def artefact(
     target: Artefact, directory: _AnyPath, connection: Optional[Redis[bytes]] = None
 ) -> None:
     """Output content of any hash object to a file."""
-    db = get_db(connection)
+    db = get_redis(connection)
     os.makedirs(directory, exist_ok=True)
     with open(os.path.join(directory, "metadata.json"), "w") as f:
         f.write(json.dumps(asdict(target), sort_keys=True, indent=2))
@@ -129,7 +129,7 @@ def python(
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Output content of any hash object to a file."""
-    db = get_db(connection)
+    db = get_redis(connection)
 
     if isinstance(target, Artefact):
         # Get the corresponding operation
@@ -198,7 +198,7 @@ def anything(
     connection: Optional[Redis[bytes]] = None,
 ) -> None:
     """Debug anything really."""
-    db = get_db(connection)
+    db = get_redis(connection)
     if isinstance(obj, Operation):
         funsie = Funsie.grab(db, obj.funsie)
         if funsie.how == FunsieHow.shell:
