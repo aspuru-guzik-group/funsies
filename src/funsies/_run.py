@@ -33,6 +33,7 @@ from ._graph import (
 from ._logging import logger
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
+from ._storage import StorageEngine
 from ._subdag import run_subdag_funsie  # runner for shell
 from .errors import Error, ErrorKind, Result
 
@@ -131,7 +132,10 @@ def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
 
 @catch_signals()
 def run_op(  # noqa:C901
-    db: Redis[bytes], op: Union[Operation, hash_t], evaluate: bool = True
+    db: Redis[bytes],
+    store: StorageEngine,
+    op: Union[Operation, hash_t],
+    evaluate: bool = True,
 ) -> RunStatus:
     """Run an Operation from its hash address."""
     # Compatibility feature
@@ -167,7 +171,7 @@ def run_op(  # noqa:C901
     input_data: dict[str, Result[BytesIO]] = {}
     for key, val in op.inp.items():
         artefact = Artefact[Any].grab(db, val)
-        dat = get_stream(db, artefact, carry_error=op.hash)
+        dat = get_stream(db, store, artefact.hash, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -180,6 +184,14 @@ def run_op(  # noqa:C901
                 return RunStatus.input_error
         else:
             input_data[key] = dat
+
+    # Close input bytes when function returns
+    def cleanup():
+        for key, val in input_data.items():
+            if isinstance(val, Error):
+                pass
+            else:
+                val.close()
 
     logger.info("running...")
     try:
@@ -199,6 +211,7 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner timed out.")
+        cleanup()
         return RunStatus.executed
 
     # Killed by signal
@@ -217,6 +230,7 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner killed by signal.")
+        cleanup()
         return RunStatus.executed
 
     # Anything else
@@ -235,6 +249,7 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner raised exception.")
+        cleanup()
         return RunStatus.executed
 
     subdag_parents = []
@@ -286,6 +301,7 @@ def run_op(  # noqa:C901
             else:
                 set_data(
                     db,
+                    store,
                     op.out[key],
                     _serdes.encode(funsie.out[key], val),
                     status=ArtefactStatus.done,
@@ -295,7 +311,9 @@ def run_op(  # noqa:C901
         logger.success("DONE: subdag ready.")
         db.sadd(join(OPERATIONS, op.hash, "parents.subdag"), *subdag_parents)
         logger.info(f"added {len(subdag_parents)} new parent nodes")
+        cleanup()
         return RunStatus.subdag_ready
     else:
         logger.success("DONE: successful eval.")
+        cleanup()
         return RunStatus.executed

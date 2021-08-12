@@ -18,7 +18,7 @@ from ._constants import _Data, ARTEFACTS, Encoding, hash_t, join, OPERATIONS
 from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
-from ._storage import StorageEngine
+from ._storage import descr_t, StorageEngine
 from .config import Options
 from .errors import Error, ErrorKind, match, Result
 
@@ -181,13 +181,11 @@ def resolve_link(db: Redis[bytes], address: hash_t) -> hash_t:
 def __get_data_loc(
     db: Redis[bytes],
     store: StorageEngine,
-    artefact: Artefact[Any],
+    address: hash_t,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[str]:
+) -> Result[descr_t]:
     """Perform all the prior step before actually retrieving data."""
-    address = artefact.hash
-
     if do_resolve_link:
         address = resolve_link(db, address)
 

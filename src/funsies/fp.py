@@ -9,11 +9,11 @@ from redis import Redis
 
 # module
 from ._constants import _AnyPath, _Data, Encoding
-from ._context import get_options, get_redis
+from ._context import Connection, get_connection, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._infer import output_types
 from ._pyfunc import python_funsie
-from .config import Options
+from .config import Options, StorageEngine
 
 # Types
 _Target = Union[Artefact, _Data]
@@ -22,11 +22,13 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 T = TypeVar("T")
 
 
-def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
+def _artefact(
+    db: Redis[bytes], store: StorageEngine, data: Union[T, Artefact[T]]
+) -> Artefact[T]:
     if isinstance(data, Artefact):
         return data
     else:
-        return constant_artefact(db, data)
+        return constant_artefact(db, store, data)
 
 
 # Yay overloads! we all wish there were an easier way of doing this but here we are...
@@ -47,7 +49,7 @@ def py(  # noqa:C901
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Union[Artefact, tuple[Artefact, ...]]:
     """Add a python function to the workflow.
 
@@ -109,10 +111,10 @@ def py(  # noqa:C901
         out = output_types(fun)
 
     opt = get_options(opt)
-    db = get_redis(connection)
+    db, store = get_connection(connection)
     inputs = {}
     for k, arg in enumerate(inp):
-        inputs[f"in{k}"] = _artefact(db, arg)
+        inputs[f"in{k}"] = _artefact(db, store, arg)
 
     in_types = dict([(k, val.kind) for k, val in inputs.items()])
 
@@ -157,7 +159,7 @@ def morph(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Artefact[Tout1]:
     """Add to workflow a one-to-one python function `y = f(x)`.
 
@@ -165,8 +167,8 @@ def morph(
     match the input type if it can't be inferred, but it can be set to a given
     `types.Encoding` using the `out=` keyword.
     """
-    db = get_redis(connection)
-    inp2 = _artefact(db, inp)
+    db, store = get_connection(connection)
+    inp2 = _artefact(db, store, inp)
     if out is None:
         try:
             typ = output_types(fun)
@@ -204,7 +206,7 @@ def reduce(
     name: Optional[str] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Artefact[Tout1]:
     """Add to workflow a many-to-one python function `y = f(*x)`.
 
@@ -215,8 +217,8 @@ def reduce(
 
     """
     inps = list(inp)
-    db = get_redis(connection)
-    inps2 = [_artefact(db, inp) for inp in inps]
+    db, store = get_connection(connection)
+    inps2 = [_artefact(db, store, inp) for inp in inps]
     if out is None:
         try:
             typ = output_types(fun)

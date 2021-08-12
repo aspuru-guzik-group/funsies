@@ -3,13 +3,13 @@
 from typing import Dict
 
 # funsies
-from funsies import _graph
+from funsies import _context, _graph
 from funsies import _pyfunc as p
 from funsies import _shell as s
 from funsies import _subdag as sub
 from funsies import options
 from funsies._run import run_op
-from funsies.config import MockServer
+from funsies.config import MockServer, RedisStorage
 from funsies.types import Encoding, RunStatus
 
 
@@ -34,93 +34,109 @@ def test_shell_run() -> None:
     opt = options()
     serv = MockServer()
     db = serv.new_connection()
+    store = RedisStorage(db)
+
     cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
-    inp = {"file1": _graph.constant_artefact(db, b"bla bla")}
+    inp = {"file1": _graph.constant_artefact(db, store, b"bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
 
     # test return values
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.Artefact[bytes].grab(db, operation.inp["file1"]))
+    dat = _graph.get_data(
+        db, store, _graph.Artefact[bytes].grab(db, operation.inp["file1"])
+    )
     assert dat == b"bla bla"
 
     dat = _graph.get_data(
-        db, _graph.Artefact[bytes].grab(db, operation.out[f"{s.STDOUT}0"])
+        db, store, _graph.Artefact[bytes].grab(db, operation.out[f"{s.STDOUT}0"])
     )
     assert dat == b"bla bla"
 
 
 def test_pyfunc_run() -> None:
     """Test run on a python function."""
+    opt = options()
     serv = MockServer()
     db = serv.new_connection()
-    opt = options()
+    store = RedisStorage(db)
+
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
-    inp = {"inp": _graph.constant_artefact(db, "bla bla")}
+    inp = {"inp": _graph.constant_artefact(db, store, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
 
     # test return values
     assert status == RunStatus.executed
 
     # check data is good
-    dat = _graph.get_data(db, _graph.Artefact[str].grab(db, operation.inp["inp"]))
+    dat = _graph.get_data(
+        db, store, _graph.Artefact[str].grab(db, operation.inp["inp"])
+    )
     assert dat == "bla bla"
 
-    dat = _graph.get_data(db, _graph.Artefact[str].grab(db, operation.out["inp"]))
+    dat = _graph.get_data(
+        db, store, _graph.Artefact[str].grab(db, operation.out["inp"])
+    )
     assert dat == "BLA BLA"
 
 
 def test_cached_run() -> None:
     """Test cached result."""
+    opt = options()
     serv = MockServer()
     db = serv.new_connection()
-    opt = options()
+    store = RedisStorage(db)
+
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
-    inp = {"inp": _graph.constant_artefact(db, "bla bla")}
+    inp = {"inp": _graph.constant_artefact(db, store, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
 
     # test return values
     assert status == RunStatus.executed
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
     assert status == RunStatus.using_cached
 
 
 def test_cached_instances() -> None:
     """Test cached result from running same code twice."""
+    opt = options()
     serv = MockServer()
     db = serv.new_connection()
-    opt = options()
+    store = RedisStorage(db)
+
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
-    inp = {"inp": _graph.constant_artefact(db, "bla bla")}
+    inp = {"inp": _graph.constant_artefact(db, store, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
     # test return values
     assert status == RunStatus.executed
 
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
-    inp = {"inp": _graph.constant_artefact(db, "bla bla")}
+    inp = {"inp": _graph.constant_artefact(db, store, "bla bla")}
     operation = _graph.make_op(db, cmd, inp, opt)
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
     assert status == RunStatus.using_cached
 
 
 def test_dependencies() -> None:
     """Test cached result."""
+    opt = options()
     serv = MockServer()
     db = serv.new_connection()
-    opt = options()
+    store = RedisStorage(db)
+
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
     )
@@ -129,19 +145,19 @@ def test_dependencies() -> None:
         uncapitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="uncap"
     )
     operation = _graph.make_op(
-        db, cmd, inp={"inp": _graph.constant_artefact(db, "bla bla")}, opt=opt
+        db, cmd, inp={"inp": _graph.constant_artefact(db, store, "bla bla")}, opt=opt
     )
     operation2 = _graph.make_op(
         db, cmd2, inp={"inp": _graph.Artefact.grab(db, operation.out["inp"])}, opt=opt
     )
 
-    status = run_op(db, operation2.hash)
+    status = run_op(db, store, operation2.hash)
     assert status == RunStatus.unmet_dependencies
 
-    status = run_op(db, operation.hash)
+    status = run_op(db, store, operation.hash)
     assert status == RunStatus.executed
 
-    status = run_op(db, operation2.hash)
+    status = run_op(db, store, operation2.hash)
     assert status == RunStatus.executed
 
 
@@ -150,9 +166,11 @@ def test_subdag() -> None:
     # funsies
     import funsies as f
 
-    serv = MockServer()
     opt = options()
-    with f.Fun(serv) as db:
+    serv = MockServer()
+
+    with f.Fun(serv):
+        db, store = _context.get_connection()
 
         def map_reduce(inputs: Dict[str, bytes]) -> Dict[str, _graph.Artefact]:
             """Basic map reduce."""
@@ -164,9 +182,9 @@ def test_subdag() -> None:
         cmd = sub.subdag_funsie(
             map_reduce, {"inp": Encoding.blob}, {"out": Encoding.blob}
         )
-        inp = {"inp": _graph.constant_artefact(db, b"bla bla blo lol")}
+        inp = {"inp": _graph.constant_artefact(db, store, b"bla bla blo lol")}
         operation = _graph.make_op(db, cmd, inp, opt)
-        status = run_op(db, operation.hash)
+        status = run_op(db, store, operation.hash)
 
         # test return values
         assert status == RunStatus.subdag_ready
@@ -174,6 +192,7 @@ def test_subdag() -> None:
         # test output data
         dat = _graph.get_data(
             db,
+            store,
             _graph.Artefact[bytes].grab(db, operation.out["out"]),
             do_resolve_link=False,
         )
@@ -182,6 +201,7 @@ def test_subdag() -> None:
 
         datl = _graph.get_data(
             db,
+            store,
             _graph.Artefact[bytes].grab(db, operation.out["out"]),
             do_resolve_link=True,
         )

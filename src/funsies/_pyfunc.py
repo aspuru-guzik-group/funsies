@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+from io import BytesIO
 import time
 from typing import Any, Callable, Mapping, Optional
 
@@ -67,7 +68,7 @@ def python_funsie(
 
 
 def run_python_funsie(
-    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
+    funsie: Funsie, input_values: Mapping[str, Result[BytesIO]]
 ) -> dict[str, Optional[_Data]]:
     """Execute a python function."""
     logger.info("python function")

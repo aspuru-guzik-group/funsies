@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from typing import Any, Iterator, Optional, Sequence
+from typing import Any, Iterator, Optional, Sequence, Tuple, Union
 
 # external
 from redis import Redis
@@ -20,26 +20,26 @@ from rq.local import LocalStack
 from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
 from ._storage import StorageEngine
-from .config import Options, Server
+from .config import Options, RedisStorage, Server
 
 # A thread local stack of connections (adapted from RQ)
 _options_stack = LocalStack()
 _storage_stack = LocalStack()
 
 
-def cleanup_funsies(connection: Redis[bytes]) -> None:
+def cleanup_funsies(db: Redis[bytes]) -> None:
     """Clean up Redis instance of DAGs, Queues and clear workers."""
-    queues = rq.Queue.all(connection=connection)
+    queues = rq.Queue.all(connection=db)
     for queue in queues:
         queue.delete(delete_jobs=True)
 
     # Reset operation status
     ops = join(OPERATIONS, hash_t("*"), "owner")
-    keys = connection.keys(ops)
+    keys = db.keys(ops)
     if len(keys):
         logger.info(f"clearing {len(keys)} unfinished ops")
         for k in keys:
-            connection.delete(k)
+            db.delete(k)
 
 
 def shutdown_workers(db: Redis[bytes], force: bool) -> None:
@@ -53,42 +53,6 @@ def shutdown_workers(db: Redis[bytes], force: bool) -> None:
 
 
 # --------------------------------------------------------------------------------
-# Main DB context manager
-@contextmanager
-def Fun(
-    server: Optional[Server] = None,
-    defaults: Optional[Options] = None,
-    cleanup: bool = False,
-) -> Iterator[Redis[bytes]]:
-    """Context manager for redis connections."""
-    if server is None:
-        logger.warning("Opening new redis connection with default settings...")
-        server = Server()
-
-    if defaults is None:
-        defaults = Options()
-
-    _options_stack.push(defaults)
-
-    connection = server.new_connection()
-    storage = server.new_storage()
-    _storage_stack.push(storage)
-
-    if cleanup:
-        cleanup_funsies(connection)
-
-    # also push on rq
-    rq.connections.push_connection(connection)
-
-    try:
-        yield rq.connections.get_current_connection()
-    finally:
-        popped = rq.connections.pop_connection()
-        assert popped == connection, (
-            "Unexpected Redis connection was popped off the stack. "
-            "Check your Redis connection setup."
-        )
-        _ = _options_stack.pop()
 
 
 def get_redis(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
@@ -113,7 +77,7 @@ def get_storage(store: Optional[StorageEngine] = None) -> StorageEngine:
         return store
     else:
         if _storage_stack.top is not None:
-            out = _storage_stack.top
+            out: StorageEngine = _storage_stack.top
             return out
         else:
             raise RuntimeError("No Storage instance available.")
@@ -161,8 +125,86 @@ def options(**kwargs: Any) -> Options:
         return replace(defaults, **kwargs)
 
 
+Connection = Union[
+    Redis,
+    StorageEngine,
+    Tuple[Redis, StorageEngine],
+    Tuple[StorageEngine, Redis],
+    None,
+]
+"""A convenience type for information about a funsies server setup."""
+
+
+def get_connection(inp: Connection = None) -> tuple[Redis[bytes], StorageEngine]:
+    """Destructure a Connection."""
+    db = None
+    st = None
+    if isinstance(inp, tuple):
+        if isinstance(inp[0], Redis):
+            db = inp[0]
+            assert isinstance(inp[1], StorageEngine)
+            st = inp[1]
+        elif isinstance(inp[0], StorageEngine):
+            assert isinstance(inp[1], Redis)
+            db = inp[1]
+            st = inp[0]
+        else:
+            raise RuntimeError(f"Wrong input for get_connection, {inp}")
+    else:
+        if isinstance(inp, Redis):
+            db = inp
+        elif isinstance(inp, StorageEngine):
+            st = inp
+        elif inp is None:
+            pass
+        else:
+            raise RuntimeError(f"Wrong input for get_connection, {inp}")
+
+    return get_redis(db), get_storage(st)
+
+
 # ---------------------------------------------------------------------------------
-# Utility contexts
+# Contexts
+@contextmanager
+def Fun(
+    server: Optional[Server] = None,
+    storage: Optional[StorageEngine] = None,
+    defaults: Optional[Options] = None,
+    cleanup: bool = False,
+) -> Iterator[Redis[bytes]]:
+    """Context manager for redis connections."""
+    if server is None:
+        logger.warning("Opening new redis connection with default settings...")
+        server = Server()
+
+    if defaults is None:
+        defaults = Options()
+    _options_stack.push(defaults)
+
+    connection = server.new_connection()
+
+    if storage is None:
+        # TODO: change to disk?
+        storage = RedisStorage(connection)
+    _storage_stack.push(storage)
+
+    if cleanup:
+        cleanup_funsies(connection)
+
+    # also push on rq
+    rq.connections.push_connection(connection)
+
+    try:
+        yield rq.connections.get_current_connection()
+    finally:
+        popped = rq.connections.pop_connection()
+        assert popped == connection, (
+            "Unexpected Redis connection was popped off the stack. "
+            "Check your Redis connection setup."
+        )
+        _ = _options_stack.pop()
+
+
 @contextmanager
 def ManagedFun(
     nworkers: int = 1,

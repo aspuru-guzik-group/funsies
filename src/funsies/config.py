@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import traceback
-from typing import Any, Mapping, Optional, Type, Union
+from typing import Any, cast, Mapping, Optional, Type, Union
 
 # external
 # redis
@@ -17,7 +17,7 @@ from redis import Redis
 # module
 from ._constants import _AnyPath, ARTEFACTS, hash_t, join
 from ._logging import logger
-from ._storage import StorageEngine
+from ._storage import descr_t, StorageEngine
 from .errors import Error, ErrorKind, Result
 
 # Constants
@@ -102,11 +102,11 @@ class MockServer(Server):
         # external
         from fakeredis import FakeStrictRedis as Redis
 
-        self._instance = Redis()  # type:ignore
+        self._instance = Redis()
 
     def new_connection(self: MockServer, try_fail: bool = True) -> Redis[bytes]:
         """Create a new redis connection."""
-        return self._instance  # type:ignore
+        return self._instance
 
 
 # --------------------------------------------------------------------------
@@ -123,21 +123,30 @@ class DiskStorage(StorageEngine):
         os.makedirs(self.path, exist_ok=True)
         self.buffer_length = 16 * 1024
 
-    def get_key(self: DiskStorage, hash: hash_t) -> str:
+    def get_key(self: DiskStorage, hash: hash_t) -> descr_t:
         """Return the key for a given hash."""
         dir = os.path.join(self.path, hash[:2])
         os.makedirs(dir, exist_ok=True)
         key = os.path.join(dir, hash[2:])
-        return str(key)
+        return descr_t(str(key))
 
-    def take(self: DiskStorage, key: str) -> Result[BytesIO]:
+    def take(self: DiskStorage, key: descr_t) -> Result[BytesIO]:
         """Return a bytes stream for a given key.
 
         Note: It is the caller's responsibility to .close() the stream.
         """
-        return open(key, "rb")  # note: caller must ensure stream is closed
+        try:
+            fdst = cast(BytesIO, open(key, "rb"))
+        except Exception:
+            tb_exc = traceback.format_exc()
+            return Error(
+                kind=ErrorKind.ExceptionRaised,
+                details=tb_exc,
+            )
 
-    def put(self: DiskStorage, key: str, data: BytesIO) -> Optional[Error]:
+        return fdst
+
+    def put(self: DiskStorage, key: descr_t, data: BytesIO) -> Optional[Error]:
         """Write stream data to a given key.
 
         Note: this function does not .close() the stream.
@@ -177,12 +186,12 @@ class RedisStorage(StorageEngine):
             self.instance = instance_or_url
         self.block_size = block_size
 
-    def get_key(self: RedisStorage, hash: hash_t) -> str:
+    def get_key(self: RedisStorage, hash: hash_t) -> descr_t:
         """Return the key for a given hash."""
         key = join(ARTEFACTS, hash, "data")
-        return key
+        return descr_t(key)
 
-    def take(self: RedisStorage, key: str) -> Result[BytesIO]:
+    def take(self: RedisStorage, key: descr_t) -> Result[BytesIO]:
         """Return a bytes stream for a given key.
 
         Note: It is the caller's responsibility to .close() the stream.
@@ -198,7 +207,7 @@ class RedisStorage(StorageEngine):
         else:
             return BytesIO(b"".join(out))
 
-    def put(self: RedisStorage, key: str, data: BytesIO) -> Optional[Error]:
+    def put(self: RedisStorage, key: descr_t, data: BytesIO) -> Optional[Error]:
         """Write stream data to a given key.
 
         Note: this function does not .close() the stream.

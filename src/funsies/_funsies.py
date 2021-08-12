@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import IntEnum
 import hashlib
+from io import BytesIO
 from typing import Mapping, Type
 
 # external
@@ -61,12 +62,12 @@ class Funsie:
     hash: hash_t = field(init=False)
 
     def decode(
-        self: Funsie, input_data: Mapping[str, Result[bytes]]
+        self: Funsie, input_data: Mapping[str, Result[BytesIO]]
     ) -> dict[str, object]:
         """Decode input data according to `inp`."""
         out = {}
         for key, enc in self.inp.items():
-            element = input_data[key]
+            element = input_data[key].read()
             out[key] = _serdes.decode(enc, element)
             if self.error_tolerant == 0 and isinstance(out[key], Error):
                 raise RuntimeError(
