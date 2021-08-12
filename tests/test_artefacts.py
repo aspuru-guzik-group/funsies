@@ -15,8 +15,7 @@ def test_artefact_add() -> None:
     """Test adding const artefacts."""
     options()
     server = MockServer()
-    db = server.new_connection()
-    store = RedisStorage(db)
+    db, store = server.new_connection()
 
     a = _graph.constant_artefact(db, store, b"bla bla")
     b = _graph.Artefact[bytes].grab(db, a.hash)
@@ -30,8 +29,8 @@ def test_artefact_add_implicit() -> None:
     """Test adding implicit artefacts."""
     options()
     server = MockServer()
-    db = server.new_connection()
-    store = RedisStorage(db)
+    db, store = server.new_connection()
+
     art = _graph.variable_artefact(db, hash_t("1"), "file", Encoding.blob)
     out = _graph.get_data(db, store, art)
     assert isinstance(out, Error)
@@ -42,8 +41,7 @@ def test_operation_pack() -> None:
     """Test packing and unpacking of operations."""
     opt = options()
     server = MockServer()
-    db = server.new_connection()
-    store = RedisStorage(db)
+    db, store = server.new_connection()
 
     a = _graph.constant_artefact(db, store, b"bla bla")
     b = _graph.constant_artefact(db, store, b"bla bla bla")
@@ -76,8 +74,7 @@ def test_operation_pack() -> None:
 def test_artefact_wrong_type() -> None:
     """Test storing non-bytes in implicit artefacts."""
     server = MockServer()
-    db = server.new_connection()
-    store = RedisStorage(db)
+    db, store = server.new_connection()
 
     art = _graph.variable_artefact(db, hash_t("1"), "file", Encoding.blob)
     _graph.set_data(

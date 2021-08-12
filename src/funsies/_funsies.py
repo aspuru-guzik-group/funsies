@@ -67,8 +67,12 @@ class Funsie:
         """Decode input data according to `inp`."""
         out = {}
         for key, enc in self.inp.items():
-            element = input_data[key].read()
-            out[key] = _serdes.decode(enc, element)
+            element = input_data[key]
+            if isinstance(element, Error):
+                out[key] = element
+            else:
+                out[key] = _serdes.decode(enc, element.read())
+
             if self.error_tolerant == 0 and isinstance(out[key], Error):
                 raise RuntimeError(
                     f"Decoding of input data {key} failed:\n{out[key].details}"

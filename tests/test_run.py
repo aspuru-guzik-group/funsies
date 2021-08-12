@@ -33,8 +33,7 @@ def test_shell_run() -> None:
     """Test run on a shell command."""
     opt = options()
     serv = MockServer()
-    db = serv.new_connection()
-    store = RedisStorage(db)
+    db, store = serv.new_connection()
 
     cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
     inp = {"file1": _graph.constant_artefact(db, store, b"bla bla")}
@@ -60,8 +59,7 @@ def test_pyfunc_run() -> None:
     """Test run on a python function."""
     opt = options()
     serv = MockServer()
-    db = serv.new_connection()
-    store = RedisStorage(db)
+    db, store = serv.new_connection()
 
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -89,8 +87,7 @@ def test_cached_run() -> None:
     """Test cached result."""
     opt = options()
     serv = MockServer()
-    db = serv.new_connection()
-    store = RedisStorage(db)
+    db, store = serv.new_connection()
 
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -109,8 +106,7 @@ def test_cached_instances() -> None:
     """Test cached result from running same code twice."""
     opt = options()
     serv = MockServer()
-    db = serv.new_connection()
-    store = RedisStorage(db)
+    db, store = serv.new_connection()
 
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"
@@ -134,8 +130,7 @@ def test_dependencies() -> None:
     """Test cached result."""
     opt = options()
     serv = MockServer()
-    db = serv.new_connection()
-    store = RedisStorage(db)
+    db, store = serv.new_connection()
 
     cmd = p.python_funsie(
         capitalize, {"inp": Encoding.json}, {"inp": Encoding.json}, name="capit"

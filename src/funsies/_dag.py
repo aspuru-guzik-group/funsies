@@ -13,11 +13,11 @@ from rq.worker import Worker
 
 # module
 from ._constants import DAG_INDEX, DAG_OPERATIONS, DAG_STATUS, hash_t, join, OPERATIONS
+from ._context import get_storage
 from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
 from ._run import run_op, RunStatus
 from ._short_hash import shorten_hash
-from ._context import get_storage
 
 
 def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
@@ -258,7 +258,7 @@ def task(
     worker_name: Optional[str] = job.worker_name
     logger.debug(f"attempting {current} on {worker_name}.")
 
-    # TODO: Fix 
+    # TODO: Fix
     store = get_storage(None)
 
     # Run job

@@ -5,15 +5,17 @@ import tempfile
 
 # funsies
 from funsies import debug, Fun, shell
+from funsies._context import get_connection
 from funsies._run import run_op
 from funsies.config import MockServer
 
 
 def test_shell_run() -> None:
     """Test run on a shell command."""
-    with Fun(MockServer()) as db:
+    with Fun(MockServer()):
+        db, store = get_connection()
         cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"])
-        _ = run_op(db, cmd.hash)
+        _ = run_op(db, store, cmd.hash)
 
         with tempfile.TemporaryDirectory() as d:
             debug.shell(cmd, d)

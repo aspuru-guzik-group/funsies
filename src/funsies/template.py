@@ -11,19 +11,22 @@ from redis import Redis
 
 # module
 from ._constants import Encoding
-from ._context import get_options, get_redis
+from ._context import Connection, get_connection, get_options
 from ._graph import Artefact, constant_artefact, make_op
 from ._pyfunc import python_funsie
+from ._storage import StorageEngine
 from .config import Options
 
 T = TypeVar("T")
 
 
-def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
+def _artefact(
+    db: Redis[bytes], store: StorageEngine, data: Union[T, Artefact[T]]
+) -> Artefact[T]:
     if isinstance(data, Artefact):
         return data
     else:
-        return constant_artefact(db, data)  # type:ignore
+        return constant_artefact(db, store, data)  # type:ignore
 
 
 _Template = Union[str, Artefact[str], bytes, Artefact[bytes]]
@@ -38,7 +41,7 @@ def template(
     env: Optional[Mapping[str, str]] = None,
     name: Optional[str] = None,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Artefact[bytes]:
     """Fill in a template using data from artefacts.
 
@@ -113,20 +116,20 @@ def template(
     """  # noqa:D300,D301
     # Get context elements
     opt = get_options(opt)
-    db = get_redis(connection)
+    db, store = get_connection(connection)
 
     # Make sure template is a string in the db
     if isinstance(template, bytes):
-        tmp = _artefact(db, template.decode())
+        tmp = _artefact(db, store, template.decode())
     else:
-        tmp = _artefact(db, template)  # type:ignore
+        tmp = _artefact(db, store, template)  # type:ignore
 
     # Make sure all substitutions are strings in the db
     args = dict()
     for key, value in data.items():
         if isinstance(value, bytes):
             value = value.decode()
-        args[key] = _artefact(db, value)
+        args[key] = _artefact(db, store, value)
 
     template_key = "template"
     while template_key in args:
@@ -137,7 +140,7 @@ def template(
         env_key += "_"  # append more _ until template_key is unique
 
     args[template_key] = tmp
-    args[env_key] = _artefact(db, env)
+    args[env_key] = _artefact(db, store, env)
 
     in_types = dict([(k, val.kind) for k, val in args.items()])
 

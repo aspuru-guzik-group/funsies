@@ -9,7 +9,7 @@ from redis import Redis
 
 # module
 from . import _constants as c
-from ._context import get_redis
+from ._context import Connection, get_connection
 from ._funsies import Funsie
 from ._graph import Artefact, Operation
 from ._logging import logger
@@ -18,7 +18,7 @@ from ._short_hash import hash_load
 
 def get(
     target: str,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> list[Union[Artefact, Funsie, Operation]]:
     """Get object or objects that correspond to a given hash value.
 
@@ -36,7 +36,7 @@ def get(
         A list of objects with ids that start with `target`. Empty if no such
         objects exist.
     """
-    db = get_redis(connection)
+    db, store = get_connection(connection)
     hashes = hash_load(db, target)
     out: list[Union[Artefact, Funsie, Operation]] = []
     for h in hashes:

@@ -10,7 +10,6 @@ from typing import Optional
 
 # external
 import click
-from redis import Redis
 from rq import Connection, Worker
 
 # funsies
@@ -31,15 +30,23 @@ import hashlib, subprocess, loguru  # noqa isort:skip
 @click.group()
 @click.version_option(__version__)
 @click.option(
-    "--url",
-    "-u",
+    "--jobs",
+    "-j",
     type=str,
     nargs=1,
     default=None,
     help="Redis connection URL.",
 )
+@click.option(
+    "--store",
+    "-s",
+    type=str,
+    nargs=1,
+    default=None,
+    help="Storage connection URL.",
+)
 @click.pass_context
-def main(ctx: click.Context, url: str) -> None:
+def main(ctx: click.Context, jobs: str, store: str) -> None:
     """Command-line tools for funsies.
 
     The --url flag allows passing a custom url for the redis instance. This
@@ -47,7 +54,7 @@ def main(ctx: click.Context, url: str) -> None:
     Alternatively, the url can be set using the environment variables
     FUNSIES_URL environment variable.
     """
-    ctx.obj = Server(url)
+    ctx.obj = Server(jobs, store)
 
 
 @main.command()
@@ -68,7 +75,8 @@ def main(ctx: click.Context, url: str) -> None:
 @click.pass_context
 def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN201
     """Starts an RQ worker for funsies."""
-    db: Redis[bytes] = ctx.obj.new_connection()
+    db, store = ctx.obj.new_connection()
+    funsies._context._storage_stack.push(store)
     with Connection(db):
         queues = queues or ["default"]
         if burst:
@@ -89,7 +97,7 @@ def worker(ctx: click.Context, queues, burst, rq_log_level):  # noqa:ANN001,ANN2
 @click.pass_context
 def clean(ctx: click.Context) -> None:
     """Clean job queues and DAGs."""
-    db = ctx.obj.new_connection()
+    db, _ = ctx.obj.new_connection()
     logger.info("shutting down workers")
     funsies._context.shutdown_workers(db, True)
     logger.info("cleaning up")
@@ -107,7 +115,7 @@ def clean(ctx: click.Context) -> None:
 @click.pass_context
 def shutdown(ctx: click.Context, force: bool) -> None:
     """Tell workers to shutdown."""
-    db = ctx.obj.new_connection()
+    db, _ = ctx.obj.new_connection()
     funsies._context.shutdown_workers(db, force)
     logger.success("done")
 
@@ -249,7 +257,7 @@ def wait(  # noqa:C901
 
     while True:
         try:
-            db = ctx.obj.new_connection(try_fail=True)
+            db, _ = ctx.obj.new_connection(try_fail=True)
             db.ping()
             break
         except Exception:
@@ -261,7 +269,8 @@ def wait(  # noqa:C901
                 logger.error("timeout exceeded")
                 raise SystemExit(2)
 
-    with funsies._context.Fun(ctx.obj) as db:
+    with funsies._context.Fun(ctx.obj):
+        db = funsies._context.get_redis()
         h = []
         for hash in hashes:
             things = funsies.get(hash)
@@ -308,7 +317,8 @@ def graph(ctx: click.Context, hashes: tuple[str, ...], inputs: bool) -> None:
     # funsies
     import funsies._graphviz
 
-    with funsies._context.Fun(ctx.obj) as db:
+    with funsies._context.Fun(ctx.obj):
+        db = funsies._context.get_redis()
         if len(hashes) == 0:
             # If no hashes are passed, we graph all the DAGs on index
             hashes = tuple(

@@ -7,6 +7,7 @@ import pytest
 
 # funsies
 from funsies import errors, Fun, morph, options, put, take, utils
+from funsies._context import get_connection
 from funsies._run import run_op
 from funsies.config import MockServer
 from funsies.types import Error, ErrorKind, UnwrapError
@@ -14,15 +15,16 @@ from funsies.types import Error, ErrorKind, UnwrapError
 
 def test_concat() -> None:
     """Test concatenation."""
-    with Fun(MockServer()) as db:
+    with Fun(MockServer()):
+        db, store = get_connection()
         dat1 = put(b"bla")
         dat2 = put(b"bla")
         cat = utils.concat(dat1, dat2)
-        run_op(db, cat.parent)
+        run_op(db, store, cat.parent)
         assert take(cat) == b"blabla"
 
         cat = utils.concat(dat1, dat1, dat1, join=b" ")
-        run_op(db, cat.parent)
+        run_op(db, store, cat.parent)
         assert take(cat) == b"bla bla bla"
 
 
@@ -49,11 +51,12 @@ def test_match() -> None:
 
 def test_truncate() -> None:
     """Test truncation."""
-    with Fun(MockServer()) as db:
+    with Fun(MockServer()):
+        db, store = get_connection()
         inp = "\n".join([f"{k}" for k in range(10)])
         dat1 = put(inp.encode())
         trunc = utils.truncate(dat1, 2, 3)
-        run_op(db, trunc.parent)
+        run_op(db, store, trunc.parent)
         assert take(trunc) == ("\n".join(inp.split("\n")[2:-3])).encode()
 
 

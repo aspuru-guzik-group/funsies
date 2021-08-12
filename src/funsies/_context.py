@@ -168,7 +168,6 @@ def get_connection(inp: Connection = None) -> tuple[Redis[bytes], StorageEngine]
 @contextmanager
 def Fun(
     server: Optional[Server] = None,
-    storage: Optional[StorageEngine] = None,
     defaults: Optional[Options] = None,
     cleanup: bool = False,
 ) -> Iterator[Redis[bytes]]:
@@ -181,24 +180,20 @@ def Fun(
         defaults = Options()
     _options_stack.push(defaults)
 
-    connection = server.new_connection()
-
-    if storage is None:
-        # TODO: change to disk?
-        storage = RedisStorage(connection)
-    _storage_stack.push(storage)
+    db, store = server.new_connection()
+    _storage_stack.push(store)
 
     if cleanup:
-        cleanup_funsies(connection)
+        cleanup_funsies(db)
 
     # also push on rq
-    rq.connections.push_connection(connection)
+    rq.connections.push_connection(db)
 
     try:
         yield rq.connections.get_current_connection()
     finally:
         popped = rq.connections.pop_connection()
-        assert popped == connection, (
+        assert popped == db, (
             "Unexpected Redis connection was popped off the stack. "
             "Check your Redis connection setup."
         )
@@ -242,7 +237,7 @@ def ManagedFun(
     port = 16379
     url = f"redis://:{pw}@localhost:{port}"
     cmdline = ["redis-server"] + rargs + ["--port", f"{port}", "--requirepass" f" {pw}"]
-    server = Server(redis_url=url)
+    server = Server(jobs_url=url)
 
     redis_server = subprocess.Popen(
         cmdline,
@@ -263,7 +258,7 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "--url", url, "worker"] + wargs, cwd=dir)
+        subprocess.Popen(["funsies", "--jobs", url, "worker"] + wargs, cwd=dir)
         for i in range(nworkers)
     ]
 

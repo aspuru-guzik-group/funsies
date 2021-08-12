@@ -3,27 +3,42 @@ from __future__ import annotations
 
 # std
 from dataclasses import asdict, dataclass
-from io import BytesIO
 import json
 import os
 import sys
-import traceback
-from typing import Any, cast, Mapping, Optional, Type, Union
+from typing import Any, Mapping, Optional, Type
 
 # external
 # redis
 from redis import Redis
 
 # module
-from ._constants import _AnyPath, ARTEFACTS, hash_t, join
 from ._logging import logger
-from ._storage import descr_t, StorageEngine
-from .errors import Error, ErrorKind, Result
+from ._storage import DiskStorage, RedisStorage, StorageEngine
 
 # Constants
 INFINITE = -1
 ONE_DAY = 86400
 ONE_MINUTE = 60
+
+
+def _redis_connection(url, try_fail: bool = True) -> Redis[bytes]:
+    """Open a new redis connection."""
+    hn = _extract_hostname(url)
+    logger.info(f"connecting to {hn}")
+    db = Redis.from_url(url, decode_responses=False)
+    try:
+        db.ping()
+    except Exception as e:
+        if try_fail:
+            raise e
+        else:
+            logger.error("could not connect to server! exiting")
+            logger.error(str(e))
+            sys.exit(-1)
+    logger.debug("connection sucessful")
+    logger.info(f"connected to {hn}")
+    return db
 
 
 # --------------------------------------------------------------------------
@@ -35,9 +50,24 @@ def _get_redis_url(url: Optional[str] = None) -> str:
         return url
     else:
         try:
-            default = os.environ["FUNSIES_URL"]
+            if "FUNSIES_JOBS" in os.environ:
+                default = os.environ["FUNSIES_JOBS"]
+            else:
+                default = os.environ["FUNSIES_URL"]
         except KeyError:
             default = "redis://localhost:6379"
+        return default
+
+
+def _get_storage_url(url: Optional[str] = None) -> Optional[str]:
+    """Get the default funsies storage URL."""
+    if url is not None:
+        return url
+    else:
+        try:
+            default = os.environ["FUNSIES_DATA"]
+        except KeyError:
+            default = None
         return default
 
 
@@ -54,34 +84,30 @@ class Server:
     """Runtime options for the funsies redis server."""
 
     # Connection settings
-    redis_url: str
+    jobs_url: str
+    data_url: str
 
     def __init__(
         self: Server,
-        redis_url: Optional[str] = None,
-        mock: bool = False,
+        jobs_url: Optional[str] = None,
+        data_url: Optional[str] = None,
     ) -> None:
         """Create a new funsies server configuration."""
         # defaults to the env variable FUNSIES_URL
-        self.redis_url = _get_redis_url(redis_url)
+        self.jobs_url = _get_redis_url(jobs_url)
+        data_url = _get_storage_url(data_url)
+        if data_url is None:
+            self.data_url = self.jobs_url
+        else:
+            self.data_url = data_url
 
-    def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
-        """Open a new redis connection."""
-        hn = _extract_hostname(self.redis_url)
-        logger.info(f"connecting to {hn}")
-        db = Redis.from_url(self.redis_url, decode_responses=False)
-        try:
-            db.ping()
-        except Exception as e:
-            if try_fail:
-                raise e
-            else:
-                logger.error("could not connect to server! exiting")
-                logger.error(str(e))
-                sys.exit(-1)
-        logger.debug("connection sucessful")
-        logger.info(f"connected to {hn}")
-        return db
+    def new_connection(
+        self, try_fail: bool = True
+    ) -> tuple[Redis[bytes], StorageEngine]:
+        rdb = _redis_connection(self.jobs_url, try_fail)
+        if self.data_url == self.jobs_url:
+            store = RedisStorage(rdb)
+        return rdb, store
 
 
 class MockServer(Server):
@@ -104,135 +130,11 @@ class MockServer(Server):
 
         self._instance = Redis()
 
-    def new_connection(self: MockServer, try_fail: bool = True) -> Redis[bytes]:
+    def new_connection(
+        self: MockServer, try_fail: bool = True
+    ) -> tuple[Redis[bytes], StorageEngine]:
         """Create a new redis connection."""
-        return self._instance
-
-
-# --------------------------------------------------------------------------
-# Storage engine configuration
-# --------------------------------------------------------------------------
-
-# Data storage on disk
-class DiskStorage(StorageEngine):
-    """Storage engine that puts artefact data on disk."""
-
-    def __init__(self: DiskStorage, path: _AnyPath) -> None:
-        """Return a storage engine that saves to a given path."""
-        self.path = os.path.abspath(path)
-        os.makedirs(self.path, exist_ok=True)
-        self.buffer_length = 16 * 1024
-
-    def get_key(self: DiskStorage, hash: hash_t) -> descr_t:
-        """Return the key for a given hash."""
-        dir = os.path.join(self.path, hash[:2])
-        os.makedirs(dir, exist_ok=True)
-        key = os.path.join(dir, hash[2:])
-        return descr_t(str(key))
-
-    def take(self: DiskStorage, key: descr_t) -> Result[BytesIO]:
-        """Return a bytes stream for a given key.
-
-        Note: It is the caller's responsibility to .close() the stream.
-        """
-        try:
-            fdst = cast(BytesIO, open(key, "rb"))
-        except Exception:
-            tb_exc = traceback.format_exc()
-            return Error(
-                kind=ErrorKind.ExceptionRaised,
-                details=tb_exc,
-            )
-
-        return fdst
-
-    def put(self: DiskStorage, key: descr_t, data: BytesIO) -> Optional[Error]:
-        """Write stream data to a given key.
-
-        Note: this function does not .close() the stream.
-        """
-        try:
-            with open(key, "wb") as fdst:
-                while True:
-                    buf = data.read(self.buffer_length)
-                    if not buf:
-                        break
-                    fdst.write(buf)
-
-        except Exception:
-            tb_exc = traceback.format_exc()
-            return Error(
-                kind=ErrorKind.ExceptionRaised,
-                details=tb_exc,
-            )
-        return None
-
-
-_DEFAULT_BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB
-
-
-class RedisStorage(StorageEngine):
-    """Storage engine that puts artefact data in Redis."""
-
-    def __init__(
-        self: RedisStorage,
-        instance_or_url: Union[Redis[bytes], str],
-        block_size: int = _DEFAULT_BLOCK_SIZE,
-    ) -> None:
-        """Returns a storage engine that saves to a Redis instance."""
-        if isinstance(instance_or_url, str):
-            self.instance = Server(instance_or_url).new_connection()
-        else:
-            self.instance = instance_or_url
-        self.block_size = block_size
-
-    def get_key(self: RedisStorage, hash: hash_t) -> descr_t:
-        """Return the key for a given hash."""
-        key = join(ARTEFACTS, hash, "data")
-        return descr_t(key)
-
-    def take(self: RedisStorage, key: descr_t) -> Result[BytesIO]:
-        """Return a bytes stream for a given key.
-
-        Note: It is the caller's responsibility to .close() the stream.
-        """
-        # TODO: stream it?
-        # TODO: check for truncation
-        out = self.instance.lrange(key, 0, -1)
-        if len(out) == 0:
-            return Error(
-                ErrorKind.DataNotFound,
-                details=f"No data at address {key} in redis instance.",
-            )
-        else:
-            return BytesIO(b"".join(out))
-
-    def put(self: RedisStorage, key: descr_t, data: BytesIO) -> Optional[Error]:
-        """Write stream data to a given key.
-
-        Note: this function does not .close() the stream.
-        """
-        first = True  # this workaround is to make sure that writing no data is ok.
-        pipe = self.instance.pipeline(transaction=True)
-        pipe.delete(key)
-        while True:
-            try:
-                dat = data.read(self.block_size)
-            except Exception:
-                tb_exc = traceback.format_exc()
-                return Error(
-                    kind=ErrorKind.ExceptionRaised,
-                    details=tb_exc,
-                )
-
-            if len(dat) == 0 and not first:
-                break
-            else:
-                pipe.rpush(key, dat)
-
-            first = False
-        pipe.execute()
-        return None
+        return self._instance, RedisStorage(self._instance)
 
 
 # --------------------------------------------------------------------------

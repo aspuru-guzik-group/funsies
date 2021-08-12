@@ -195,7 +195,7 @@ def morph(
         name=morpher_name,
         strict=strict,
         opt=opt,
-        connection=(db,store),
+        connection=(db, store),
     )
 
 
@@ -254,5 +254,5 @@ def reduce(
         name=morpher_name,
         strict=strict,
         opt=opt,
-        connection=(db,store),
+        connection=(db, store),
     )
