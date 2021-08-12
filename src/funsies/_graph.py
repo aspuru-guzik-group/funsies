@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-import traceback
 from typing import Any, Generic, Mapping, Optional, Type, TypeVar
 
 # external
@@ -216,13 +215,13 @@ def __get_data_loc(
 
 
 # Save and load artefacts
-def get_data(
+def get_stream(
     db: Redis[bytes],
     store: StorageEngine,
-    source: Artefact[T],
+    source: hash_t,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[T]:
+) -> Result[io.BytesIO]:
     """Retrieve data corresponding to an artefact."""
     key = __get_data_loc(db, store, source, carry_error, do_resolve_link)
     if isinstance(key, Error):
@@ -236,20 +235,35 @@ def get_data(
             details=stream.details,
             source=carry_error,
         )
+
+    return stream
+
+
+def get_data(
+    db: Redis[bytes],
+    store: StorageEngine,
+    source: Artefact[T],
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[T]:
+    """Retrieve data corresponding to an artefact."""
+    stream = get_stream(db, store, source.hash, carry_error, do_resolve_link)
+    if isinstance(stream, Error):
+        return stream
     else:
         raw = stream.read()
         stream.close()
         return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
-def set_data(
+def set_stream(
     db: Redis[bytes],
     store: StorageEngine,
     address: hash_t,
-    value: Result[bytes],
+    value: Result[io.BytesIO],
     status: ArtefactStatus,
 ) -> None:
-    """Update an artefact with a value."""
+    """Update an artefact with a stream of bytes."""
     if get_status(db, address) == ArtefactStatus.const:
         if status == ArtefactStatus.const:
             pass
@@ -262,13 +276,25 @@ def set_data(
         return
 
     key = store.get_key(address)
-    buf = io.BytesIO(value)
-    stat = store.put(key, buf)
+    stat = store.put(key, value)
 
     if stat is not None:
         mark_error(db, address, error=stat)
     else:
         set_status(db, address, status)
+
+
+def set_data(
+    db: Redis[bytes],
+    store: StorageEngine,
+    address: hash_t,
+    value: Result[bytes],
+    status: ArtefactStatus,
+) -> None:
+    """Update an artefact with a value."""
+    # This function is just a wrapper around set_stream.
+    buf = match(value, lambda x: io.BytesIO(x), lambda x: x)
+    set_stream(db, store, address, buf, status)
 
 
 # not pipeline-able (because of set_data)

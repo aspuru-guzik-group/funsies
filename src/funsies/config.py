@@ -91,7 +91,7 @@ class MockServer(Server):
     redis_url: str
     _instance: Redis[bytes]
 
-    def __init__(self: MockServer, redis_url: Optional[str] = None):
+    def __init__(self: MockServer, redis_url: Optional[str] = None) -> None:
         """Create a new funsies server configuration."""
         if redis_url is None:
             self.redis_url = "fakeredis://mock_server"
@@ -117,20 +117,31 @@ class MockServer(Server):
 class DiskStorage(StorageEngine):
     """Storage engine that puts artefact data on disk."""
 
-    def __init__(self, path: _AnyPath):
-        self.path = path
+    def __init__(self: DiskStorage, path: _AnyPath) -> None:
+        """Return a storage engine that saves to a given path."""
+        self.path = os.path.abspath(path)
+        os.makedirs(self.path, exist_ok=True)
         self.buffer_length = 16 * 1024
 
-    def get_key(self, hash: hash_t) -> str:
+    def get_key(self: DiskStorage, hash: hash_t) -> str:
+        """Return the key for a given hash."""
         dir = os.path.join(self.path, hash[:2])
         os.makedirs(dir, exist_ok=True)
         key = os.path.join(dir, hash[2:])
         return str(key)
 
-    def take(self, key: str) -> Result[BytesIO]:
-        return open(key, "rb") # note: caller must ensure stream is closed
+    def take(self: DiskStorage, key: str) -> Result[BytesIO]:
+        """Return a bytes stream for a given key.
 
-    def put(self, key: str, data: BytesIO) -> Optional[Error]:
+        Note: It is the caller's responsibility to .close() the stream.
+        """
+        return open(key, "rb")  # note: caller must ensure stream is closed
+
+    def put(self: DiskStorage, key: str, data: BytesIO) -> Optional[Error]:
+        """Write stream data to a given key.
+
+        Note: this function does not .close() the stream.
+        """
         try:
             with open(key, "wb") as fdst:
                 while True:
@@ -155,19 +166,27 @@ class RedisStorage(StorageEngine):
     """Storage engine that puts artefact data in Redis."""
 
     def __init__(
-        self, instance_or_url: Union[Redis[bytes], str], block_size=_DEFAULT_BLOCK_SIZE
-    ):
+        self: RedisStorage,
+        instance_or_url: Union[Redis[bytes], str],
+        block_size: int = _DEFAULT_BLOCK_SIZE,
+    ) -> None:
+        """Returns a storage engine that saves to a Redis instance."""
         if isinstance(instance_or_url, str):
             self.instance = Server(instance_or_url).new_connection()
         else:
             self.instance = instance_or_url
         self.block_size = block_size
 
-    def get_key(self, hash: hash_t) -> str:
+    def get_key(self: RedisStorage, hash: hash_t) -> str:
+        """Return the key for a given hash."""
         key = join(ARTEFACTS, hash, "data")
         return key
 
-    def take(self, key: str) -> Result[BytesIO]:
+    def take(self: RedisStorage, key: str) -> Result[BytesIO]:
+        """Return a bytes stream for a given key.
+
+        Note: It is the caller's responsibility to .close() the stream.
+        """
         # TODO: stream it?
         # TODO: check for truncation
         out = self.instance.lrange(key, 0, -1)
@@ -179,7 +198,11 @@ class RedisStorage(StorageEngine):
         else:
             return BytesIO(b"".join(out))
 
-    def put(self, key: str, data: BytesIO) -> Optional[Error]:
+    def put(self: RedisStorage, key: str, data: BytesIO) -> Optional[Error]:
+        """Write stream data to a given key.
+
+        Note: this function does not .close() the stream.
+        """
         first = True  # this workaround is to make sure that writing no data is ok.
         pipe = self.instance.pipeline(transaction=True)
         pipe.delete(key)

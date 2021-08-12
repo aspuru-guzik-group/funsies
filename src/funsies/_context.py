@@ -19,6 +19,7 @@ from rq.local import LocalStack
 # module
 from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
+from ._storage import StorageEngine
 from .config import Options, Server
 
 # A thread local stack of connections (adapted from RQ)
@@ -106,7 +107,7 @@ def get_redis(db: Optional[Redis[bytes]] = None) -> Redis[bytes]:
         return db
 
 
-def get_storage(store=None):
+def get_storage(store: Optional[StorageEngine] = None) -> StorageEngine:
     """Get current storage method."""
     if store is not None:
         return store

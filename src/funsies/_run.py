@@ -4,6 +4,7 @@ from __future__ import annotations
 # std
 from contextlib import ContextDecorator
 from enum import IntEnum
+from io import BytesIO
 import signal
 import traceback
 from types import FrameType
@@ -23,6 +24,7 @@ from ._graph import (
     ArtefactStatus,
     create_link,
     get_status,
+    get_stream,
     mark_error,
     Operation,
     resolve_link,
@@ -162,10 +164,10 @@ def run_op(  # noqa:C901
     # we don't have to pop it later because this process is going to die
 
     # load input files
-    input_data: dict[str, Result[bytes]] = {}
+    input_data: dict[str, Result[BytesIO]] = {}
     for key, val in op.inp.items():
         artefact = Artefact[Any].grab(db, val)
-        dat = get_bytes(db, artefact, carry_error=op.hash)
+        dat = get_stream(db, artefact, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")

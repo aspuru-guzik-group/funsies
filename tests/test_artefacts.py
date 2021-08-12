@@ -2,7 +2,6 @@
 # std
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
