@@ -45,4 +45,3 @@ HASH_INDEX = "funsies.hash_index"
 DAG_OPERATIONS = "funsies.dags.operations"
 DAG_STATUS = "funsies.dags.status.done"
 DAG_INDEX = "funsies.dags.index"
-

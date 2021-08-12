@@ -3,18 +3,22 @@ from __future__ import annotations
 
 # std
 from dataclasses import asdict, dataclass
+from io import BytesIO
 import json
 import os
 import sys
-from typing import Any, Mapping, Optional, Type
+import traceback
+from typing import Any, Mapping, Optional, Type, Union
 
 # external
 # redis
 from redis import Redis
 
 # module
+from ._constants import _AnyPath, ARTEFACTS, hash_t, join
 from ._logging import logger
-from ._storage import StorageType, store_dispatch
+from ._storage import StorageEngine
+from .errors import Error, ErrorKind, Result
 
 # Constants
 INFINITE = -1
@@ -22,6 +26,9 @@ ONE_DAY = 86400
 ONE_MINUTE = 60
 
 
+# --------------------------------------------------------------------------
+# Redis configuration
+# --------------------------------------------------------------------------
 def _get_redis_url(url: Optional[str] = None) -> str:
     """Get the default funsies redis URL."""
     if url is not None:
@@ -44,25 +51,22 @@ def _extract_hostname(url: str) -> str:
 
 
 class Server:
-    """Runtime options for the funsies server and artefact storage."""
+    """Runtime options for the funsies redis server."""
 
     # Connection settings
     redis_url: str
 
-    # Storage setting
-    storage: StorageType
-
     def __init__(
         self: Server,
         redis_url: Optional[str] = None,
-        storage: StorageType = StorageType.RedisOnly,
+        mock: bool = False,
     ) -> None:
         """Create a new funsies server configuration."""
+        # defaults to the env variable FUNSIES_URL
         self.redis_url = _get_redis_url(redis_url)
-        self.storage = storage
 
     def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
-        """Create a new redis connection."""
+        """Open a new redis connection."""
         hn = _extract_hostname(self.redis_url)
         logger.info(f"connecting to {hn}")
         db = Redis.from_url(self.redis_url, decode_responses=False)
@@ -79,9 +83,6 @@ class Server:
         logger.info(f"connected to {hn}")
         return db
 
-    def new_storage(self: Server):
-        return store_dispatch(self.storage)
-
 
 class MockServer(Server):
     """Mock redis server using FakeRedis for testing."""
@@ -90,7 +91,7 @@ class MockServer(Server):
     redis_url: str
     _instance: Redis[bytes]
 
-    def __init__(self: Server, redis_url: Optional[str] = None) -> None:
+    def __init__(self: MockServer, redis_url: Optional[str] = None):
         """Create a new funsies server configuration."""
         if redis_url is None:
             self.redis_url = "fakeredis://mock_server"
@@ -103,11 +104,81 @@ class MockServer(Server):
 
         self._instance = Redis()  # type:ignore
 
-    def new_connection(self: Server, try_fail: bool = True) -> Redis[bytes]:
+    def new_connection(self: MockServer, try_fail: bool = True) -> Redis[bytes]:
         """Create a new redis connection."""
         return self._instance  # type:ignore
 
 
+# --------------------------------------------------------------------------
+# Storage engine configuration
+# --------------------------------------------------------------------------
+
+# Data storage on disk
+class DiskStorage(StorageEngine):
+    """Storage engine that puts artefact data on disk."""
+
+    def __init__(self, path: _AnyPath):
+        self.path = path
+
+
+_DEFAULT_BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB
+
+
+class RedisStorage(StorageEngine):
+    """Storage engine that puts artefact data in Redis."""
+
+    def __init__(
+        self, instance_or_url: Union[Redis[bytes], str], block_size=_DEFAULT_BLOCK_SIZE
+    ):
+        if isinstance(instance_or_url, str):
+            self.instance = Server(instance_or_url).new_connection()
+        else:
+            self.instance = instance_or_url
+        self.block_size = block_size
+
+    def get_key(self, hash: hash_t) -> str:
+        key = join(ARTEFACTS, hash, "data")
+        return key
+
+    def take(self, key: str) -> Result[BytesIO]:
+        # TODO: stream it?
+        # TODO: check for truncation
+        out = self.instance.lrange(key, 0, -1)
+        if len(out) == 0:
+            return Error(
+                ErrorKind.DataNotFound,
+                details=f"No data at address {key} in redis instance.",
+            )
+        else:
+            return BytesIO(b"".join(out))
+
+    def put(self, key: str, data: BytesIO) -> Optional[Error]:
+        first = True  # this workaround is to make sure that writing no data is ok.
+        pipe = self.instance.pipeline(transaction=True)
+        pipe.delete(key)
+        while True:
+            try:
+                dat = data.read(self.block_size)
+            except Exception:
+                tb_exc = traceback.format_exc()
+                return Error(
+                    kind=ErrorKind.ExceptionRaised,
+                    details=tb_exc,
+                )
+
+            if len(dat) == 0 and not first:
+                break
+            else:
+                pipe.rpush(key, dat)
+
+            first = False
+        pipe.execute()
+        return None
+
+
+# --------------------------------------------------------------------------
+# Job configuration
+# --------------------------------------------------------------------------
 @dataclass
 class Options:
     """Runtime options for an Operation.

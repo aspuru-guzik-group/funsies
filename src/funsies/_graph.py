@@ -212,14 +212,7 @@ def __get_data_loc(
         )
     else:
         key = store.get_key(address)
-        if key is None:
-            return Error(
-                kind=ErrorKind.Mismatch,
-                details="expected data was not found",
-                source=carry_error,
-            )
-        else:
-            return key
+        return key
 
 
 # Save and load artefacts
@@ -232,8 +225,16 @@ def get_data(
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
     key = __get_data_loc(db, store, source, carry_error, do_resolve_link)
-    raw = store.take(key).read()
-    return _serdes.decode(source.kind, raw, carry_error=carry_error)
+    stream = store.take(key)
+    if isinstance(stream, Error):
+        return Error(
+            kind=stream.kind,
+            details=stream.details,
+            source=carry_error,
+        )
+    else:
+        raw = stream.read()
+        return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
 def set_data(
@@ -255,11 +256,14 @@ def set_data(
         mark_error(db, address, error=value)
         return
 
+    key = store.get_key(address)
     buf = io.BytesIO(value)
-    stat = store.put(address, buf)
+    stat = store.put(key, buf)
 
     if stat is not None:
         mark_error(db, address, error=stat)
+    else:
+        set_status(db, address, status)
 
 
 # not pipeline-able (because of set_data)

@@ -8,7 +8,7 @@ import pytest
 # funsies
 from funsies import _funsies as f
 from funsies import _graph, _serdes, options
-from funsies.config import MockServer
+from funsies.config import MockServer, RedisStorage
 from funsies.types import Encoding, Error, ErrorKind, hash_t
 
 
@@ -17,12 +17,14 @@ def test_artefact_add() -> None:
     options()
     server = MockServer()
     db = server.new_connection()
-    store = server.new_storage()
+    store = RedisStorage(db)
 
     a = _graph.constant_artefact(db, store, b"bla bla")
-    b = _graph.Artefact[bytes].grab(store, a.hash)
+    b = _graph.Artefact[bytes].grab(db, a.hash)
+    c = _graph.get_data(db, store, a)
     assert b is not None
     assert a == b
+    assert c == b"bla bla"
 
 
 # def test_artefact_add_implicit() -> None:
