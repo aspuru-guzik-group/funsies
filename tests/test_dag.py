@@ -71,7 +71,7 @@ def test_dag_efficient() -> None:
 def test_dag_cached() -> None:
     """Test that DAG caching works."""
     serv = MockServer()
-    with Fun(serv, options(distributed=False)):
+    with Fun(serv, defaults=options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2b = shell("echo 'not'", inp=dict(file1=step1))
@@ -80,7 +80,7 @@ def test_dag_cached() -> None:
         )
         execute(merge)
 
-    with Fun(serv, options(distributed=False, evaluate=False)):
+    with Fun(serv, defaults=options(distributed=False, evaluate=False)):
         # Same as above, should run through with no evaluation
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
@@ -90,7 +90,7 @@ def test_dag_cached() -> None:
         )
         execute(merge)
 
-    with Fun(serv, options(distributed=False, evaluate=False)):
+    with Fun(serv, defaults=options(distributed=False, evaluate=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         # DIFFERENT HERE: Trigger re-evaluation and raise
@@ -104,7 +104,7 @@ def test_dag_cached() -> None:
 
 def test_dag_execute() -> None:
     """Test execution of a _dag."""
-    with Fun(MockServer(), options(distributed=False)):
+    with Fun(MockServer(), defaults=options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -118,7 +118,7 @@ def test_dag_execute() -> None:
 
 def test_dag_execute2() -> None:
     """Test execution of a _dag."""
-    with Fun(MockServer(), options(distributed=False)):
+    with Fun(MockServer(), defaults=options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -136,7 +136,7 @@ def test_dag_execute2() -> None:
 
 def test_dag_execute_same_root() -> None:
     """Test execution of two dags that share the same origin."""
-    with Fun(MockServer(), options(distributed=False)):
+    with Fun(MockServer(), defaults=options(distributed=False)):
         dat = put(b"bla bla")
         step1 = morph(lambda x: x.decode().upper().encode(), dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -185,7 +185,7 @@ def test_subdag() -> None:
             out += [morph(cap, el, opt=options(distributed=False))]
         return {"out": concat(*out, join="-")}
 
-    with Fun(MockServer(), options(distributed=False)) as db:
+    with Fun(MockServer(), defaults=options(distributed=False)) as db:
         dat = put(b"bla bla lol what")
         inp = {"inp": dat}
         cmd = _subdag.subdag_funsie(

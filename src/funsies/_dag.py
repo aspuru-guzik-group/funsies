@@ -17,6 +17,7 @@ from ._graph import Artefact, get_op_options, Operation, resolve_link
 from ._logging import logger
 from ._run import run_op, RunStatus
 from ._short_hash import shorten_hash
+from ._context import get_storage
 
 
 def __set_as_hashes(db: Redis[bytes], key1: str, key2: str) -> set[hash_t]:
@@ -257,6 +258,9 @@ def task(
     worker_name: Optional[str] = job.worker_name
     logger.debug(f"attempting {current} on {worker_name}.")
 
+    # TODO: Fix 
+    store = get_storage(None)
+
     # Run job
     with logger.contextualize(op=shorten_hash(current)):
         # Start by checking if another worker is currently executing this operation
@@ -277,7 +281,7 @@ def task(
         else:
             # Run operation
             op = Operation.grab(db, current)
-            stat = run_op(db, op, evaluate=evaluate)
+            stat = run_op(db, store, op, evaluate=evaluate)
 
             if stat == RunStatus.subdag_ready:
                 # We have created a subdag
