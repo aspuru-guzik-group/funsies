@@ -238,6 +238,7 @@ def get_data(
         )
     else:
         raw = stream.read()
+        stream.close()
         return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 

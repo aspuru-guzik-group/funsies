@@ -119,6 +119,33 @@ class DiskStorage(StorageEngine):
 
     def __init__(self, path: _AnyPath):
         self.path = path
+        self.buffer_length = 16 * 1024
+
+    def get_key(self, hash: hash_t) -> str:
+        dir = os.path.join(self.path, hash[:2])
+        os.makedirs(dir, exist_ok=True)
+        key = os.path.join(dir, hash[2:])
+        return str(key)
+
+    def take(self, key: str) -> Result[BytesIO]:
+        return open(key, "rb") # note: caller must ensure stream is closed
+
+    def put(self, key: str, data: BytesIO) -> Optional[Error]:
+        try:
+            with open(key, "wb") as fdst:
+                while True:
+                    buf = data.read(self.buffer_length)
+                    if not buf:
+                        break
+                    fdst.write(buf)
+
+        except Exception:
+            tb_exc = traceback.format_exc()
+            return Error(
+                kind=ErrorKind.ExceptionRaised,
+                details=tb_exc,
+            )
+        return None
 
 
 _DEFAULT_BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB
