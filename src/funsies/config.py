@@ -107,6 +107,20 @@ class Server:
         rdb = _redis_connection(self.jobs_url, try_fail)
         if self.data_url == self.jobs_url:
             store = RedisStorage(rdb)
+
+        elif self.data_url[:5] == "redis":
+            logger.info(f"saving artefacts to {self.data_url}")
+            rstore = _redis_connection(self.data_url, try_fail)
+            store = RedisStorage(rstore)
+
+        elif self.data_url[:7] == "file://":
+            store = DiskStorage(self.data_url[7:])
+
+        else:
+            raise NotImplementedError(
+                f"No storage protocol corresponding to {self.data_url}"
+            )
+
         return rdb, store
 
 

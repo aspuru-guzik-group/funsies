@@ -38,15 +38,15 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     help="Redis connection URL.",
 )
 @click.option(
-    "--store",
-    "-s",
+    "--data",
+    "-d",
     type=str,
     nargs=1,
     default=None,
-    help="Storage connection URL.",
+    help="Data connection URL.",
 )
 @click.pass_context
-def main(ctx: click.Context, jobs: str, store: str) -> None:
+def main(ctx: click.Context, jobs: str, data: str) -> None:
     """Command-line tools for funsies.
 
     The --url flag allows passing a custom url for the redis instance. This
@@ -54,7 +54,7 @@ def main(ctx: click.Context, jobs: str, store: str) -> None:
     Alternatively, the url can be set using the environment variables
     FUNSIES_URL environment variable.
     """
-    ctx.obj = Server(jobs, store)
+    ctx.obj = Server(jobs, data)
 
 
 @main.command()

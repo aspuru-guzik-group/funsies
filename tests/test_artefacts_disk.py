@@ -7,6 +7,7 @@ from fakeredis import FakeStrictRedis as Redis
 
 # funsies
 from funsies import _graph, _serdes
+import funsies as f
 import funsies._constants as cons
 from funsies.config import DiskStorage
 from funsies.types import hash_t
@@ -42,3 +43,22 @@ def test_artefact_disk_json() -> None:
         _graph.set_data(db, store, art.hash, bdat, _graph.ArtefactStatus.done)
         data2 = _graph.get_data(db, store, art)
         assert dat == data2
+
+
+def test_artefact_disk_distributed() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        with f.ManagedFun(nworkers=1, data_url=f"file://{td}"):
+            dat = f.put(b"bla bla")
+            step1 = f.morph(lambda x: x.decode().upper().encode(), dat)
+            step2 = f.shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
+            step2b = f.shell("cat file1", inp=dict(file1=step1))
+
+            f.execute(step2)
+            f.wait_for(step2, 1.0)
+            out = f.take(step2.stdout)
+            assert out == b"BLA BLAbla bla"
+
+            f.execute(step2b)
+            f.wait_for(step2b, 1.0)
+            out = f.take(step2b.stdout)
+            assert out == b"BLA BLA"

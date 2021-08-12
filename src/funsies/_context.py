@@ -207,6 +207,7 @@ def ManagedFun(
     redis_args: Optional[Sequence[str]] = None,
     defaults: Optional[Options] = None,
     directory: Optional[_AnyPath] = None,
+    data_url: Optional[str] = None,
     pw: Optional[str] = None,
 ) -> Iterator[Redis[bytes]]:
     """Make a fully managed funsies db."""
@@ -237,7 +238,9 @@ def ManagedFun(
     port = 16379
     url = f"redis://:{pw}@localhost:{port}"
     cmdline = ["redis-server"] + rargs + ["--port", f"{port}", "--requirepass" f" {pw}"]
-    server = Server(jobs_url=url)
+    if data_url is None:
+        data_url = url
+    server = Server(jobs_url=url, data_url=data_url)
 
     redis_server = subprocess.Popen(
         cmdline,
@@ -258,7 +261,7 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "--jobs", url, "worker"] + wargs, cwd=dir)
+        subprocess.Popen(["funsies", "--jobs", url, "--data", data_url, "worker"] + wargs, cwd=dir)
         for i in range(nworkers)
     ]
 

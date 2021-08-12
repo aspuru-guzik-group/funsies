@@ -13,6 +13,7 @@ from redis import Redis
 # module
 from ._constants import _AnyPath, ARTEFACTS, hash_t, join
 from .errors import Error, ErrorKind, Result
+from ._logging import logger
 
 descr_t = NewType("descr_t", str)
 
@@ -50,6 +51,7 @@ class DiskStorage(StorageEngine):
     def __init__(self: DiskStorage, path: _AnyPath) -> None:
         """Return a storage engine that saves to a given path."""
         self.path = os.path.abspath(path)
+        logger.info(f"saving artefacts to {self.path}")
         os.makedirs(self.path, exist_ok=True)
         self.buffer_length = 16 * 1024
 
