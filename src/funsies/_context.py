@@ -20,7 +20,7 @@ from rq.local import LocalStack
 from ._constants import _AnyPath, hash_t, join, OPERATIONS
 from ._logging import logger
 from ._storage import StorageEngine
-from .config import Options, RedisStorage, Server
+from .config import Options, Server
 
 # A thread local stack of connections (adapted from RQ)
 _options_stack = LocalStack()
@@ -261,7 +261,9 @@ def ManagedFun(
     # spawn workers
     logger.debug(f"spawning {nworkers} funsies workers")
     worker_pool = [
-        subprocess.Popen(["funsies", "--jobs", url, "--data", data_url, "worker"] + wargs, cwd=dir)
+        subprocess.Popen(
+            ["funsies", "--jobs", url, "--data", data_url, "worker"] + wargs, cwd=dir
+        )
         for i in range(nworkers)
     ]
 

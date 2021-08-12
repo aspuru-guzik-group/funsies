@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 # std
-from typing import Optional, Union
-
-# external
-from redis import Redis
+from typing import Union
 
 # module
 from . import _constants as c

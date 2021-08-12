@@ -12,8 +12,8 @@ from redis import Redis
 
 # module
 from ._constants import _AnyPath, ARTEFACTS, hash_t, join
-from .errors import Error, ErrorKind, Result
 from ._logging import logger
+from .errors import Error, ErrorKind, Result
 
 descr_t = NewType("descr_t", str)
 

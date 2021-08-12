@@ -9,7 +9,7 @@ from funsies import _shell as s
 from funsies import _subdag as sub
 from funsies import options
 from funsies._run import run_op
-from funsies.config import MockServer, RedisStorage
+from funsies.config import MockServer
 from funsies.types import Encoding, RunStatus
 
 

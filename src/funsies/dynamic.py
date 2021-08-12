@@ -4,9 +4,6 @@ from __future__ import annotations
 # std
 from typing import Any, Callable, Optional, Sequence, TypeVar
 
-# external
-from redis import Redis
-
 # module
 from ._constants import _Data, Encoding
 from ._context import Connection, get_connection, get_options

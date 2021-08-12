@@ -186,8 +186,8 @@ def run_op(  # noqa:C901
             input_data[key] = dat
 
     # Close input bytes when function returns
-    def cleanup():
-        for key, val in input_data.items():
+    def cleanup() -> None:
+        for val in input_data.values():
             if isinstance(val, Error):
                 pass
             else:

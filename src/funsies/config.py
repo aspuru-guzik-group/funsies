@@ -22,7 +22,7 @@ ONE_DAY = 86400
 ONE_MINUTE = 60
 
 
-def _redis_connection(url, try_fail: bool = True) -> Redis[bytes]:
+def _redis_connection(url: str, try_fail: bool = True) -> Redis[bytes]:
     """Open a new redis connection."""
     hn = _extract_hostname(url)
     logger.info(f"connecting to {hn}")
@@ -102,8 +102,9 @@ class Server:
             self.data_url = data_url
 
     def new_connection(
-        self, try_fail: bool = True
+        self: Server, try_fail: bool = True
     ) -> tuple[Redis[bytes], StorageEngine]:
+        """Setup job server and data connections."""
         rdb = _redis_connection(self.jobs_url, try_fail)
         if self.data_url == self.jobs_url:
             store = RedisStorage(rdb)

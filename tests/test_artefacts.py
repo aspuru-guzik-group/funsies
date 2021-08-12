@@ -7,7 +7,7 @@ import pytest
 # funsies
 from funsies import _funsies as f
 from funsies import _graph, _serdes, options
-from funsies.config import MockServer, RedisStorage
+from funsies.config import MockServer
 from funsies.types import Encoding, Error, ErrorKind, hash_t
 
 

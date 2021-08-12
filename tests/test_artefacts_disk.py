@@ -7,7 +7,6 @@ from fakeredis import FakeStrictRedis as Redis
 
 # funsies
 from funsies import _graph, _serdes
-import funsies as f
 import funsies._constants as cons
 from funsies.config import DiskStorage
 from funsies.types import hash_t
@@ -46,6 +45,10 @@ def test_artefact_disk_json() -> None:
 
 
 def test_artefact_disk_distributed() -> None:
+    """Test whether artefacts on disk works on different nodes."""
+    # funsies
+    import funsies as f
+
     with tempfile.TemporaryDirectory() as td:
         with f.ManagedFun(nworkers=1, data_url=f"file://{td}"):
             dat = f.put(b"bla bla")
