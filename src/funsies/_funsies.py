@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 import hashlib
 from io import BytesIO
-from typing import Mapping, Type
+from typing import cast, Mapping, Type
 
 # external
 from redis import Redis
@@ -63,13 +63,13 @@ class Funsie:
 
     def decode(
         self: Funsie, input_data: Mapping[str, Result[BytesIO]]
-    ) -> dict[str, object]:
+    ) -> dict[str, Result[object]]:
         """Decode input data according to `inp`."""
         out = {}
         for key, enc in self.inp.items():
             element = input_data[key]
             if isinstance(element, Error):
-                out[key] = element
+                out[key] = cast(Result, element)
             else:
                 out[key] = _serdes.decode(enc, element.read())
 

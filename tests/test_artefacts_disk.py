@@ -8,7 +8,7 @@ from fakeredis import FakeStrictRedis as Redis
 # funsies
 from funsies import _graph, _serdes
 import funsies._constants as cons
-from funsies.config import DiskStorage
+from funsies._storage import DiskStorage
 from funsies.types import hash_t
 
 

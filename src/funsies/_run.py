@@ -253,12 +253,12 @@ def run_op(  # noqa:C901
         return RunStatus.executed
 
     subdag_parents = []
-    for key, val in out_data.items():
-        if val is None:
+    for key2, val2 in out_data.items():
+        if val2 is None:
             logger.warning(f"no output data for {key}")
             mark_error(
                 db,
-                op.out[key],
+                op.out[key2],
                 error=Error(
                     kind=ErrorKind.MissingOutput,
                     source=op.hash,

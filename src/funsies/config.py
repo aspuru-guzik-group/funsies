@@ -65,7 +65,7 @@ def _get_storage_url(url: Optional[str] = None) -> Optional[str]:
         return url
     else:
         try:
-            default = os.environ["FUNSIES_DATA"]
+            default: Optional[str] = os.environ["FUNSIES_DATA"]
         except KeyError:
             default = None
         return default
@@ -107,7 +107,7 @@ class Server:
         """Setup job server and data connections."""
         rdb = _redis_connection(self.jobs_url, try_fail)
         if self.data_url == self.jobs_url:
-            store = RedisStorage(rdb)
+            store: StorageEngine = RedisStorage(rdb)
 
         elif self.data_url[:5] == "redis":
             logger.info(f"saving artefacts to {self.data_url}")

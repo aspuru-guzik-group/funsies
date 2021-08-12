@@ -137,22 +137,22 @@ Connection = Union[
 
 def get_connection(inp: Connection = None) -> tuple[Redis[bytes], StorageEngine]:
     """Destructure a Connection."""
-    db = None
+    db: Optional[Redis[bytes]] = None
     st = None
     if isinstance(inp, tuple):
         if isinstance(inp[0], Redis):
-            db = inp[0]
+            db = inp[0]  # type:ignore
             assert isinstance(inp[1], StorageEngine)
             st = inp[1]
         elif isinstance(inp[0], StorageEngine):
             assert isinstance(inp[1], Redis)
-            db = inp[1]
+            db = inp[1]  # type:ignore
             st = inp[0]
         else:
             raise RuntimeError(f"Wrong input for get_connection, {inp}")
     else:
         if isinstance(inp, Redis):
-            db = inp
+            db = inp  # type:ignore
         elif isinstance(inp, StorageEngine):
             st = inp
         elif inp is None:

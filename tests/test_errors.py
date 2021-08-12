@@ -10,7 +10,8 @@ import funsies
 from funsies import _graph, Fun, options
 from funsies._context import get_connection
 from funsies._run import run_op
-from funsies.config import MockServer, RedisStorage
+from funsies._storage import RedisStorage
+from funsies.config import MockServer
 from funsies.types import Encoding, Error, hash_t, Result, UnwrapError
 
 
