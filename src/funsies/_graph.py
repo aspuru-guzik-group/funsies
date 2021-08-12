@@ -225,7 +225,11 @@ def get_data(
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
     key = __get_data_loc(db, store, source, carry_error, do_resolve_link)
+    if isinstance(key, Error):
+        return key
+
     stream = store.take(key)
+
     if isinstance(stream, Error):
         return Error(
             kind=stream.kind,
