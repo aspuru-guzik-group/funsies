@@ -45,8 +45,17 @@ import hashlib, subprocess, loguru  # noqa isort:skip
     default=None,
     help="Data connection URL.",
 )
+@click.option(
+    "--log",
+    type=click.Path(writable=True),
+    nargs=1,
+    default=None,
+    help="Sink output to file.",
+)
 @click.pass_context
-def main(ctx: click.Context, jobs: str, data: str) -> None:
+def main(
+    ctx: click.Context, jobs: Optional[str], data: Optional[str], log: Optional[str]
+) -> None:
     """Command-line tools for funsies.
 
     The --jobs option allows passing a custom url to locate the redis instance,
@@ -59,6 +68,9 @@ def main(ctx: click.Context, jobs: str, data: str) -> None:
     etc.). They can alternatively be set via the environment variables
     FUNSIES_JOBS and FUNSIES_DATA.
     """
+    if log is not None:
+        logger.add(log)
+
     ctx.obj = Server(jobs, data)
 
 
@@ -117,12 +129,25 @@ def clean(ctx: click.Context) -> None:
     is_flag=True,
     help="Shutdown workers without finishing jobs.",
 )
+@click.option(
+    "--all",
+    is_flag=True,
+    help="Also shutdown job database. Implies --force.",
+)
 @click.pass_context
-def shutdown(ctx: click.Context, force: bool) -> None:
+def shutdown(ctx: click.Context, force: bool, all: bool) -> None:
     """Tell workers to shutdown."""
     db, _ = ctx.obj.new_connection()
+    if all:
+        force = True
+
     funsies._context.shutdown_workers(db, force)
     logger.success("done")
+
+    if all:
+        logger.info("shutting down jobs redis instance")
+        db.shutdown()
+        # TODO what about the data one?
 
 
 @main.command()

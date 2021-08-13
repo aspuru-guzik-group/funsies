@@ -3,31 +3,19 @@
 from __future__ import annotations
 
 # std
-import json
-import sys
-import time
 import os
-from typing import Optional
-import subprocess
 import secrets
 import socket
+import subprocess
+import time
+from typing import Optional
 
 # external
 import click
 from redis import Redis
 
-# funsies
-import funsies
-
 # module
-from . import __version__, types  # noqa
-from ._constants import hash_t
-from ._graph import get_status
-from ._logging import logger
-from .config import Server
-
-# required funsies libraries loaded in advance
-import hashlib, subprocess, loguru  # noqa isort:skip
+from . import __version__
 
 
 def step_arg(step: str, arg: str) -> None:
@@ -58,33 +46,55 @@ def info_print(term: str, details: str) -> None:
 # This is the main command
 @click.command()
 @click.version_option(__version__)
-@click.option(
-    "--dir",
-    "-d",
-    type=click.Path(),
-    nargs=1,
+@click.argument(
+    "run_dir",
+    type=click.Path(exists=True),
     default=None,
-    help="Data connection URL.",
 )
+@click.option("--workers", nargs=1, type=int, help="Start P funsies workers.")
 @click.option(
     "--disk/--no-disk",
     default=True,
     help="Save data to disk or within the Redis instance.",
 )
-def main(dir: Optional[str], disk: bool) -> None:
+@click.option(
+    "--script",
+    nargs=1,
+    type=click.Path("r"),
+    help="Run a python script after initialization.",
+)
+@click.option(
+    "--stop",
+    is_flag=True,
+    default=False,
+    help="Shutdown everything after the script ends.",
+)
+def main(
+    run_dir: Optional[str],
+    disk: bool,
+    script: Optional[str],
+    workers: Optional[int],
+    stop: bool,
+) -> None:
     """Easy initialization of a funsies environment.
 
     This command condenses the steps required to setup a funsies environment.
     It starts a password protected redis server, sets up the appropriate
     environment variables, initialize the data directory etc.
-    """
 
-    # Set directory
-    if dir is None:
-        dir = os.getcwd()
+    To run a full funsies script in one go, do
+
+    start-funsies run_dir --script workflow.py --workers 4 --stop
+
+    In this case the workflow script should have both execute() and wait_for()
+    steps, so that it blocks until the work is completed.
+    """
+    # Set run_directory
+    if run_dir is None:
+        run_dir = os.getcwd()
 
     # make global path
-    dir = os.path.abspath(dir)
+    run_dir = os.path.abspath(run_dir)
 
     # redis parameters
     redis_password = secrets.token_hex(6)
@@ -94,13 +104,13 @@ def main(dir: Optional[str], disk: bool) -> None:
 
     # data parameters
     if disk:
-        data_url = f"file://{os.path.join(dir,'data')}"
+        data_url = f"file://{os.path.join(run_dir,'data')}"
     else:
         data_url = redis_url
 
     # setup the redis settings
-    redis_conf = os.path.join(dir, "redis.conf")
-    env_file = os.path.join(dir, "funsies.env")
+    redis_conf = os.path.join(run_dir, "redis.conf")
+    env_file = os.path.join(run_dir, "funsies.env")
 
     info_print("jobs server", redis_url)
     info_print("redis conf", redis_conf)
@@ -109,8 +119,8 @@ def main(dir: Optional[str], disk: bool) -> None:
 
     step_arg("writing", "redis config")
     with open(redis_conf, "w") as f:
-        f.write(f"dir {dir}\n")
-        f.write(f"logfile redis.log\n")
+        f.write(f"dir {run_dir}\n")
+        f.write("logfile redis.log\n")
         f.write(f"requirepass {redis_password}\n")
         f.write(f"port {redis_port}\n")
         f.write("save 300 1\n")
@@ -120,7 +130,9 @@ def main(dir: Optional[str], disk: bool) -> None:
     step_arg("writing", "env file")
     with open(env_file, "w") as f:
         f.write(f"export FUNSIES_JOBS='{redis_url}'\n")
+        os.environ["FUNSIES_JOBS"] = redis_url
         f.write(f"export FUNSIES_DATA='{data_url}'\n")
+        os.environ["FUNSIES_DATA"] = data_url
     status_done()
 
     # starting the server
@@ -140,9 +152,9 @@ def main(dir: Optional[str], disk: bool) -> None:
     status_done()
 
     # wait for server to start
-    timeout = None  # change?
-    if timeout is not None:
-        tmax = time.time() + timeout
+    # timeout = None  # change?
+    # if timeout is not None:
+    #     tmax = time.time() + timeout
 
     # wait for the server to load
     step_arg("redis", "connecting to server...")
@@ -154,12 +166,12 @@ def main(dir: Optional[str], disk: bool) -> None:
         except Exception:
             time.sleep(1.0)
 
-        if timeout is not None:
-            t1 = time.time()
-            if t1 > tmax:
-                status_fail()
-                logger.error("timeout exceeded")
-                raise SystemExit(2)
+        # if timeout is not None:
+        #     t1 = time.time()
+        #     if t1 > tmax:
+        #         status_fail()
+        #         logger.error("timeout exceeded")
+        #         raise SystemExit(2)
     status_done()
 
     click.echo(
@@ -169,11 +181,63 @@ Successful initialization!
 
 To complete setup of the funsies environment, source the environment file
 
-    source {env_file}
+        source {env_file}
 
-You should then be able to use funsies commands (funsies --help for a list of them).
+You should then be able to use funsies commands (funsies --help for a list of
+them). You can shutdown the database and worker pool using
+
+        funsies shutdown --all
+
 """
     )
+
+    if workers is not None:
+        if workers > 1:
+            s = "s"
+        else:
+            s = ""
+        step_arg("workers", f"starting pool of {workers} worker{s}")
+        for i in range(workers):
+            subprocess.Popen(
+                [
+                    "funsies",
+                    "--jobs",
+                    redis_url,
+                    "--data",
+                    data_url,
+                    "--log",
+                    os.path.join(run_dir, f"worker_log.{i}"),
+                    "worker",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            time.sleep(0.1)
+        status_done()
+
+    if script is not None:
+        step_arg("running script", script)
+        out = subprocess.run(
+            ["python", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        if out.returncode != 0:
+            status_fail()
+            click.echo(f"Warning! error code = {out.returncode}")
+        else:
+            status_done()
+        with open(os.path.join(run_dir, "script.out"), "wb") as fout:
+            fout.write(out.stdout)
+        with open(os.path.join(run_dir, "script.err"), "wb") as ferr:
+            ferr.write(out.stderr)
+
+    if stop:
+        step_arg("shutdown", "pool and redis server")
+        subprocess.Popen(
+            ["funsies", "--jobs", redis_url, "--data", data_url, "shutdown", "--all"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        status_done()
 
 
 if __name__ == "__main__":
