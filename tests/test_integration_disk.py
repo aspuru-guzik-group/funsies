@@ -1,4 +1,6 @@
 """Test of Funsies backward compatibility."""
+from __future__ import annotations
+
 # std
 import os
 import secrets
