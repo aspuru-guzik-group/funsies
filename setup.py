@@ -11,7 +11,7 @@ setuptools.setup(
     version="0.8.0",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
-    description="Funsies is a library to build and exectution engine for"
+    description="Funsies is a library to build and execution engine for"
     + " reproducible, composable and data-persistent computational workflows.",
     long_description=long_description,
     long_description_content_type="text/markdown",
