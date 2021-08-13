@@ -255,7 +255,7 @@ def run_op(  # noqa:C901
     subdag_parents = []
     for key2, val2 in out_data.items():
         if val2 is None:
-            logger.warning(f"no output data for {key}")
+            logger.warning(f"no output data for {key2}")
             mark_error(
                 db,
                 op.out[key2],
@@ -270,40 +270,40 @@ def run_op(  # noqa:C901
 
         elif funsie.how == FunsieHow.subdag:
             # Special case for subdag, create links and update parents
-            if isinstance(val, Artefact):
-                create_link(db, op.out[key], val.hash)
-                subdag_parents += [val.parent]
+            if isinstance(val2, Artefact):
+                create_link(db, op.out[key2], val2.hash)
+                subdag_parents += [val2.parent]
             else:
                 logger.error("expected artefact, got value")
                 mark_error(
                     db,
-                    op.out[key],
+                    op.out[key2],
                     error=Error(
                         kind=ErrorKind.Mismatch,
                         source=op.hash,
                         details="subdag should have returned an artefact"
-                        + f" but it returned {val}",
+                        + f" but it returned {val2}",
                     ),
                 )
         else:
-            if isinstance(val, Artefact):
-                logger.error(f"expected value, got artefact with hash {val.hash}")
+            if isinstance(val2, Artefact):
+                logger.error(f"expected value, got artefact with hash {val2.hash}")
                 mark_error(
                     db,
-                    op.out[key],
+                    op.out[key2],
                     error=Error(
                         kind=ErrorKind.Mismatch,
                         source=op.hash,
                         details="op should have returned a value"
-                        + f" but it returned an artefact {val}",
+                        + f" but it returned an artefact {val2}",
                     ),
                 )
             else:
                 set_data(
                     db,
                     store,
-                    op.out[key],
-                    _serdes.encode(funsie.out[key], val),
+                    op.out[key2],
+                    _serdes.encode(funsie.out[key2], val2),
                     status=ArtefactStatus.done,
                 )
 
