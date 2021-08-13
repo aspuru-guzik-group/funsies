@@ -119,7 +119,8 @@ class Server:
 
         else:
             raise NotImplementedError(
-                f"No storage protocol corresponding to {self.data_url}"
+                f"No storage protocol corresponding to {self.data_url}\n"
+                + "did you forget to start the url with redis:// or file://?"
             )
 
         return rdb, store
