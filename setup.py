@@ -34,6 +34,7 @@ setuptools.setup(
     entry_points="""
         [console_scripts]
         funsies=funsies._cli:main
+        start-funsies=funsies._start_funsies:main
     """,
     classifiers=[
         "Development Status :: 4 - Beta",

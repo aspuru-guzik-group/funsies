@@ -49,10 +49,15 @@ import hashlib, subprocess, loguru  # noqa isort:skip
 def main(ctx: click.Context, jobs: str, data: str) -> None:
     """Command-line tools for funsies.
 
-    The --url flag allows passing a custom url for the redis instance. This
-    has to come before any of the subcommands (worker, cat etc.).
-    Alternatively, the url can be set using the environment variables
-    FUNSIES_URL environment variable.
+    The --jobs option allows passing a custom url to locate the redis instance,
+    of the form redis://username:password@hostname:port.
+
+    Similarly, the --data options does the same but for data storage. Data
+    storage can also be stored on file, using file://$PATH_TO_DATA as the url.
+
+    These options have to come before any of the subcommands (worker, cat
+    etc.). They can alternatively be set via the environment variables
+    FUNSIES_JOBS and FUNSIES_DATA.
     """
     ctx.obj = Server(jobs, data)
 
