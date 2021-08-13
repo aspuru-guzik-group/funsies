@@ -50,13 +50,14 @@ def _get_redis_url(url: Optional[str] = None) -> str:
         return url
     else:
         try:
-            if "FUNSIES_JOBS" in os.environ:
-                default = os.environ["FUNSIES_JOBS"]
-            else:
-                default = os.environ["FUNSIES_URL"]
+            default = os.environ["FUNSIES_JOBS"]
         except KeyError:
-            default = "redis://localhost:6379"
-        return default
+            try:
+                default = os.environ["FUNSIES_URL"]
+            except KeyError:
+                default = "redis://localhost:6379"
+
+    return default
 
 
 def _get_storage_url(url: Optional[str] = None) -> Optional[str]:

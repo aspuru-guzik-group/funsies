@@ -29,9 +29,12 @@ from .config import Server
 # required funsies libraries loaded in advance
 import hashlib, subprocess, loguru  # noqa isort:skip
 
+
 def step_arg(step: str, arg: str) -> None:
     """Print a step to output."""
     click.echo(f"{click.style(step, bold=True):30}{arg:62}", nl=False, err=True)
+
+
 def status_done() -> None:
     """Print DONE."""
     click.echo(click.style("DONE", fg="green", bold=True), err=True)
@@ -45,6 +48,7 @@ def status_fail() -> None:
 def status_skip() -> None:
     """Print FAIL."""
     click.echo(click.style("SKIP", fg="blue", bold=True), err=True)
+
 
 def info_print(term: str, details: str) -> None:
     """Print formatted funsies hash."""
@@ -62,13 +66,12 @@ def info_print(term: str, details: str) -> None:
     default=None,
     help="Data connection URL.",
 )
-
 @click.option(
     "--disk/--no-disk",
     default=True,
     help="Save data to disk or within the Redis instance.",
 )
-def main(dir:Optional[str], disk:bool) -> None:
+def main(dir: Optional[str], disk: bool) -> None:
     """Easy initialization of a funsies environment.
 
     This command condenses the steps required to setup a funsies environment.
@@ -84,22 +87,27 @@ def main(dir:Optional[str], disk:bool) -> None:
     dir = os.path.abspath(dir)
 
     # redis parameters
-    redis_password = secrets.token_hex(12)
+    redis_password = secrets.token_hex(6)
     redis_port = 16379
     redis_hostname = socket.gethostname()
     redis_url = f"redis://:{redis_password}@{redis_hostname}:{redis_port}"
-    info_print("jobs server", redis_url)
 
     # data parameters
     if disk:
         data_url = f"file://{os.path.join(dir,'data')}"
     else:
         data_url = redis_url
-    info_print("data", data_url)
 
     # setup the redis settings
     redis_conf = os.path.join(dir, "redis.conf")
-    step_arg("redis config", redis_conf)
+    env_file = os.path.join(dir, "funsies.env")
+
+    info_print("jobs server", redis_url)
+    info_print("redis conf", redis_conf)
+    info_print("data", data_url)
+    info_print("env", env_file)
+
+    step_arg("writing", "redis config")
     with open(redis_conf, "w") as f:
         f.write(f"dir {dir}\n")
         f.write(f"logfile redis.log\n")
@@ -108,15 +116,15 @@ def main(dir:Optional[str], disk:bool) -> None:
         f.write("save 300 1\n")
     status_done()
 
-    # setup the env variables
-    step_arg("env variables","")
-    os.environ['FUNSIES_JOBS'] = redis_url
-    os.environ['FUNSIES_DATA'] = data_url
-    env_file = dict(FUNSIES_JOBS=redis_url, FUNSIES_DATA=data_url)
+    # writing env file
+    step_arg("writing", "env file")
+    with open(env_file, "w") as f:
+        f.write(f"export FUNSIES_JOBS='{redis_url}'\n")
+        f.write(f"export FUNSIES_DATA='{data_url}'\n")
     status_done()
 
     # starting the server
-    step_arg("redis","starting the server")
+    step_arg("redis", "starting the server")
     redis_server = subprocess.Popen(
         ["redis-server", redis_conf],
         stdout=subprocess.PIPE,
@@ -132,7 +140,7 @@ def main(dir:Optional[str], disk:bool) -> None:
     status_done()
 
     # wait for server to start
-    timeout = None # change?
+    timeout = None  # change?
     if timeout is not None:
         tmax = time.time() + timeout
 
@@ -154,11 +162,18 @@ def main(dir:Optional[str], disk:bool) -> None:
                 raise SystemExit(2)
     status_done()
 
+    click.echo(
+        f"""
+Successful initialization!
+--------------------------
 
+To complete setup of the funsies environment, source the environment file
 
+    source {env_file}
 
-
-
+You should then be able to use funsies commands (funsies --help for a list of them).
+"""
+    )
 
 
 if __name__ == "__main__":
