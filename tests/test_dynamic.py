@@ -168,5 +168,5 @@ def test_waiting_on_map_reduce() -> None:
             out=Encoding.blob,
         )
         funsies.execute(outputs)
-        funsies.wait_for(outputs)
+        funsies.wait_for(outputs, timeout=1.0)
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"

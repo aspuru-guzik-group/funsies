@@ -53,7 +53,7 @@ def test_dag_dump() -> None:
         _dag.build_dag(db, out.hash)
         execute(step2b)
         execute(step4b)
-        wait_for(step4b)
+        wait_for(step4b, 1.0)
         reset(step4)
 
         nodes, artefacts, labels, links = _graphviz.export(db, [out.hash, step4b.hash])
