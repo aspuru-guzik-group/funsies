@@ -57,7 +57,7 @@ funsies shutdown --all
 """
 
 
-@pytest.mark.slow
+@pytest.mark.ci_disabled
 def test_readmemd() -> None:
     """Test README example."""
     # load readme.md
@@ -83,7 +83,7 @@ def test_readmemd() -> None:
         assert rexecute.returncode == 0
 
         # wait for jobs to be done
-        time.sleep(3)
+        time.sleep(2)
 
         assert_in(cat1[0], readmemd)
         assert_in(cat1[1], readmemd)

@@ -166,7 +166,7 @@ def main(
         status_fail()
         assert redis_server.stderr is not None
         stdout = redis_server.stderr.read().decode()
-        print(f"ERROR: Redis server failed to start, errcode={stat}\n{stdout}")
+        raise RuntimeError(f"Redis server failed to start, errcode={stat}\n{stdout}")
     status_done()
 
     # wait for server to start
