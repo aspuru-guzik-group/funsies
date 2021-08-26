@@ -49,13 +49,24 @@ def info_print(term: str, details: str) -> None:
 @click.argument(
     "run_dir",
     type=click.Path(exists=True),
-    default=None,
+    default=".",
 )
-@click.option("--workers", nargs=1, type=int, help="Start P funsies workers.")
+@click.option("--workers", nargs=1, type=int, help="Start INTEGER funsies workers.")
 @click.option(
     "--disk/--no-disk",
-    default=True,
+    default=False,
     help="Save data to disk or within the Redis instance.",
+)
+@click.option(
+    "--pw/--no-pw",
+    default=True,
+    help="Protect Redis server with a randomly generated password.",
+)
+@click.option(
+    "--port",
+    default=6379,
+    type=int,
+    help="Port for Redis server.",
 )
 @click.option(
     "--script",
@@ -72,8 +83,10 @@ def info_print(term: str, details: str) -> None:
 def main(
     run_dir: Optional[str],
     disk: bool,
+    port: int,
     script: Optional[str],
     workers: Optional[int],
+    pw: bool,
     stop: bool,
 ) -> None:
     """Easy initialization of a funsies environment.
@@ -97,14 +110,18 @@ def main(
     run_dir = os.path.abspath(run_dir)
 
     # redis parameters
-    redis_password = secrets.token_hex(6)
-    redis_port = 16379
+    redis_port = port
     redis_hostname = socket.gethostname()
-    redis_url = f"redis://:{redis_password}@{redis_hostname}:{redis_port}"
+    if pw:
+        redis_password = secrets.token_hex(6)
+        redis_url = f"redis://:{redis_password}@{redis_hostname}:{redis_port}"
+    else:
+        redis_password = ""
+        redis_url = f"redis://{redis_hostname}:{redis_port}"
 
     # data parameters
     if disk:
-        data_url = f"file://{os.path.join(run_dir,'data')}"
+        data_url = f"file://{os.path.join(run_dir,'funsies_data')}"
     else:
         data_url = redis_url
 
@@ -121,7 +138,8 @@ def main(
     with open(redis_conf, "w") as f:
         f.write(f"dir {run_dir}\n")
         f.write("logfile redis.log\n")
-        f.write(f"requirepass {redis_password}\n")
+        if pw:
+            f.write(f"requirepass {redis_password}\n")
         f.write(f"port {redis_port}\n")
         f.write("save 300 1\n")
     status_done()

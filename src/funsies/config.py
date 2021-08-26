@@ -37,7 +37,7 @@ def _redis_connection(url: str, try_fail: bool = True) -> Redis[bytes]:
             logger.error(str(e))
             sys.exit(-1)
     logger.debug("connection sucessful")
-    logger.info(f"connected to {hn}")
+    logger.success(f"connected to {hn}")
     return db
 
 
