@@ -62,13 +62,18 @@ even be connected at different time. Redis is started using `redis-server`,
 workers are started using `funsies worker` and the workflow is run using
 python.
 
-First, we start a redis server,
+For running on a single machine, the `start-funsies` script takes care of starting the database and workers,
+
 ```bash
-$ redis-server &
+start-funsies \
+    --no-pw \
+    --workers 2
 ```
-Next, we write a little funsies "Hello, world!" script,
+
+Here is an example workflow script,
+
 ```python
-from funsies import execute, Fun, reduce, shell
+from funsies import Fun, reduce, shell
 with Fun():
     # you can run shell commands
     cmd = shell('sleep 2; echo 👋 🪐')
@@ -77,30 +82,41 @@ with Fun():
     # outputs are saved at hash addresses
     print(f"my outputs are saved to {cmd.stdout.hash[:5]} and {python.hash[:5]}")
 ```
-The workflow is just a normal python script,
+
+The workflow is just python, and is run using the python interpreter,
+
 ```bash
 $ python hello-world.py
 my outputs are saved to 4138b and 80aa3
 ```
-The `Fun()` context manager takes care of connections. Running this workflow
-will take much less time than `sleep 2` and does not print any greetings:
-funsies workflows are lazily evaluated.
 
-A worker process can be started in the CLI,
+The `Fun()` context manager takes care of connecting to the database. The
+script should execute immediately; no work is done just yet because workflows
+are lazily executed.
+
+To execute the workflow, we trigger using the hashes above using the CLI,
+
 ```bash
-$ funsies worker &
 $ funsies execute 4138b 80aa3
 ```
-Once the worker is finished, results can be printed directly to stdout using
+
+Once the workers are finished, results can be printed directly to stdout using
 their hashes,
+
 ```bash
 $ funsies cat 4138b
 👋 🪐
 $ funsies cat 80aa3
 5
 ```
+
 They can also be accessed from within python, from other steps in the
-workflows etc.
+workflows etc. Shutting down the database and workers can also be performed
+using the CLI,
+
+```bash
+$ funsies shutdown --all
+```
 
 ## How does it work?
 
@@ -133,11 +149,10 @@ and to dynamically re-parametrize them, etc.
 
 #### No local file operations
 
-All "files" are encoded in a redis instance, with no local filesystem
-operations. funsies workers can be operating without any
-permanent data storage, as is often the case in containerized deployment.
-File-driven workflows using only a
-container's [tmpfs](https://docs.docker.com/storage/tmpfs/).
+All "files" are encoded in a redis instance or to a data directory, with no
+local filesystem management required. funsies workers can even operate without
+any permanent data storage, as is often the case in file-driven workflows
+using only a container's [tmpfs](https://docs.docker.com/storage/tmpfs/).
 
 ## Recovering from failures
 
