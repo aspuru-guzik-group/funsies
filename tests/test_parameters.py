@@ -1,12 +1,10 @@
 """Tests of funsies parametrization."""
 from __future__ import annotations
 
-# external
-from fakeredis import FakeStrictRedis as Redis
-
 # funsies
 from funsies import execute, Fun, morph, options, put, shell, take
 import funsies._parametrize as _p
+from funsies.config import MockServer
 from funsies.utils import concat
 
 
@@ -17,7 +15,7 @@ def capitalize(inp: bytes) -> bytes:
 
 def test_subgraph() -> None:
     """Test that we can isolate the required operators for parametrization."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -44,7 +42,7 @@ def test_subgraph() -> None:
 
 def test_toposort() -> None:
     """Test that we can topologically sort the subset."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -68,7 +66,7 @@ def test_toposort() -> None:
 
 def test_parametrize() -> None:
     """Test that parametrization works."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         dat2 = put(b"bla bla bla")
 
@@ -98,7 +96,7 @@ def test_parametrize() -> None:
 
 def test_parametric() -> None:
     """Test that parametric DAGs work."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))
@@ -113,7 +111,7 @@ def test_parametric() -> None:
 
 def test_parametric_eval() -> None:
     """Test that parametric evaluate properly."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         step1 = morph(capitalize, dat)
         step2 = shell("cat file1 file2", inp=dict(file1=step1, file2=dat))

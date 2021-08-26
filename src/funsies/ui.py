@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+import shutil
 import time
 from typing import Iterable, Mapping, Optional, overload, TypeVar, Union
 
@@ -17,15 +18,15 @@ except ImportError:
 
 # module
 from ._constants import _AnyPath, _Data, hash_t
-from ._context import get_db, get_options
+from ._context import Connection, get_connection, get_options
 from ._dag import descendants, start_dag_execution
 from ._graph import (
     Artefact,
     constant_artefact,
     delete_artefact,
-    get_bytes,
     get_data,
     get_status,
+    get_stream,
     make_op,
     Operation,
 )
@@ -33,6 +34,7 @@ from ._logging import logger
 from ._run import is_it_cached
 from ._shell import shell_funsie, ShellOutput
 from ._short_hash import shorten_hash
+from ._storage import StorageEngine
 from .config import Options
 from .errors import Error, Result, unwrap
 
@@ -43,18 +45,20 @@ _OUT_FILES = Optional[Iterable[_AnyPath]]
 T = TypeVar("T", bound=_Data)
 
 
-def _artefact(db: Redis[bytes], data: Union[T, Artefact[T]]) -> Artefact[T]:
+def _artefact(
+    db: Redis[bytes], store: StorageEngine, data: Union[T, Artefact[T]]
+) -> Artefact[T]:
     if isinstance(data, Artefact):
         return data
     else:
-        return constant_artefact(db, data)
+        return constant_artefact(db, store, data)
 
 
 # --------------------------------------------------------------------------------
 # Dag execution
 def execute(
     *outputs: Union[Operation, Artefact, ShellOutput],
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> None:
     """Trigger execution of a workflow to obtain a given output.
 
@@ -66,7 +70,7 @@ def execute(
             within a `Fun()` context.
     """
     # get redis
-    db = get_db(connection)
+    db, _ = get_connection(connection)
 
     # run dag
     for el in outputs:
@@ -82,7 +86,7 @@ def shell(
     env: Optional[dict[str, str]] = None,
     strict: bool = True,
     opt: Optional[Options] = None,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> ShellOutput:
     """Add a shell command to the workflow.
 
@@ -141,7 +145,7 @@ def shell(
 
     """
     opt = get_options(opt)
-    db = get_db(connection)
+    db, store = get_connection(connection)
 
     # Parse args --------------------------------------------
     cmds: list[str] = []
@@ -165,7 +169,7 @@ def shell(
                     + ' converted to json (and wrapped with "), \nyou NEED to pass it'
                     + " as bytes (by .encode()-ing it first)"
                 )
-            inputs[str(key)] = _artefact(db, val)
+            inputs[str(key)] = _artefact(db, store, val)
     else:
         raise TypeError(f"{inp} not a valid file input")
 
@@ -185,7 +189,7 @@ def shell(
 def put(
     value: T,
     *,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Artefact[T]:
     """Save data to Redis and return an Artefact.
 
@@ -209,8 +213,8 @@ def put(
     Returns:
         An `types.Artefact` instance with status `const`.
     """
-    db = get_db(connection)
-    return _artefact(db, value)
+    db, store = get_connection(connection)
+    return _artefact(db, store, value)
 
 
 def __log_error(where: hash_t, dat: Result[object]) -> None:
@@ -220,12 +224,12 @@ def __log_error(where: hash_t, dat: Result[object]) -> None:
 
 # fmt:off
 @overload
-def take(where: Artefact[T], *, strict: Literal[True] = True, connection: Optional[Redis[bytes]]=None) -> T:  # noqa
+def take(where: Artefact[T], *, strict: Literal[True] = True, connection: Connection=None) -> T:  # noqa
     ...
 
 
 @overload
-def take(where: Artefact[T], *, strict: Literal[False] = False, connection: Optional[Redis[bytes]]=None) -> Result[T]:  # noqa
+def take(where: Artefact[T], *, strict: Literal[False] = False, connection: Connection=None) -> Result[T]:  # noqa
     ...
 # fmt:on
 
@@ -234,7 +238,7 @@ def take(
     where: Artefact[T],
     *,
     strict: bool = True,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> Union[T, Result[T]]:
     """Take data corresponding to a given artefact from Redis.
 
@@ -267,8 +271,8 @@ def take(
             if `where` contains an `errors.Error` and `strict=True`.
 
     """
-    db = get_db(connection)
-    dat = get_data(db, where)
+    db, store = get_connection(connection)
+    dat = get_data(db, store, where)
     __log_error(where.hash, dat)
     if strict:
         return unwrap(dat)
@@ -277,28 +281,25 @@ def take(
 
 
 def takeout(
-    where: Artefact,
-    filename: _AnyPath,
-    *,
-    connection: Optional[Redis[bytes]] = None,
+    where: Artefact, filename: _AnyPath, *, connection: Connection = None
 ) -> None:  # noqa:DAR101,DAR201
     """`take()` an artefact and save it to `filename`.
 
     This is syntactic sugar around `take()`. This function is always strict.
     """
-    db = get_db(connection)
-    dat = get_bytes(db, where)
+    db, store = get_connection(connection)
+    dat = get_stream(db, store, where.hash)
     __log_error(where.hash, dat)
     dat = unwrap(dat)
     with open(filename, "wb") as f:
-        f.write(dat)
+        shutil.copyfileobj(dat, f)
 
 
 def wait_for(
     thing: Union[ShellOutput, Artefact, Operation],
     timeout: Optional[float] = None,
     *,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> None:
     """Block execution until an artefact is generated or an operation is executed.
 
@@ -312,7 +313,7 @@ def wait_for(
     Raises:
         TimeoutError: if timeout is exceeded.
     """
-    db = get_db(connection)
+    db, _ = get_connection(connection)
     if isinstance(thing, Artefact):
 
         def __stat() -> bool:
@@ -348,7 +349,7 @@ def reset(
     thing: Union[ShellOutput, Operation, Artefact],
     *,
     recursive: bool = True,
-    connection: Optional[Redis[bytes]] = None,
+    connection: Connection = None,
 ) -> None:
     """Reset data associated with an operation and its dependents.
 
@@ -376,7 +377,7 @@ def reset(
             when an `types.Artefact` is reset that has status
             `types.ArtefactStatus.const`.
     """
-    db = get_db(connection)
+    db, _ = get_connection(connection)
     if isinstance(thing, Artefact):
         h = thing.parent
         if h == "root":

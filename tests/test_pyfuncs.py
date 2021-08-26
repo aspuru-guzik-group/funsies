@@ -1,5 +1,6 @@
 """Test of Funsies python functions capabilities."""
 # std
+from io import BytesIO
 from typing import Dict
 
 # funsies
@@ -36,7 +37,7 @@ def test_fun_run() -> None:
     cmd = p.python_funsie(
         capitalize, inputs={"in": Encoding.blob}, outputs={"in": Encoding.blob}
     )
-    inp = {"in": b"bla bla bla"}
+    inp = {"in": BytesIO(b"bla bla bla")}
     out = p.run_python_funsie(cmd, inp)
     assert out["in"] == b"BLA BLA BLA"
 
@@ -46,6 +47,6 @@ def test_fun_run_json() -> None:
     cmd = p.python_funsie(
         capitalize2, inputs={"in": Encoding.blob}, outputs={"in": Encoding.json}
     )
-    inp = {"in": b"bla bla bla"}
+    inp = {"in": BytesIO(b"bla bla bla")}
     out = p.run_python_funsie(cmd, inp)
     assert out["in"] == "BLA BLA BLA"

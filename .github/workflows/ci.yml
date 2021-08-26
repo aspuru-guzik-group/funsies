@@ -22,7 +22,7 @@ jobs:
           redis-version: '6.x'
       - name: Run tests on ${{ matrix.os }}
         run: |
-          nox --non-interactive --session "tests-${{ matrix.python-version}}" -- --full-trace
+          nox --non-interactive --session "tests-${{ matrix.python-version}}" -- -m "not ci_disabled" --full-trace 
   lint:
     runs-on: ubuntu-20.04
     steps:

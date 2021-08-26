@@ -5,12 +5,12 @@
 from typing import Dict, Tuple
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
 import funsies as f
 import funsies._infer as _infer
+from funsies.config import MockServer
 import funsies.types as types
 
 
@@ -69,8 +69,7 @@ def test_infer_forward_ref() -> None:
 
 def test_infer_errs() -> None:
     """Test inference applied to functions."""
-    db = Redis()
-    with f.Fun(db):
+    with f.Fun(MockServer()):
         a = f.put(b"bla bla")
         b = f.put(3)
         with pytest.raises(TypeError):

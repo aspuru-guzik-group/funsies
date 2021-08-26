@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Sequence
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
 import funsies
 from funsies import dynamic
+from funsies.config import MockServer
 from funsies.types import Artefact, Encoding
 
 
@@ -38,7 +38,7 @@ def test_map_reduce() -> None:
         out = [funsies.morph(lambda y: y.encode(), x, out=Encoding.blob) for x in inp]
         return funsies.utils.concat(*out)
 
-    with funsies.Fun(Redis(), funsies.options(distributed=False)):
+    with funsies.Fun(MockServer(), funsies.options(distributed=False)):
         num1 = funsies.put(b"1 2 3 4 5")
         num2 = funsies.put(b"11 10 11 10 11")
 
@@ -168,5 +168,5 @@ def test_waiting_on_map_reduce() -> None:
             out=Encoding.blob,
         )
         funsies.execute(outputs)
-        funsies.wait_for(outputs)
+        funsies.wait_for(outputs, timeout=1.0)
         assert funsies.take(outputs) == b"12//1112//2014//3314//4016//55"

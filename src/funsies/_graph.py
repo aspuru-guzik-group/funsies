@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from enum import IntEnum
 import hashlib
 import io
-import traceback
 from typing import Any, Generic, Mapping, Optional, Type, TypeVar
 
 # external
@@ -15,10 +14,11 @@ from redis.client import Pipeline
 
 # module
 from . import _serdes
-from ._constants import _Data, ARTEFACTS, BLOCK_SIZE, Encoding, hash_t, join, OPERATIONS
+from ._constants import _Data, ARTEFACTS, Encoding, hash_t, join, OPERATIONS
 from ._funsies import Funsie
 from ._logging import logger
 from ._short_hash import hash_save
+from ._storage import descr_t, StorageEngine
 from .config import Options
 from .errors import Error, ErrorKind, match, Result
 
@@ -160,7 +160,7 @@ def create_link(db: Redis[bytes], afrom: hash_t, ato: hash_t) -> None:
     assert is_artefact(db, ato)
     old = get_status(db, afrom)
     if old == ArtefactStatus.const:
-        logger.error("attempted to mark done a const artefact.")
+        logger.error("attempted to link a const artefact to something else.")
     else:
         set_status(db, afrom, ArtefactStatus.linked)
         key = join(ARTEFACTS, afrom, "links_to")
@@ -178,26 +178,19 @@ def resolve_link(db: Redis[bytes], address: hash_t) -> hash_t:
         return resolve_link(db, out)
 
 
-def _set_block_size(n: int) -> None:
-    """Change block size."""
-    global BLOCK_SIZE
-    BLOCK_SIZE = n
-
-
 def __get_data_loc(
-    store: Redis[bytes],
-    artefact: Artefact[Any],
+    db: Redis[bytes],
+    store: StorageEngine,
+    address: hash_t,
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
-) -> Result[str]:
+) -> Result[descr_t]:
     """Perform all the prior step before actually retrieving data."""
-    address = artefact.hash
-
     if do_resolve_link:
-        address = resolve_link(store, address)
+        address = resolve_link(db, address)
 
     # First check the status
-    stat = get_status(store, address)
+    stat = get_status(db, address)
 
     # if it's a link, we move over to the link
     if stat == ArtefactStatus.linked:
@@ -207,7 +200,7 @@ def __get_data_loc(
             source=carry_error,
         )
     elif stat == ArtefactStatus.error:
-        return Error.grab(store, address)
+        return Error.grab(db, address)
     elif stat <= ArtefactStatus.no_data:
         return Error(
             kind=ErrorKind.NotFound,
@@ -215,52 +208,61 @@ def __get_data_loc(
             source=carry_error,
         )
     else:
-        key = join(ARTEFACTS, address, "data")
-        if not store.exists(key):
-            return Error(
-                kind=ErrorKind.Mismatch,
-                details="expected data was not found",
-                source=carry_error,
-            )
-        else:
-            return key
-
-
-def get_bytes(
-    store: Redis[bytes],
-    source: Artefact[Any],
-    carry_error: Optional[hash_t] = None,
-    do_resolve_link: bool = True,
-) -> Result[bytes]:
-    """Retrieve bytes corresponding to an artefact."""
-    raw = match(
-        __get_data_loc(store, source, carry_error, do_resolve_link),
-        some=lambda x: b"".join(store.lrange(x, 0, -1)),
-        none=lambda x: x,
-    )
-    return raw
+        key = store.get_key(address)
+        return key
 
 
 # Save and load artefacts
+def get_stream(
+    db: Redis[bytes],
+    store: StorageEngine,
+    source: hash_t,
+    carry_error: Optional[hash_t] = None,
+    do_resolve_link: bool = True,
+) -> Result[io.BytesIO]:
+    """Retrieve data corresponding to an artefact."""
+    key = __get_data_loc(db, store, source, carry_error, do_resolve_link)
+    if isinstance(key, Error):
+        return key
+
+    stream = store.take(key)
+
+    if isinstance(stream, Error):
+        return Error(
+            kind=stream.kind,
+            details=stream.details,
+            source=carry_error,
+        )
+
+    return stream
+
+
 def get_data(
-    store: Redis[bytes],
+    db: Redis[bytes],
+    store: StorageEngine,
     source: Artefact[T],
     carry_error: Optional[hash_t] = None,
     do_resolve_link: bool = True,
 ) -> Result[T]:
     """Retrieve data corresponding to an artefact."""
-    raw = get_bytes(store, source, carry_error, do_resolve_link)
-    return _serdes.decode(source.kind, raw, carry_error=carry_error)
+    stream = get_stream(db, store, source.hash, carry_error, do_resolve_link)
+    if isinstance(stream, Error):
+        return stream
+    else:
+        raw = stream.read()
+        stream.close()
+        return _serdes.decode(source.kind, raw, carry_error=carry_error)
 
 
-def set_data(
-    store: Redis[bytes],
+def set_stream(
+    db: Redis[bytes],
+    store: StorageEngine,
     address: hash_t,
-    value: Result[bytes],
+    value: Result[io.BytesIO],
     status: ArtefactStatus,
 ) -> None:
-    """Update an artefact with a value."""
-    if get_status(store, address) == ArtefactStatus.const:
+    """Update an artefact with a stream of bytes."""
+    if get_status(db, address) == ArtefactStatus.const:
         if status == ArtefactStatus.const:
             pass
         else:
@@ -268,44 +270,36 @@ def set_data(
 
     if isinstance(value, Error):
         # fail gracefully
-        mark_error(store, address, error=value)
+        mark_error(db, address, error=value)
         return
 
-    key = join(ARTEFACTS, address, "data")
-    buf = io.BytesIO(value)
+    key = store.get_key(address)
+    stat = store.put(key, value)
 
-    # write
-    first = True  # this workaround is to make sure that writing no data is ok.
-    pipe = store.pipeline(transaction=True)
-    pipe.delete(key)
-    while True:
-        try:
-            dat = buf.read(BLOCK_SIZE)
-        except Exception:
-            tb_exc = traceback.format_exc()
-            mark_error(
-                store,
-                address,
-                error=Error(
-                    kind=ErrorKind.ExceptionRaised,
-                    source=address,
-                    details=tb_exc,
-                ),
-            )
-            return
+    if stat is not None:
+        mark_error(db, address, error=stat)
+    else:
+        set_status(db, address, status)
 
-        if len(dat) == 0 and not first:
-            break
-        else:
-            pipe.rpush(key, dat)
-        first = False
-    set_status(pipe, address, status)
-    pipe.execute()
+
+def set_data(
+    db: Redis[bytes],
+    store: StorageEngine,
+    address: hash_t,
+    value: Result[bytes],
+    status: ArtefactStatus,
+) -> None:
+    """Update an artefact with a value."""
+    # This function is just a wrapper around set_stream.
+    buf = match(value, lambda x: io.BytesIO(x), lambda x: x)
+    set_stream(db, store, address, buf, status)
 
 
 # not pipeline-able (because of set_data)
-def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
-    """Store an artefact with a defined value."""
+def constant_artefact(
+    db: Redis[bytes], store: StorageEngine, value: Tdata
+) -> Artefact[Tdata]:
+    """Db an artefact with a defined value."""
     kind = _serdes.kind(value)
     data = _serdes.encode(kind, value)
     if isinstance(data, Error):
@@ -324,10 +318,10 @@ def constant_artefact(store: Redis[bytes], value: Tdata) -> Artefact[Tdata]:
     h = hash_t(m.hexdigest())
     # ==============================================================
     node = Artefact[Tdata](hash=h, parent=hash_t("root"), kind=kind)
-    pipe: Pipeline = store.pipeline(transaction=False)
+    pipe: Pipeline = db.pipeline(transaction=False)
     node.put(pipe)
     pipe.execute()
-    set_data(store, h, data, status=ArtefactStatus.const)
+    set_data(db, store, h, data, status=ArtefactStatus.const)
     return node
 
 

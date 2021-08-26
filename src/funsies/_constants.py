@@ -45,6 +45,3 @@ HASH_INDEX = "funsies.hash_index"
 DAG_OPERATIONS = "funsies.dags.operations"
 DAG_STATUS = "funsies.dags.status.done"
 DAG_INDEX = "funsies.dags.index"
-
-# Max size of continuous data
-BLOCK_SIZE = 30 * 1024 * 1024  # 30 MB

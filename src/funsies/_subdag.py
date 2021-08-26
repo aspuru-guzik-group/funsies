@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # std
+from io import BytesIO
 import time
 from typing import Any, Callable, Mapping, Optional
 
@@ -66,7 +67,7 @@ def subdag_funsie(
 
 
 def run_subdag_funsie(
-    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
+    funsie: Funsie, input_values: Mapping[str, Result[BytesIO]]
 ) -> dict[str, Optional[Artefact[Any]]]:
     """Execute a subdag generator."""
     logger.info("subdag generator")

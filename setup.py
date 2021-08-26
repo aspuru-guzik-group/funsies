@@ -8,10 +8,10 @@ with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 setuptools.setup(
     name="funsies",
-    version="0.7.1",
+    version="0.8.0",
     author="Cyrille Lavigne",
     author_email="cyrille.lavigne@mail.utoronto.ca",
-    description="Funsies is a library to build and exectution engine for"
+    description="Funsies is a library to build and execution engine for"
     + " reproducible, composable and data-persistent computational workflows.",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -34,6 +34,7 @@ setuptools.setup(
     entry_points="""
         [console_scripts]
         funsies=funsies._cli:main
+        start-funsies=funsies._start_funsies:main
     """,
     classifiers=[
         "Development Status :: 4 - Beta",

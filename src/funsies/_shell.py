@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 # std
+from io import BytesIO
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -61,7 +63,7 @@ def shell_funsie(
 
 
 def run_shell_funsie(  # noqa:C901
-    funsie: Funsie, input_values: Mapping[str, Result[bytes]]
+    funsie: Funsie, input_values: Mapping[str, Result[BytesIO]]
 ) -> dict[str, Optional[_Data]]:
     """Execute a shell command."""
     logger.info("shell command")
@@ -72,7 +74,7 @@ def run_shell_funsie(  # noqa:C901
                 pass
             else:
                 with open(os.path.join(dir, fn), "wb") as f:
-                    f.write(val)
+                    shutil.copyfileobj(val, f)
 
         cmds = json.loads(funsie.extra["cmds"].decode())
         new_env = json.loads(funsie.extra["env"].decode())

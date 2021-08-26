@@ -4,6 +4,7 @@ from __future__ import annotations
 # std
 from contextlib import ContextDecorator
 from enum import IntEnum
+from io import BytesIO
 import signal
 import traceback
 from types import FrameType
@@ -22,8 +23,8 @@ from ._graph import (
     Artefact,
     ArtefactStatus,
     create_link,
-    get_bytes,
     get_status,
+    get_stream,
     mark_error,
     Operation,
     resolve_link,
@@ -32,6 +33,7 @@ from ._graph import (
 from ._logging import logger
 from ._pyfunc import run_python_funsie  # runner for python functions
 from ._shell import run_shell_funsie  # runner for shell
+from ._storage import StorageEngine
 from ._subdag import run_subdag_funsie  # runner for shell
 from .errors import Error, ErrorKind, Result
 
@@ -130,7 +132,10 @@ def dependencies_are_met(db: Redis[bytes], op: Operation) -> bool:
 
 @catch_signals()
 def run_op(  # noqa:C901
-    db: Redis[bytes], op: Union[Operation, hash_t], evaluate: bool = True
+    db: Redis[bytes],
+    store: StorageEngine,
+    op: Union[Operation, hash_t],
+    evaluate: bool = True,
 ) -> RunStatus:
     """Run an Operation from its hash address."""
     # Compatibility feature
@@ -163,10 +168,10 @@ def run_op(  # noqa:C901
     # we don't have to pop it later because this process is going to die
 
     # load input files
-    input_data: dict[str, Result[bytes]] = {}
+    input_data: dict[str, Result[BytesIO]] = {}
     for key, val in op.inp.items():
         artefact = Artefact[Any].grab(db, val)
-        dat = get_bytes(db, artefact, carry_error=op.hash)
+        dat = get_stream(db, store, artefact.hash, carry_error=op.hash)
         if isinstance(dat, Error):
             if funsie.error_tolerant:
                 logger.warning(f"error on input {key} (tolerated).")
@@ -179,6 +184,14 @@ def run_op(  # noqa:C901
                 return RunStatus.input_error
         else:
             input_data[key] = dat
+
+    # Close input bytes when function returns
+    def cleanup() -> None:
+        for val in input_data.values():
+            if isinstance(val, Error):
+                pass
+            else:
+                val.close()
 
     logger.info("running...")
     try:
@@ -198,6 +211,7 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner timed out.")
+        cleanup()
         return RunStatus.executed
 
     # Killed by signal
@@ -216,6 +230,7 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner killed by signal.")
+        cleanup()
         return RunStatus.executed
 
     # Anything else
@@ -234,15 +249,16 @@ def run_op(  # noqa:C901
                 ),
             )
         logger.error("DONE: runner raised exception.")
+        cleanup()
         return RunStatus.executed
 
     subdag_parents = []
-    for key, val in out_data.items():
-        if val is None:
-            logger.warning(f"no output data for {key}")
+    for key2, val2 in out_data.items():
+        if val2 is None:
+            logger.warning(f"no output data for {key2}")
             mark_error(
                 db,
-                op.out[key],
+                op.out[key2],
                 error=Error(
                     kind=ErrorKind.MissingOutput,
                     source=op.hash,
@@ -254,39 +270,40 @@ def run_op(  # noqa:C901
 
         elif funsie.how == FunsieHow.subdag:
             # Special case for subdag, create links and update parents
-            if isinstance(val, Artefact):
-                create_link(db, op.out[key], val.hash)
-                subdag_parents += [val.parent]
+            if isinstance(val2, Artefact):
+                create_link(db, op.out[key2], val2.hash)
+                subdag_parents += [val2.parent]
             else:
                 logger.error("expected artefact, got value")
                 mark_error(
                     db,
-                    op.out[key],
+                    op.out[key2],
                     error=Error(
                         kind=ErrorKind.Mismatch,
                         source=op.hash,
                         details="subdag should have returned an artefact"
-                        + f" but it returned {val}",
+                        + f" but it returned {val2}",
                     ),
                 )
         else:
-            if isinstance(val, Artefact):
-                logger.error(f"expected value, got artefact with hash {val.hash}")
+            if isinstance(val2, Artefact):
+                logger.error(f"expected value, got artefact with hash {val2.hash}")
                 mark_error(
                     db,
-                    op.out[key],
+                    op.out[key2],
                     error=Error(
                         kind=ErrorKind.Mismatch,
                         source=op.hash,
                         details="op should have returned a value"
-                        + f" but it returned an artefact {val}",
+                        + f" but it returned an artefact {val2}",
                     ),
                 )
             else:
                 set_data(
                     db,
-                    op.out[key],
-                    _serdes.encode(funsie.out[key], val),
+                    store,
+                    op.out[key2],
+                    _serdes.encode(funsie.out[key2], val2),
                     status=ArtefactStatus.done,
                 )
 
@@ -294,7 +311,9 @@ def run_op(  # noqa:C901
         logger.success("DONE: subdag ready.")
         db.sadd(join(OPERATIONS, op.hash, "parents.subdag"), *subdag_parents)
         logger.info(f"added {len(subdag_parents)} new parent nodes")
+        cleanup()
         return RunStatus.subdag_ready
     else:
         logger.success("DONE: successful eval.")
+        cleanup()
         return RunStatus.executed

@@ -1,5 +1,6 @@
 """Test of Funsies shell capabilities."""
 # std
+from io import BytesIO
 import os
 
 # funsies
@@ -16,7 +17,7 @@ def test_shell_wrap() -> None:
 def test_shell_run() -> None:
     """Test runnign shell commands."""
     cmd = s.shell_funsie(["cat file1"], {"file1": Encoding.blob}, [])
-    inp = {"file1": b"bla bla"}
+    inp = {"file1": BytesIO(b"bla bla")}
     out = s.run_shell_funsie(cmd, inp)
     assert out[f"{s.STDOUT}0"] == b"bla bla"
 
@@ -24,7 +25,7 @@ def test_shell_run() -> None:
 def test_shell_cp() -> None:
     """Test runnign shell commands."""
     cmd = s.shell_funsie(["cp file1 file2"], {"file1": Encoding.json}, ["file2"])
-    inp = {"file1": b"bla bla"}
+    inp = {"file1": BytesIO(b"bla bla")}
     out = s.run_shell_funsie(cmd, inp)
     assert out[f"{s.STDOUT}0"] == b""
     assert out["file2"] == b"bla bla"

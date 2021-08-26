@@ -26,6 +26,8 @@ class ErrorKind(str, Enum):
     NotFound = "NotFound"
     Mismatch = "Mismatch"
     UnresolvedLink = "UnresolvedLink"
+    # Storage error
+    DataNotFound = "DataNotFound"
     # Type errors
     WrongType = "WrongType"
     JSONEncodingError = "JSONEncodingError"

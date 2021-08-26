@@ -3,20 +3,19 @@
 import os.path
 import tempfile
 
-# external
-from fakeredis import FakeStrictRedis as Redis
-
 # funsies
 from funsies import debug, Fun, shell
+from funsies._context import get_connection
 from funsies._run import run_op
+from funsies.config import MockServer
 
 
 def test_shell_run() -> None:
     """Test run on a shell command."""
-    db = Redis()
-    with Fun(db):
+    with Fun(MockServer()):
+        db, store = get_connection()
         cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"])
-        _ = run_op(db, cmd.hash)
+        _ = run_op(db, store, cmd.hash)
 
         with tempfile.TemporaryDirectory() as d:
             debug.shell(cmd, d)
@@ -32,8 +31,7 @@ def test_shell_run() -> None:
 
 def test_shell_norun() -> None:
     """Test run on a shell command that didn't run."""
-    db = Redis()
-    with Fun(db):
+    with Fun(MockServer()):
         cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"])
 
         with tempfile.TemporaryDirectory() as d:
@@ -48,8 +46,7 @@ def test_shell_norun() -> None:
 
 def test_artefact() -> None:
     """Test artefact debug."""
-    db = Redis()
-    with Fun(db):
+    with Fun(MockServer()) as db:
         cmd = shell("cat file1", inp={"file1": b"bla bla"}, out=["bla"])
 
         with tempfile.TemporaryDirectory() as d:

@@ -1,9 +1,20 @@
 """Configuration dictionaries for jobs."""
+from __future__ import annotations
+
 # std
 from dataclasses import asdict, dataclass
 import json
 import os
+import sys
 from typing import Any, Mapping, Optional, Type
+
+# external
+# redis
+from redis import Redis
+
+# module
+from ._logging import logger
+from ._storage import DiskStorage, RedisStorage, StorageEngine
 
 # Constants
 INFINITE = -1
@@ -11,15 +22,53 @@ ONE_DAY = 86400
 ONE_MINUTE = 60
 
 
-def _get_funsies_url(url: Optional[str] = None) -> str:
-    """Get the default funsies URL."""
+def _redis_connection(url: str, try_fail: bool = True) -> Redis[bytes]:
+    """Open a new redis connection."""
+    hn = _extract_hostname(url)
+    logger.info(f"connecting to {hn}")
+    db = Redis.from_url(url, decode_responses=False)
+    try:
+        db.ping()
+    except Exception as e:
+        if try_fail:
+            raise e
+        else:
+            logger.error("could not connect to server! exiting")
+            logger.error(str(e))
+            sys.exit(-1)
+    logger.debug("connection sucessful")
+    logger.success(f"connected to {hn}")
+    return db
+
+
+# --------------------------------------------------------------------------
+# Redis configuration
+# --------------------------------------------------------------------------
+def _get_redis_url(url: Optional[str] = None) -> str:
+    """Get the default funsies redis URL."""
     if url is not None:
         return url
     else:
         try:
-            default = os.environ["FUNSIES_URL"]
+            default = os.environ["FUNSIES_JOBS"]
         except KeyError:
-            default = "redis://localhost:6379"
+            try:
+                default = os.environ["FUNSIES_URL"]
+            except KeyError:
+                default = "redis://localhost:6379"
+
+    return default
+
+
+def _get_storage_url(url: Optional[str] = None) -> Optional[str]:
+    """Get the default funsies storage URL."""
+    if url is not None:
+        return url
+    else:
+        try:
+            default: Optional[str] = os.environ["FUNSIES_DATA"]
+        except KeyError:
+            default = None
         return default
 
 
@@ -32,6 +81,82 @@ def _extract_hostname(url: str) -> str:
     return hn
 
 
+class Server:
+    """Runtime options for the funsies redis server."""
+
+    # Connection settings
+    jobs_url: str
+    data_url: str
+
+    def __init__(
+        self: Server,
+        jobs_url: Optional[str] = None,
+        data_url: Optional[str] = None,
+    ) -> None:
+        """Create a new funsies server configuration."""
+        # defaults to the env variable FUNSIES_URL
+        self.jobs_url = _get_redis_url(jobs_url)
+        data_url = _get_storage_url(data_url)
+        if data_url is None:
+            self.data_url = self.jobs_url
+        else:
+            self.data_url = data_url
+
+    def new_connection(
+        self: Server, try_fail: bool = True
+    ) -> tuple[Redis[bytes], StorageEngine]:
+        """Setup job server and data connections."""
+        rdb = _redis_connection(self.jobs_url, try_fail)
+        if self.data_url == self.jobs_url:
+            store: StorageEngine = RedisStorage(rdb)
+
+        elif self.data_url[:5] == "redis":
+            logger.info(f"saving artefacts to {self.data_url}")
+            rstore = _redis_connection(self.data_url, try_fail)
+            store = RedisStorage(rstore)
+
+        elif self.data_url[:7] == "file://":
+            store = DiskStorage(self.data_url[7:])
+
+        else:
+            raise NotImplementedError(
+                f"No storage protocol corresponding to {self.data_url}\n"
+                + "did you forget to start the url with redis:// or file://?"
+            )
+
+        return rdb, store
+
+
+class MockServer(Server):
+    """Mock redis server using FakeRedis for testing."""
+
+    # Connection settings
+    redis_url: str
+    _instance: Redis[bytes]
+
+    def __init__(self: MockServer, redis_url: Optional[str] = None) -> None:
+        """Create a new funsies server configuration."""
+        if redis_url is None:
+            self.redis_url = "fakeredis://mock_server"
+        else:
+            self.redis_url = redis_url
+
+        # make the connection
+        # external
+        from fakeredis import FakeStrictRedis as Redis
+
+        self._instance = Redis()
+
+    def new_connection(
+        self: MockServer, try_fail: bool = True
+    ) -> tuple[Redis[bytes], StorageEngine]:
+        """Create a new redis connection."""
+        return self._instance, RedisStorage(self._instance)
+
+
+# --------------------------------------------------------------------------
+# Job configuration
+# --------------------------------------------------------------------------
 @dataclass
 class Options:
     """Runtime options for an Operation.

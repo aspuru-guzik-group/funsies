@@ -5,46 +5,48 @@ import tempfile
 from typing import Tuple
 
 # external
-from fakeredis import FakeStrictRedis as Redis
 import pytest
 
 # funsies
-from funsies import _graph, fp, Fun, options, ui
+from funsies import _context, _graph, fp, Fun, options, ui
 from funsies._run import run_op
+from funsies.config import MockServer
 from funsies.types import Encoding, UnwrapError
 
 
 def test_shell_run() -> None:
     """Test shell command."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         s = ui.shell("cp file1 file2", inp={"file1": b"wawa"}, out=["file2"])
-        run_op(db, s.hash)
-        assert _graph.get_data(db, s.stderr) == b""
-        assert _graph.get_data(db, s.returncode) == 0
-        assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
-        assert _graph.get_data(db, s.stdout) == b""
+        run_op(db, store, s.hash)
+        assert _graph.get_data(db, store, s.stderr) == b""
+        assert _graph.get_data(db, store, s.returncode) == 0
+        assert _graph.get_data(db, store, s.inp["file1"]) == b"wawa"
+        assert _graph.get_data(db, store, s.stdout) == b""
         assert ui.take(s.out["file2"]) == b"wawa"
 
 
 def test_shell_run2() -> None:
     """Test shell command output side cases."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         s = ui.shell("cp file1 file2", "cat file2", inp={"file1": b"wawa"})
-        run_op(db, s.hash)
-        assert _graph.get_data(db, s.inp["file1"]) == b"wawa"
+        run_op(db, store, s.hash)
+        assert _graph.get_data(db, store, s.inp["file1"]) == b"wawa"
         with pytest.raises(Exception):
-            _graph.get_data(db, s.stdout)
+            _graph.get_data(db, store, s.stdout)
         with pytest.raises(Exception):
-            _graph.get_data(db, s.stderr)
+            _graph.get_data(db, store, s.stderr)
         with pytest.raises(Exception):
-            _graph.get_data(db, s.returncode)
+            _graph.get_data(db, store, s.returncode)
 
         assert ui.take(s.stdouts[1]) == b"wawa"
 
 
 def test_store_cache() -> None:
     """Test store for caching."""
-    with Fun(Redis()):
+    with Fun(MockServer()):
         s = ui.put("bla bla")
         s2 = ui.put(b"bla bla")
         assert s != s2  # type:ignore
@@ -54,7 +56,7 @@ def test_store_cache() -> None:
 
 def test_store_cache_jsons() -> None:
     """Test store for caching."""
-    with Fun(Redis()):
+    with Fun(MockServer()):
         # more complex data types
         li = ui.put([1, 2, 3])
         assert ui.take(li) == [1, 2, 3]
@@ -65,7 +67,7 @@ def test_store_cache_jsons() -> None:
 
 def test_rm() -> None:
     """Test rm."""
-    with Fun(Redis(), options(distributed=False)):
+    with Fun(MockServer(), options(distributed=False)):
         dat = ui.put("bla bla")
         # removing const artefact raises
         with pytest.raises(AttributeError):
@@ -96,21 +98,23 @@ def test_rm() -> None:
 
 def test_morph() -> None:
     """Test store for caching."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         dat = ui.put(b"bla bla")
         morph = fp.morph(lambda x: x.decode().upper().encode(), dat)
-        run_op(db, morph.parent)
+        run_op(db, store, morph.parent)
         assert ui.take(morph) == b"BLA BLA"
 
         dat = ui.put("bla bla")
         morph = fp.morph(lambda x: x.upper(), dat, name="CAPITALIZE_THIS")
-        run_op(db, morph.parent)
+        run_op(db, store, morph.parent)
         assert ui.take(morph) == "BLA BLA"
 
 
 def test_py() -> None:
     """Test multiple output py()."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         dat = ui.put("Bla Bla")
 
         def fun(a: str) -> Tuple[str, str]:
@@ -122,14 +126,15 @@ def test_py() -> None:
             out=[Encoding.json, Encoding.json],
             strict=True,
         )
-        run_op(db, x1.parent)
+        run_op(db, store, x1.parent)
         assert ui.take(x1) == "BLA BLA"
         assert ui.take(x2) == "bla bla"
 
 
 def test_reduce() -> None:
     """Test store for caching."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         dat = ui.put("bla bla")
         morph = fp.morph(lambda x: x.upper(), dat)
 
@@ -138,14 +143,15 @@ def test_reduce() -> None:
 
         red = fp.reduce(join, morph, dat)
 
-        run_op(db, morph.parent)
-        run_op(db, red.parent)
+        run_op(db, store, morph.parent)
+        run_op(db, store, red.parent)
         assert ui.take(red) == "BLA BLAbla bla"
 
 
 def test_multi_reduce() -> None:
     """Test store for caching."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         dat = ui.put("bla bla")
         morph = fp.morph(lambda x: x.upper(), dat)
 
@@ -157,14 +163,14 @@ def test_multi_reduce() -> None:
 
         red = fp.reduce(join, morph, dat, "|wat")
 
-        run_op(db, morph.parent)
-        run_op(db, red.parent)
+        run_op(db, store, morph.parent)
+        run_op(db, store, red.parent)
         assert ui.take(red) == "BLA BLAbla bla|wat"
 
 
 def test_store_takeout() -> None:
     """Test store for caching."""
-    with Fun(Redis()):
+    with Fun(MockServer()):
         s = ui.put(3)
         with tempfile.NamedTemporaryFile() as f:
             ui.takeout(s, f.name)
@@ -174,10 +180,11 @@ def test_store_takeout() -> None:
 
 def test_wait() -> None:
     """Test waiting on things."""
-    with Fun(Redis()) as db:
+    with Fun(MockServer()):
+        db, store = _context.get_connection()
         s = ui.shell("cp file1 file2", inp={"file1": "wawa"}, out=["file2"])
         with pytest.raises(TimeoutError):
             ui.wait_for(s.stdout, timeout=0)
-        run_op(db, s.op.hash)
+        run_op(db, store, s.op.hash)
         ui.wait_for(s.stdout, timeout=0)
         ui.wait_for(s, timeout=0)

@@ -4,9 +4,6 @@ from __future__ import annotations
 # std
 from typing import Any, Sequence
 
-# external
-from fakeredis import FakeStrictRedis as Redis
-
 # funsies
 import funsies
 from funsies import (
@@ -23,6 +20,7 @@ from funsies import (
     utils,
     wait_for,
 )
+from funsies.config import MockServer
 from funsies.types import Artefact, Encoding
 
 
@@ -38,7 +36,7 @@ def upper(k: bytes) -> bytes:
 
 def test_dag_dump() -> None:
     """Test simple DAG dump to file."""
-    with Fun(Redis(), options(distributed=False)) as db:
+    with Fun(MockServer(), options(distributed=False)) as db:
         dat = put(b"bla bla")
         dat2 = put(b"blaXbla")
         errorstep = morph(raises, dat2)
@@ -55,7 +53,7 @@ def test_dag_dump() -> None:
         _dag.build_dag(db, out.hash)
         execute(step2b)
         execute(step4b)
-        wait_for(step4b)
+        wait_for(step4b, 1.0)
         reset(step4)
 
         nodes, artefacts, labels, links = _graphviz.export(db, [out.hash, step4b.hash])
