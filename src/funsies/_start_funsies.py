@@ -160,13 +160,13 @@ def main(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    time.sleep(0.1)
+    time.sleep(0.2)
     stat = redis_server.poll()
     if stat is not None:
         status_fail()
         assert redis_server.stderr is not None
         stdout = redis_server.stderr.read().decode()
-        raise RuntimeError(f"Redis server failed to start, errcode={stat}\n{stdout}")
+        print(f"ERROR: Redis server failed to start, errcode={stat}\n{stdout}")
     status_done()
 
     # wait for server to start
