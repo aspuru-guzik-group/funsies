@@ -144,15 +144,15 @@ iteration of `funsies`, and are using it in multiple ongoing inquiries. We
 provide several sample workflows on Github, with a focus on computational
 chemistry, quantum computing, and high-performance computing infrastructure.
 
-We intend to maintain `funsies` and of course welcome collaborations from
-contributors around the world.
+We intend to maintain `funsies` and of course welcome [collaborations from
+contributors around the world.](https://github.com/aspuru-guzik-group/funsies/blob/master/CONTRIBUTING.md)
 
 
 # Acknowledgements
 
-We acknowledge testing by early users Cher-Tian Ser (@chertianser), Kjell
-Jorner (@kjelljorner) and Gabriel dos Passos Gomes (@gabegomes). CL also
-thanks Chris Crebolder (@ccrebolder) for help setting up documentation pages.
+We acknowledge testing by early users Cher-Tian Ser, Kjell
+Jorner and Gabriel dos Passos Gomes. CL also
+thanks Chris Crebolder for help setting up documentation pages.
 We acknowledge the Defense Advanced Research Projects Agency (DARPA) under the
 Accelerated Molecular Discovery Program under Cooperative Agreement No.
 HR00111920027 dated August 1, 2019. The content of the information presented
