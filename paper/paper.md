@@ -49,7 +49,7 @@ exceptions are not properly caught [@weimer:2008].
 `funsies` is a set of python programs and modules to describe, execute and
 analyze computational workflows, with first-class support for shell scripting.
 It includes a lightweight, decentralized workflow engine backed by a NoSQL
-store. Using `funsies`, external program and python-based computations
+store. Using `funsies`, external programs and Python-based computations
 are easily mixed together. Errors are detected and propagated throughout
 computations. Automatic, transparent incremental computing (based on a hash
 tree data structure) provides a convenient environment for iterative
@@ -89,7 +89,7 @@ needs.
 Using the `funsies` library, general computational workflows are described in
 lazily evaluated Python code. Operations in `funsies` are taken to be pure,
 that is, all operation outputs are entirely and solely determined by their
-inputs. Workflows are orchestrated using python by manipulating pointers to
+inputs. Workflows are orchestrated using Python by manipulating pointers to
 yet-to-be-calculated data. Workflow instructions are transparently translated
 and saved as graph elements in a Redis database.
 
@@ -141,7 +141,7 @@ compile time, a technique similar to MapReduce [@dean_mapreduce_2004].
 
 As of now, we have published one project [@pollice:2021] that used an earlier
 iteration of `funsies`, and are using it in multiple ongoing inquiries. We
-provide several sample workflows on Github, with a focus on computational
+provide several sample workflows on GitHub, with a focus on computational
 chemistry, quantum computing, and high-performance computing infrastructure.
 
 We intend to maintain `funsies` and of course welcome [collaborations from
