@@ -46,7 +46,7 @@ scientific results. Conversely, exception-based error handling, the standard
 approach in Python, can readily bring a computational workflow to a halt when
 exceptions are not properly caught [@weimer:2008].
 
-`funsies` is a set of python programs and modules to describe, execute and
+`funsies` is a set of Python programs and modules to describe, execute and
 analyze computational workflows, with first-class support for shell scripting.
 It includes a lightweight, decentralized workflow engine backed by a NoSQL
 store. Using `funsies`, external programs and Python-based computations
